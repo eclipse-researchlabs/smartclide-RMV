@@ -1,0 +1,6 @@
+# execute the build from the project top directory
+# execute the resulting executable from the same place
+# the executable can then find the RUNTIME directory and its subdirectories
+
+swipl -v -o BUILD/ngac -g ngac -c NGAC/ngac.pl
+swipl -v -o BUILD/ngac-server -g ngac_server -c NGAC/ngac.pl 

@@ -1,0 +1,6 @@
+# execute the build from the project top directory (e.g. BUILD/mkrmv)
+# execute the resulting executable from the same place (e.g. BUILD/rmv)
+# the executable can then find the RUNTIME directory and its subdirectories
+
+swipl -v -o BUILD/rmv -g rmv -c RMV/rmv.pl
+swipl -v -o BUILD/rmv-server -g rmv_server -c RMV/rmv.pl 
