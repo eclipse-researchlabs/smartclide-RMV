@@ -86,7 +86,7 @@ commands_defined(advanced).
 commands_defined(developer).
 
 defined_commands(CmdSets) :- findall(CmdSet, commands_defined(CmdSet), CmdSets).
-#e.g.: defined_commands([ngac,priv,epp,rmv,basic,advanced,developer]).
+% e.g.: defined_commands([ngac,priv,epp,rmv,basic,advanced,developer]).
 
 %
 syntax(advanced,                                    basic).

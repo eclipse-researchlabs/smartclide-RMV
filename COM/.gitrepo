@@ -6,7 +6,7 @@
 [subrepo]
 	remote = ../COM
 	branch = master
-	commit = 2d728c33a78f71f0b8092264e92014372dca20b1
-	parent = 7cfdff370ee8fd8892d85554ac46f6d99d876820
+	commit = 9c8b7950df40240f276eb1fbe87826256f824c56
+	parent = 3a8404ce71b8618d23cbfd4b3e5f674f1f7b1cc7
 	method = merge
 	cmdver = 0.4.3
