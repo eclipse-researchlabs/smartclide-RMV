@@ -58,14 +58,35 @@
 % Commands are listed alphabetically in syntax/2, semantics/1 and do/1
 % These declarations may also be made in separate files and included.
 
-:- discontiguous syntax/2, semantics/1, help/2, do/1.
+:- discontiguous syntax/2, semantics/1, help/2, do/1, commands_defined/1.
 
+
+:- if( exists_file('NGAC/command_ngac.pl') ).
 :- include('NGAC/command_ngac.pl').
-:- include('PRIV/command_priv.pl').
-:- include('EPP/command_epp.pl').
-:- include('RMV/command_rmv.pl').
+commands_defined(ngac).
+:- endif.
 
-defined_commands([ngac,priv,epp,rmv,basic,advanced,developer]).
+:- if( exists_file('PRIV/command_priv.pl') ).
+:- include('PRIV/command_priv.pl').
+commands_defined(priv).
+:- endif.
+
+:- if( exists_file('EPP/command_epp.pl') ).
+:- include('EPP/command_epp.pl').
+commands_defined(epp).
+:- endif.
+
+:- if( exists_file('RMV/command_rmv.pl') ).
+:- include('RMV/command_rmv.pl').
+commands_defined(rmv).
+:- endif.
+
+commands_defined(basic).
+commands_defined(advanced).
+commands_defined(developer).
+
+defined_commands(CmdSets) :- findall(CmdSet, commands_defined(CmdSet), CmdSets).
+#e.g.: defined_commands([ngac,priv,epp,rmv,basic,advanced,developer]).
 
 %
 syntax(advanced,                                    basic).
