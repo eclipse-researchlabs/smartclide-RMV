@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!-- trace[] = {0, 0, 0, 1, 1, 1, 1, 1, 0, 0, 0, 1, 0, 0, 0, 0};
+     from KSS example (p = 0, q = 1)
+ -->
+<counter-example type="0" id="1" desc="LTL Counterexample" >
+	<node>
+		<state id="1">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<node>
+		<state id="2">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<node>
+		<state id="3">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<node>
+		<state id="4">
+			<value variable="p">FALSE</value>
+			<value variable="q">TRUE</value>
+		</state>
+	</node>
+	<node>
+		<state id="5">
+			<value variable="p">FALSE</value>
+			<value variable="q">TRUE</value>
+		</state>
+	</node>
+	<node>
+		<state id="6">
+			<value variable="p">FALSE</value>
+			<value variable="q">TRUE</value>
+		</state>
+	</node>
+	<node>
+		<state id="7">
+			<value variable="p">FALSE</value>
+			<value variable="q">TRUE</value>
+		</state>
+	</node>
+	<node>
+		<state id="8">
+			<value variable="p">FALSE</value>
+			<value variable="q">TRUE</value>
+		</state>
+	</node>
+	<node>
+		<state id="9">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<node>
+		<state id="10">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<node>
+		<state id="11">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<node>
+		<state id="12">
+			<value variable="p">FALSE</value>
+			<value variable="q">TRUE</value>
+		</state>
+	</node>
+	<node>
+		<state id="13">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<node>
+		<state id="14">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<node>
+		<state id="15">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<node>
+		<state id="16">
+			<value variable="p">TRUE</value>
+			<value variable="q">FALSE</value>
+		</state>
+	</node>
+	<loops> </loops>
+</counter-example>

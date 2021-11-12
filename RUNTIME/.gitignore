@@ -1,10 +1,4 @@
 .DS_Store
-GRAPHS/*.dot
-GRAPHS/*.png
-GRAPHS/*.pdf
-LOG/audit*
-LOG/epp*
-MONITORS/*.xml
-MONITORS/*.ord
-MONITORS/*.smv
-POLICIES/*.pl
+
+LOG/audit_log*
+LOG/epp_log*
