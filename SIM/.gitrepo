@@ -1,0 +1,12 @@
+; DO NOT EDIT (unless you know what you are doing)
+;
+; This subdirectory is a git "subrepo", and this file is maintained by the
+; git-subrepo command. See https://github.com/git-commands/git-subrepo#readme
+;
+[subrepo]
+	remote = ../SIM
+	branch = master
+	commit = d421cb7786ce4ebe0abf19bed76374e17cafe436
+	parent = dd72ddb4dd67bb0e2f66d90546bf112344873061
+	method = merge
+	cmdver = 0.4.3
