@@ -156,21 +156,27 @@ struct_trace(XMLstruct,Trace) :-
 %	app_run(App,Monitor,AppTrace,MonTrace)
 %
 
-app_run(Session, Trace) :-
-	Trace = trace(_TraceId, States),
-	run_trace(default_monitor,States,Session).
-
+% app_run/3 - use run_trace/2 (console output only)
+% app_run/3 -> run_trace/2 -> run_tract_do/3
 app_run(App,Monitor,Trace) :-
 	is_app(App,_AppId,_AppVars,_AppTS,_AppInputVars,_AppOutputVars,_AppCurrentInput,_AppCurrentOutput),
 	is_monitor(Monitor,_MonId,_MonState,_MonTS,_MonObservables,_MonOut,_MonCurrentInput,_MonCurrentOutput),
 	is_trace(Trace, _TraceId, States),
-	run_trace(Monitor,States).
+	run_trace(Monitor,States). % console output only
 
+% app_run/2 - use run_trace/3  (use NuRV monitor)
+% app_run/2 -> run_trace/3 -> run_tract_do/4
+app_run(Session, Trace) :-
+	Trace = trace(_TraceId, States),
+	run_trace(default_monitor,States,Session).
+
+% run_trace/2 - for each state run_trace_do/3
 run_trace(_,[]) :- !.
 run_trace(Mon,[State|States]) :-
-	run_trace_do(Mon,State,NewMon),
+	run_trace_do(Mon,State,NewMon), % console output only
 	run_trace(NewMon,States).
 
+% run_trace/3 - for each state run_trace_do/4
 run_trace(_,[],_Sid) :-
 	% quit the session
 	!.
@@ -178,11 +184,13 @@ run_trace(Mon,[State|States],Sid) :-
 	run_trace_do(Mon,State,NewMon,Sid),
 	run_trace(NewMon,States,Sid).
 
+% run_trace_do/3 just output the heartbeat info showing all variables
 run_trace_do(Mon,State,NewMon) :-
 	State = state(N, Vars),
 	format('heartbeat ~w ~q~n',[N,Vars]),
 	NewMon = Mon.
 
+% run_trace_do/4 send heartbeat command to NuRV with true variable
 run_trace_do(Mon,State,NewMon,Sid) :-
 	State = state(_, Vars),
 	memberchk(V='TRUE',Vars),
@@ -198,9 +206,11 @@ run_trace_do(Mon,State,NewMon,Sid) :-
 %
 % test2 - open and quit interactive NuRV session
 %
-% test3 - convert XML trace file and simulate run printing heartbeats
+% test3 - convert XML trace file and simulate run printing heartbeat info
 %
-% test4 -
+% test4 - convert XML trace file & truncate, open NuRV session, create
+%	  monitor and run trace sending each state to monitor, close
+%	  session
 %
 test :- open_nurv_session(Sid), format('NuRV session ~a~n',Sid),
 	nu_tl(Sid), close_nurv_session(Sid), writeln('session ended'), !.
@@ -212,7 +222,7 @@ test3 :- % test trace conversion and app_run stubs
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/','disjoint_trace.xml'],TraceFile),
 	xml_trace(TraceFile,Trace),
-	app_run(_App,_Mon,Trace).
+	app_run(_App,_Mon,Trace). % this version only outputs heartbeat info
 
 test4 :- % test trace interactively with NuRV monitor
 	param:monitor_directory_name(MD),
@@ -222,7 +232,9 @@ test4 :- % test trace interactively with NuRV monitor
 	open_nurv_session(Sid), % format('NuRV session ~a~n',Sid),
 	nurv_session_get_resp(Sid),
 	% need to initialize the session with the monitor
-	nurv_monitor_init('MONITORS/disjoint.smv','MONITORS/disjoint.ord',Sid),
+	atomic_list_concat([MD,'/','disjoint.smv'],SMVFile),
+	atomic_list_concat([MD,'/','disjoint.ord'],OrdFile),
+	nurv_monitor_init(SMVFile,OrdFile,Sid),
 	app_run(Sid,TTrace),
 	%nu_tl(Sid),close_nurv_session(Sid),
 	quit_nurv_session(Sid),
