@@ -1,4 +1,5 @@
 % simple MONITOR SENSOR sim
+%   currently just sents one heartbeat message to RMV
 
 :- module(sim_sensor, [mon_start/0, mon_start/1, sensor/1]).
 
@@ -21,6 +22,7 @@ sensor(Arg) :-
 	gen_heartbeat(Arg).
 
 gen_heartbeat(Arg) :-
+	% construct and sent heartbeat message to RMV
 	term_to_atom(Arg,ArgAtom),
 	rmv_url(RMV_URL), atom_concat(RMV_URL,'heartbeat',HeartbeatURL),
 	rmv_token(RMVtoken),
@@ -28,5 +30,5 @@ gen_heartbeat(Arg) :-
 	format('making RMV call: ~q~n',[RMVcall]),
 	% http_get(RMVcall,Result,[]), % call the RMV
 	( Result == success ; Result == continue ; true ), % accept any result
-	format('RMV call RESULT: ~q~n',[Result]), flush_output,
+	format('RMV heartbeat call RESULT: ~q~n',[Result]), flush_output,
 	true.

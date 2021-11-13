@@ -1,6 +1,8 @@
-% RMV external services simulation
-% service/monitor execution
-% can be used inside RMV or run as a standalone sim process
+% RMV external services simulation -
+%    Service Creation, Service Deployment, Execution Control
+%
+% service/monitor execution can be used inside RMV or run as
+% a standalone sim process
 
 :- module(ext_svcs, [ext_execute_service/2,ext_get_service_spec/2,
 	  ext_service_spec2service/2, ext_deploy_service_with_monitor/3]).
