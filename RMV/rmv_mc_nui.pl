@@ -6,7 +6,7 @@
 		      nurv_session_cmd/2,nurv_session_cmd_resp/2,nurv_session_get_resp/1
 		     ]).
 
-:- use_module(['COM/param',rmv_ml,rmv_mc,'COM/ui']).
+:- use_module(['COM/param','COM/ui','COM/sessions',rmv_ml,rmv_mc]).
 
 % Interactive
 %
@@ -193,6 +193,15 @@ run_trace_do(Mon,State,NewMon,Sid) :-
 
 % tests
 %
+% test - open interactive NuRV session, enter top-level loop relaying comms
+%        close the session after user quits the interactive loop
+%
+% test2 - open and quit interactive NuRV session
+%
+% test3 - convert XML trace file and simulate run printing heartbeats
+%
+% test4 -
+%
 test :- open_nurv_session(Sid), format('NuRV session ~a~n',Sid),
 	nu_tl(Sid), close_nurv_session(Sid), writeln('session ended'), !.
 
@@ -201,19 +210,19 @@ test2 :- open_nurv_session(Sid), format('NuRV session ~a~n',Sid),
 
 test3 :- % test trace conversion and app_run stubs
 	param:monitor_directory_name(MD),
-	atomic_list_concat([MD,'/','trace.xml'],TraceFile),
+	atomic_list_concat([MD,'/','disjoint_trace.xml'],TraceFile),
 	xml_trace(TraceFile,Trace),
 	app_run(_App,_Mon,Trace).
 
 test4 :- % test trace interactively with NuRV monitor
 	param:monitor_directory_name(MD),
-	atomic_list_concat([MD,'/','trace.xml'],TraceFile),
+	atomic_list_concat([MD,'/','disjoint_trace.xml'],TraceFile),
 	xml_trace(TraceFile,Trace),
 	truncate_trace(Trace,TTrace),
 	open_nurv_session(Sid), % format('NuRV session ~a~n',Sid),
 	nurv_session_get_resp(Sid),
 	% need to initialize the session with the monitor
-	nurv_monitor_init('MONITORS/disjoint_model.smv','MONITORS/default.ord',Sid),
+	nurv_monitor_init('MONITORS/disjoint.smv','MONITORS/disjoint.ord',Sid),
 	app_run(Sid,TTrace),
 	%nu_tl(Sid),close_nurv_session(Sid),
 	quit_nurv_session(Sid),
