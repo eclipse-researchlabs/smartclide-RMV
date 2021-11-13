@@ -5,6 +5,6 @@
 	       ]).
 
 :- use_module('COM/param').
-:- use_module('EPP/epp').
-:- use_module('EPP/eppapi').
+%:- use_module('EPP/epp').
+%:- use_module('EPP/eppapi').
 

@@ -1,14 +1,16 @@
 % Runtime Monitoring and Verification
 
 :- module(rmv, [rmv/0,rmv/1,rmv/4,rmv_server/0]).
-:- use_module([rmv_server,
-       'AUDIT/audit','AUDIT/auditapi','EPP/eppapi',rmv_lnapi,rmv_mrapi,rmv_mcapi,
+:- use_module([
+       %rmv_server,
+       'AUDIT/audit','AUDIT/auditapi',
+       rmv_lnapi,rmv_mrapi,rmv_mcapi,
        rmv_aa,rmv_la,rmv_na,
        rmv_ml,       % rmv_ml_mt,rmv_ml_pst,
        rmv_mc,       % rmv_mc_cm,rmv_mc_cps,
        rmv_mf,       % rmv_mf_epp,
-       'COM/param','COM/command','COM/test','COM/procs',
-       'EPP/erl','EPP/epp','EPP/epp_cpa','EPP/epp_era'
+       'COM/param','COM/command','COM/test','COM/procs'%,
+       %'EPP/erl','EPP/epp','EPP/epp_cpa','EPP/epp_era','EPP/eppapi'
    ]).
 :- use_module('SIM/ext_svcs').
 

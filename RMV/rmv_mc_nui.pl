@@ -6,7 +6,7 @@
 		      nurv_session_cmd/2,nurv_session_cmd_resp/2,nurv_session_get_resp/1
 		     ]).
 
-:- use_module(['COM/param','NGAC/sessions',rmv_ml,rmv_mc,'COM/ui']).
+:- use_module(['COM/param',rmv_ml,rmv_mc,'COM/ui']).
 
 % Interactive
 %
