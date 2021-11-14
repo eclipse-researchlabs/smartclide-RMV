@@ -17,6 +17,9 @@ create_smv_model(SSpecId, SSpecBody, SMVmodel) :-
     atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
     is_model(SMVmodel,ModelId),
     model2smv_file(Model,SMVmodelFile),
+    atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
+    % temporary - must get the variables from the model
+    ord2ord_file('p\nq\n',SMVordFile),
     true.
 
 magic(_SS,_M).
@@ -29,3 +32,9 @@ model2smv_file(M,SMVfile) :-
 
 model2text(_M,Txt) :-
     Txt = 'MODULE main\nVAR\n\tp : boolean;\n\tq : boolean;\nINVAR\n\tp != q\nLTLSPEC\n\tp U q\n'.
+
+ord2ord_file(Ord,OrdFile) :-
+    open(OrdFile,write,Str,[create([default])]),
+    write(Str,Ord),
+    close(Str).
+

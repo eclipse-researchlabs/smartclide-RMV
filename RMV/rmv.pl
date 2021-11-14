@@ -151,10 +151,10 @@ deploy_service_with_monitor(Service, Monitor, Deployment) :-
 
 
 % End-to-End test of monitor construction and execution - all within RMV
-% rmv:e2etest1->e2etest1: truncated trace states to ServiceCreationContext
-% e2etest1:
-
-e2etest1 :-
+% rmv:e2e1, rmv:e2e1: truncated trace states to ServiceCreationContext
+%
+%
+e2e1 :-
 	% SCENARIO:
 	% service creation calls monitor creation API to create a monitor
 	% service and monitor are executed (or simulated execution)
@@ -185,9 +185,9 @@ e2etest1 :-
 	!.
 
 % End-to-End test of monitor construction and execution in separate process
-%
+% e2e2
 
-e2etest2 :-
+e2e2 :-
 	% SCENARIO: as above up to deployment and execution
 	trc(T), rmv_mc_nui:truncate_trace( T, trace(_,States)),
 	ServiceCreationContext = [trace=States],

@@ -151,7 +151,8 @@ initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),
 	nurv_session_get_resp(SessId),
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
-	nurv_monitor_init(SMVmodelFile,'MONITORS/default.ord',SessId),
+	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
+	nurv_monitor_init(SMVmodelFile,SMVordFile,SessId),
 	true.
 
 % monitor controls
