@@ -1,0 +1,4 @@
+# execute the build from the project top directory (e.g. SIM/mksim)
+swipl -v -o SIM/app -g app -c SIM/sim_app.pl
+swipl -v -o SIM/svcs -g exec_sim -c SIM/ext_svcs.pl
+
