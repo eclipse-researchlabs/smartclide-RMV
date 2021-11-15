@@ -1,4 +1,4 @@
-% RMV external services simulation -
+% RMV external services interface / simulation -
 %    Service Creation, Service Deployment, Execution Control
 %
 % service/monitor execution can be used inside RMV or run as
@@ -9,6 +9,7 @@
 
 :- use_module('RMV/rmv_ml').
 :- use_module('RMV/rmv_mc_nui').
+:- use_module('SIM/sim_app').
 
 :- use_module(library(http/http_client)).
 
@@ -111,20 +112,11 @@ ext_deploy_service_with_monitor(Service, Monitor, Deployment) :-
 
 % EXECUTION SIMULATION (using state sequence from service)
 
-ext_execute_service( local, Deployment ) :- !,
+ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	is_deployment(Deployment, Service, Monitor),
 	is_service(Service,_,_,_,_,_,_,States),
-	initiate_service(local,Service),
 	initiate_monitor(Monitor,SessionId),
-	sim_exec_steps(Deployment, SessionId, States),
-	terminate_monitor(SessionId).
-
-ext_execute_service( remote, Deployment ) :- !,
-	is_deployment(Deployment, Service, Monitor),
-	is_service(Service,_,_,_,_,_,_,States),
-	initiate_service(remote,Service),
-	initiate_monitor(Monitor,SessionId),
-	sim_exec_steps(Deployment, SessionId, States),
+	initiate_service(RemOrLoc,Service,Deployment,SessionId,States),
 	terminate_monitor(SessionId).
 
 % simulated stepping of the service
@@ -141,9 +133,15 @@ sim_exec_step(_Deployment, Sid, Step) :-
 	% Step the service and step the monitor
 	step_monitor(Assignments,Sid).
 
-initiate_service(local,S) :- !, is_service(S).
-initiate_service(remote,S) :- !, is_service(S),
+% local service simulation requires no initiation
+initiate_service(local,Service,Deployment,SessionId,States) :- !, is_service(Service),
+	sim_exec_steps(Deployment, SessionId, States).
+
+% remote service simulation is run in a separate process
+initiate_service(remote,Service,Deployment,SessionId,States) :- !, is_service(Service),
         % execute the sim_app with sim_sensor
+	sim_app:app,
+	sim_exec_steps(Deployment, SessionId, States),
 	true.
 
 initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),

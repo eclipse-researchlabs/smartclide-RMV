@@ -67,7 +67,6 @@ nurv_monitor_init(Infile,Ordfile,Sid) :-
 	nurv_session_cmd_resp(Sid,Cmd1),
 	nurv_session_cmd_resp(Sid,Cmd2),
 	nurv_session_cmd_resp(Sid,go),
-	% nurv_session_cmd_resp(Sid,go_msat), % no longer needed in NuRV 1.6.1
 	nurv_session_cmd_resp(Sid,'build_monitor -n 0'),
 	true.
 

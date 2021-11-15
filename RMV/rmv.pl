@@ -150,11 +150,11 @@ deploy_service_with_monitor(Service, Monitor, Deployment) :-
 
 
 
-% End-to-End test of monitor construction and execution - all within RMV
-% rmv:e2e1, rmv:e2e1: truncated trace states to ServiceCreationContext
+% End-to-End test of monitor construction and execution
+% run within RMV or in a separate process according to the
+% argument value: remote or local.
 %
-%
-e2e1 :-
+e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	% SCENARIO:
 	% service creation calls monitor creation API to create a monitor
 	% service and monitor are executed (or simulated execution)
@@ -181,20 +181,6 @@ e2e1 :-
 
 	deploy_service_with_monitor(Service,Monitor,Deployment),
 
-	ext_execute_service(local,Deployment),
+	ext_execute_service(RemOrLoc,Deployment),
 	!.
-
-% End-to-End test of monitor construction and execution in separate process
-% e2e2
-
-e2e2 :-
-	% SCENARIO: as above up to deployment and execution
-	trc(T), rmv_mc_nui:truncate_trace( T, trace(_,States)),
-	ServiceCreationContext = [trace=States],
-	get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the trace
-	service_spec2service(ServiceSpec,Service),
-	service_spec2monitor(ServiceSpec,Monitor),
-	deploy_service_with_monitor(Service,Monitor,Deployment),
-	ext_execute_service(remote,Deployment),
-	!.
-
+e2e(_) :- writeln('specify remote or local').

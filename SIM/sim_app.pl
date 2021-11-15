@@ -16,6 +16,9 @@ app(Port) :-
 	format('talking to RMV at port ~d~n',[Port]),
 	reset_state,
 	mon_start,
+	true.
+
+app_go :-
 	sim_execution, !,
 	post_execution.
 
