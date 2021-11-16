@@ -4,6 +4,7 @@
 %
 syntax(rmv,                            basic).
 syntax(rmv_server,                                               rmv).
+syntax(rmvt,                                                     rmv).
 
 syntax(sspec_smv(serv_spec_id,smv_model),                        rmv).
 syntax(sspec_ltl(serv_spec_id,ltl_props),                        rmv).
@@ -44,6 +45,7 @@ do(rmv) :- !, user_mode(M), retractall(user_mode(_)), assert(user_mode(rmv)),
 	param:prompt_string(rmv,Prompt), param:setparam(prompt_string,Prompt),
 	rem_commands(M), add_commands(rmv), banner(rmv).
 do(rmv_server) :- !, writeln('not starting rmv_server'). % rmv_server:rmv_server.
+do(rmvt) :- !, ext_svcs:e2e_api(test).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % command procedures
 %

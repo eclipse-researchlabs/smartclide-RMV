@@ -13,6 +13,7 @@
        %'EPP/erl','EPP/epp','EPP/epp_cpa','EPP/epp_era','EPP/eppapi'
    ]).
 :- use_module('SIM/ext_svcs').
+:- use_module(library(http/http_client)).
 
 % :- include(rmv_test).
 
@@ -132,6 +133,11 @@ regression_test_rmv :-
 %
 % links to external services
 %
+ext_run :-
+	URL = 'http://127.0.0.1:8003/exec/e2e',
+	atomic_list_concat([URL,'?mode=',remote],Call),
+	http_get(Call,Result,[]),
+	writeln(Result), flush_output.
 
 % Retrieve service spec
 %

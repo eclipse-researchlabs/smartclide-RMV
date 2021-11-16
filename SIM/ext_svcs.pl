@@ -4,10 +4,12 @@
 % service/monitor execution can be used inside RMV or run as
 % a standalone sim process
 
-:- module(ext_svcs, [ext_execute_service/2,ext_get_service_spec/2,
+:- module(ext_svcs, [ext_execute_service/2,ext_get_service_spec/2, exec_sim/0,
 	  ext_service_spec2service/2, ext_deploy_service_with_monitor/3]).
 
+:- use_module('COM/param').
 :- use_module('RMV/rmv_ml').
+:- use_module('RMV/rmv_mc').
 :- use_module('RMV/rmv_mc_nui').
 :- use_module('SIM/sim_app').
 
@@ -20,11 +22,13 @@
 :- use_module(library(http/http_parameters)).
 
 %-------------------------------------------------------
-% SYSTEM CONTROL SIMULATION
+% SYSTEM CONTROL SIMULATION DRIVER
 %
 % End-to-End test of monitor construction and execution
 % run within RMV or in a separate process according to the
 % argument value: remote or local.
+%
+% The rmvt command in the RMV tool calls this through e2e_api
 %
 e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	% SCENARIO:
@@ -38,14 +42,17 @@ e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	% monitor framework EPP passes each monitor output and NuRV output to EPP
 	% EPP takes further response action if an event pattern is matched, incl logging/notification
 
-	% use state sequence from a predefined trace for this test, pass in with the Context
+	% use state sequence from a predefined trace for this test,
+	% pass it in with the ServiceCreationContext
+
 	trc(T), rmv_mc_nui:truncate_trace( T, trace(_,States)),
 	ServiceCreationContext = [trace=States],
 
 	% get specificaiton of the service
 	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the trace
 
-	% create the service from the service spec - this is done by SmartCLIDE service creation
+	% create the service from the service spec
+	% in the real system this is done by SmartCLIDE service creation
 	ext_service_spec2service(ServiceSpec,Service),
 
 	% create the monitor from the service spec
@@ -59,78 +66,67 @@ e2e(_) :- writeln('specify remote or local').
 
 
 %-------------------------------------------------------
-% SERVICE CREATION SIMULATION
-%
-
-% a service is being created and RMV is called to create a monitor
-ext_create_service(SS) :-
-	is_service_spec(SS),
-	ext_service_spec2service(SS,Service),
-	create_monitor(SS,Monitor),
-	ext_deploy_service_with_monitor(Service,Monitor,Deployment),
-	is_deployment(Deployment).
-
-%ext_service_spec2service(ServiceSpec,Service) :-
-%	is_service_spec(ServiceSpec),
-%	is_service(Service).
-
-% end SERVICE CREATION SIMULATION
-%-------------------------------------------------------
-
-
-%-------------------------------------------------------
-% SERVICE DEPLOYMENT SIMULATION
-%
-
-% a service and its monitor are ready to be deployed
-%ext_deploy_service_with_monitor(S,M,D) :-
-%	is_service(S), is_monitor(M),
-%	is_deployment(D).
-
-% end SERVICE DEPLOYMENT SIMULATION
-%-------------------------------------------------------
-
-
-%-------------------------------------------------------
-% EXECUTION CONTROL SIMULATION
-%
-
-% a service-monitor is to be executed
-%ext_execute_service(_,_).
-
-% end EXECUTION CONTROL SIMULATION
-%-------------------------------------------------------
-
 % EXEC SIM API
+%   only used in standalone ext_svcs for 'remote' test
+%
 :- http_handler(root(.), use_valid_api, []).
 :- http_handler(root('exec'), root_apis('exec'), []).
 :- http_handler(root('exec/'), api_unimpl, [prefix]).
 :- http_handler(root('exec/exec_notification_registration'), execapi_notification_reg, [prefix]).
+:- http_handler(root('exec/e2e'), execapi_e2e, [prefix]).
 
-exapi([exec_notification_registration]). % EXEC SIM API
+execapi([exec_notification_registration, e2e]). % EXEC SIM API
 
-% EXEC SIM SERVER
+% EXEC SIM SERVER entry point and stop server
 
 exec_sim :- exec_sim(8003). % entry point for running as ext server
 
 exec_sim(Port) :-
 	format('Exec sim starting~n'),
 	http_server(http_dispatch, [port(Port)]),
-	format('Exec sim listening on port ~d~n',[Port]).
+	format('Exec sim listening on port ~d~n',[Port]),
+	param:server_sleeptime(S), go_to_sleep(S).
 
+stop_sim :- stop_sim(8003).
+
+stop_sim(Port) :-
+	writeln('Stopping sim server'),
+	thread_httpd:http_stop_server(Port,[]),
+	writeln('Sim server stopped').
+
+go_to_sleep(S) :-
+	sleep(S),
+	periodic_goals,
+	go_to_sleep(S).
+
+periodic_goals :-
+	% add periodic goals here
+	true.
+
+
+%-------------------------------------------------------
 % EXTERNAL SERVICES SIMULATION
 
-% Retrieve service spec simulation
+% Retrieve service spec simulation stub
 %
-
 ext_get_service_spec(ServiceCreationContext, ServiceSpec) :-
 	AddedItems = [],
 	append(ServiceCreationContext,AddedItems,B),
 	is_service_spec(ServiceSpec, ssid_001, Sbody ),
 	is_service_spec_body( Sbody, B ).
 
-% Service creation simulation
+
+%-------------------------------------------------------
+% SERVICE CREATION SIMULATION
 %
+
+% a service is being created and RMV is called to create a monitor
+ext_create_service(SS) :- % not called currently
+	is_service_spec(SS),
+	ext_service_spec2service(SS,Service),
+	create_monitor(SS,Monitor),
+	ext_deploy_service_with_monitor(Service,Monitor,Deployment),
+	is_deployment(Deployment).
 
 ext_service_spec2service(ServiceSpec, Service) :-
 	is_service_spec(ServiceSpec, SSid, SSb),
@@ -142,14 +138,28 @@ ext_service_spec2service(ServiceSpec, Service) :-
 	atom_concat(ssid_,N,SSid), atom_concat(servid_,N,ServId),
 	is_service(Service,ServId,_,_,_,_,_,T).
 
-% Deployment simulation
+% end SERVICE CREATION SIMULATION
+%-------------------------------------------------------
+
+
+%-------------------------------------------------------
+% SERVICE DEPLOYMENT SIMULATION
+% a service and its monitor are ready to be deployed
 %
 
 ext_deploy_service_with_monitor(Service, Monitor, Deployment) :-
+%	is_service(Service), is_monitor(Monitor),
 	is_deployment(Deployment,Service,Monitor),
 	true.
 
-% EXECUTION SIMULATION (using state sequence from service)
+% end SERVICE DEPLOYMENT SIMULATION
+%-------------------------------------------------------
+
+
+%-------------------------------------------------------
+% EXECUTION CONTROL SIMULATION
+% (using state sequence from service)
+%
 
 ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	is_deployment(Deployment, Service, Monitor),
@@ -158,7 +168,12 @@ ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc =
 	initiate_service(RemOrLoc,Service,Deployment,SessionId,States),
 	terminate_monitor(SessionId).
 
-% simulated stepping of the service
+% end EXECUTION CONTROL SIMULATION
+%-------------------------------------------------------
+
+
+%-------------------------------------------------------
+% STEP - simulated stepping of the service
 %
 sim_exec_steps(_, _, []).
 sim_exec_steps(Deployment, Sid, [Step|Steps]) :-
@@ -172,7 +187,13 @@ sim_exec_step(_Deployment, Sid, Step) :-
 	% Step the service and step the monitor
 	step_monitor(Assignments,Sid).
 
-% local service simulation requires no initiation
+% end STEP SIMULATION
+%-------------------------------------------------------
+
+
+%-------------------------------------------------------
+% INITIATE THE SERVICE
+%
 initiate_service(local,Service,Deployment,SessionId,States) :- !, is_service(Service),
 	sim_exec_steps(Deployment, SessionId, States).
 
@@ -183,6 +204,9 @@ initiate_service(remote,Service,Deployment,SessionId,States) :- !, is_service(Se
 	sim_exec_steps(Deployment, SessionId, States),
 	true.
 
+%-------------------------------------------------------
+% INITIATE THE MONITOR SESSION
+%
 initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),
         open_nurv_session(SessId), % format('NuRV session ~a~n',Sid),
 	nurv_session_get_resp(SessId),
@@ -192,6 +216,7 @@ initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),
 	nurv_monitor_init(SMVmodelFile,SMVordFile,SessId),
 	true.
 
+%-------------------------------------------------------
 % monitor controls
 %
 step_monitor(Assignments,SessId) :-
@@ -199,9 +224,6 @@ step_monitor(Assignments,SessId) :-
 	format(atom(Cmd),'heartbeat -n 0 ~w',[Argatom]),
 	nurv_session_cmd_resp(SessId,Cmd).
 
-terminate_monitor(SessId) :-
-	quit_nurv_session(SessId),
-	writeln('session ended').
 
 assignments2argatom([], '') :- !.
 assignments2argatom(Assignments, Argatom) :-
@@ -218,9 +240,13 @@ assignments2argatom(Assignments, Argatom) :-
 %	format('heartbeat ~w ~q~n',[N,Var]),
 %        true.
 
+terminate_monitor(SessId) :-
+	quit_nurv_session(SessId),
+	writeln('session ended').
 
 % ------------------------------------------------------------------------
-
+% API IMPLEMENTATION
+%
 % called from the exec_notification_registration API
 execapi_notification_reg(Request) :-
 	std_resp_prefix,
@@ -243,6 +269,23 @@ execapi_notification_reg(Request) :-
 notification_reg(Vars,URL,Token) :-
 	exec_notification_registration_sim(Vars,URL,Token),
 	true.
+
+% this is used to enter end-to-end test in simulated environment
+execapi_e2e(Request) :-
+	std_resp_prefix,
+	catch(
+	     http_parameters(Request,[
+				     ]),
+	    E,writeln('missing parameter')),	!,
+	(   nonvar(E)
+	->  writeln(failure)
+	;   writeln('E2E called'),
+	    e2e_api(local),
+	    writeln(success)
+	).
+
+e2e_api(test) :- !, writeln('e2e_api local test'), e2e(local).
+e2e_api(Mode) :- writeln(e2e_api), e2e(Mode).
 
 % ------------------------------------------------------------------------
 % SERVICE / MONITOR EXECUTION SIMULATION
