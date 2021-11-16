@@ -6,7 +6,7 @@
 [subrepo]
 	remote = ../SIM
 	branch = master
-	commit = 18d91cd7fe3e4c2720c8b63692f5b4620923ddb9
-	parent = 683d986ef05390456d5db218b376f7173f9763c2
+	commit = e0a7fad684eef3fb3f3fce5861a5d7130c4d28e1
+	parent = 0effa2b4ee76794217d4137399b953ceccd9e821
 	method = merge
 	cmdver = 0.4.3
