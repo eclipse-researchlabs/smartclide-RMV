@@ -148,39 +148,3 @@ service_spec2service(ServiceSpec, Service) :-
 deploy_service_with_monitor(Service, Monitor, Deployment) :-
 	ext_deploy_service_with_monitor(Service, Monitor, Deployment).
 
-
-
-% End-to-End test of monitor construction and execution
-% run within RMV or in a separate process according to the
-% argument value: remote or local.
-%
-e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
-	% SCENARIO:
-	% service creation calls monitor creation API to create a monitor
-	% service and monitor are executed (or simulated execution)
-	% execution initialization notifies monitoring framework of monitor execution
-	% monitor session is established with NuRV
-	% monitor framework notifies execution that MF is ready to receive monitor outputs
-	% execution proceeds sending monitor outputs
-	% monitor framework sends each monitor output to NuRV which returns its output
-	% monitor framework EPP passes each monitor output and NuRV output to EPP
-	% EPP takes further response action if an event pattern is matched, incl logging/notification
-
-	% use state sequence from a predefined trace for this test, pass in with the Context
-	trc(T), rmv_mc_nui:truncate_trace( T, trace(_,States)),
-	ServiceCreationContext = [trace=States],
-
-	% get specificaiton of the service
-	get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the trace
-
-	% create the service from the service spec - this is done by SmartCLIDE service creation
-	service_spec2service(ServiceSpec,Service),
-
-	% create the monitor from the service spec
-	service_spec2monitor(ServiceSpec,Monitor),
-
-	deploy_service_with_monitor(Service,Monitor,Deployment),
-
-	ext_execute_service(RemOrLoc,Deployment),
-	!.
-e2e(_) :- writeln('specify remote or local').
