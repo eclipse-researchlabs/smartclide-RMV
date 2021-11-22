@@ -145,15 +145,15 @@ S->MS: 𝓜𝑺 Step 𝓥
 MS->MS: evaluate 𝓐(𝓥)
 MS->MEP: heartbeat 𝓜id, 𝓥, 𝓐
 MEP->Mserv: heartbeat 𝓜id, 𝓐
-Mserv-->MEP: NuRV verdict 𝓑4 [⟙/⟘/?/!]
+Mserv-->MEP: NuRV 𝓜 verdict: 𝓑4 [⟙/⟘/?/!]
 MEP->NA: [If monitor\nnotifications] 
 NA->CXH: Monitor Report: 𝓥, 𝓐(𝓥), NuRV Verdict 𝓑4 [⟙/⟘/?/!]
 
-alt [⟙/? response from monitor 𝓜]
+alt [NuRV 𝓜 Verdict is ⟙/?]
 MEP->MEP: do nothing
 MEP-->MS: return from heartbeat Recover=F
 
-else [⟘/! response from monitor 𝓜]
+else [NuRV 𝓜 Verdict is ⟘/!]
 MEP-->MS: return from heartbeat Recover=T
 MS->S: Recovery upcall
 S->S: Recovery\naction
