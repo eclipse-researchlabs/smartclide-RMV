@@ -8,6 +8,7 @@
                   is_monitor/1, is_monitor/8,
                   is_property/1, is_property/3,
                   is_app/1, is_app/8, is_service/1, is_service/8, is_trace/1, is_trace/3,
+                  is_service_creation_context/1,
                   ssid_modid/2, ssid_propid/2, ssid_scripid/2, modid_monid/2,
                   load_service_specification_immediate/2, load_service_specification/2,
                   unload_service_specification/1,
@@ -72,6 +73,8 @@ is_service_spec_body( ss_body(B), B ).
 is_trace(T) :- is_trace(T,_,_).
 is_trace(Trace, TraceId, States) :-
         Trace = trace(TraceId, States).
+
+is_service_creation_context(SCC) :- is_list(SCC).
 
 % ids
 ssid_modid(SSpecId,ModelId) :-

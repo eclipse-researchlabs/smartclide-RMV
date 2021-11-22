@@ -264,12 +264,12 @@ prettyprint_tab(2). % tab indent for pretty printed output
 host_os(os_x). % define only one
 % host_os(linux). % define only one
 % host_os(windows). % define only one
-raw_read_delay(0.01).
+raw_read_delay(0.05).
 
 % External utilities
 %
 local_pdf_viewer(os_x,'"/Applications/Adobe Reader 9/Adobe Reader.app/Contents/MacOS/AdobeReader"').
 local_dot_render(os_x,'dot').
 local_open_file(os_x,'open').
-local_NuRV(os_x,'NuRV').
+local_NuRV(os_x,'NuRV_orbit').
 local_NuRV_prompt('NuRV > ').

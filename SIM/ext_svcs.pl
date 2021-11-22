@@ -40,7 +40,7 @@ e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	% execution proceeds sending monitor outputs
 	% monitor framework sends each monitor output to NuRV which returns its output
 	% monitor framework EPP passes each monitor output and NuRV output to EPP
-	% EPP takes further response action if an event pattern is matched, incl logging/notification
+	% MEP takes further response action if an event pattern is matched, incl logging/notification
 
 	% use state sequence from a predefined trace for this test,
 	% pass it in with the ServiceCreationContext
@@ -48,14 +48,15 @@ e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	% create the service from the service spec
 	% in the real system this is done by SmartCLIDE service creation
 	% create the monitor from the service spec
+	% deploy and execute the service and monitor
 
 	trc(T), truncate_trace( T, trace(_,States)),
 	ServiceCreationContext = [trace=States],
 	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the trace
-	ext_service_spec2service(ServiceSpec,Service),
+	ext_service_spec2service(ServiceSpec,Service), % now service has the trace
 	rmv_mc:service_spec2monitor(ServiceSpec,Monitor),
 	ext_deploy_service_with_monitor(Service,Monitor,Deployment),
-	ext_execute_service(RemOrLoc,Deployment),
+	ext_execute_service(RemOrLoc,Deployment), % trace is passed in with deployed service
 	!.
 e2e(_) :- writeln('specify remote or local').
 
@@ -160,7 +161,7 @@ ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc =
 	is_deployment(Deployment, Service, Monitor),
 	is_service(Service,_,_,_,_,_,_,States),
 	initiate_monitor(Monitor,SessionId),
-	initiate_service(RemOrLoc,Service,Deployment,SessionId,States),
+	execute_service(RemOrLoc,Service,Deployment,SessionId,States),
 	terminate_monitor(SessionId).
 
 % end EXECUTION CONTROL SIMULATION
@@ -189,11 +190,11 @@ sim_exec_step(_Deployment, Sid, Step) :-
 %-------------------------------------------------------
 % INITIATE THE SERVICE
 %
-initiate_service(local,Service,Deployment,SessionId,States) :- !, is_service(Service),
+execute_service(local,Service,Deployment,SessionId,States) :- !, is_service(Service),
 	sim_exec_steps(Deployment, SessionId, States).
 
 % remote service simulation is run in a separate process
-initiate_service(remote,Service,Deployment,SessionId,States) :- !, is_service(Service),
+execute_service(remote,Service,Deployment,SessionId,States) :- !, is_service(Service),
         % execute the sim_app with sim_sensor
 	sim_app:app,
 	sim_exec_steps(Deployment, SessionId, States),

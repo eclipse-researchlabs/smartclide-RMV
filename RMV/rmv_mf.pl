@@ -5,7 +5,7 @@
 	       ]).
 
 :- use_module('COM/param').
-:- use_module([rmv_mf_epp]).
+:- use_module([rmv_mf_mep]).
 
 :- dynamic mf_initialized/1.
 mf_initialized(false).
