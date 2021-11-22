@@ -23,12 +23,12 @@ box "Monitor Synthesis" #ff0000 .1
 end box # Monitor Synth
 
 box "SmartCLIDE Environment" #ff0000 .1
-participant "SmartCLIDE\nIDE/Control" as SCC
-participant "Service\nCreation" as SC
-participant "Service\nDeployment" as SD
-participant "Execution\nControl" as EC
-participant "Service\n𝑺" as S
 participant "Monitor\nSensor 𝓜𝑺" as MS
+participant "Service\n𝑺" as S
+participant "Execution\nControl" as EC
+participant "Service\nDeployment" as SD
+participant "Service\nCreation" as SC
+participant "SmartCLIDE\nIDE/Control" as SCC
 participant "Context\nHandling" as CXH
 end box # Execution
 
