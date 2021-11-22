@@ -44,29 +44,24 @@ e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 
 	% use state sequence from a predefined trace for this test,
 	% pass it in with the ServiceCreationContext
-
-	trc(T), rmv_mc_nui:truncate_trace( T, trace(_,States)),
-	ServiceCreationContext = [trace=States],
-
 	% get specificaiton of the service
-	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the trace
-
 	% create the service from the service spec
 	% in the real system this is done by SmartCLIDE service creation
-	ext_service_spec2service(ServiceSpec,Service),
-
 	% create the monitor from the service spec
+
+	trc(T), truncate_trace( T, trace(_,States)),
+	ServiceCreationContext = [trace=States],
+	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the trace
+	ext_service_spec2service(ServiceSpec,Service),
 	rmv_mc:service_spec2monitor(ServiceSpec,Monitor),
-
 	ext_deploy_service_with_monitor(Service,Monitor,Deployment),
-
 	ext_execute_service(RemOrLoc,Deployment),
 	!.
 e2e(_) :- writeln('specify remote or local').
 
 
 %-------------------------------------------------------
-% EXEC SIM API
+% EXECUTION SIM API
 %   only used in standalone ext_svcs for 'remote' test
 %
 :- http_handler(root(.), use_valid_api, []).

@@ -11,7 +11,7 @@
                   ssid_modid/2, ssid_propid/2, ssid_scripid/2, modid_monid/2,
                   load_service_specification_immediate/2, load_service_specification/2,
                   unload_service_specification/1,
-                  load_monitor/1, unload_monitor/1
+                  load_monitor/1, unload_monitor/1, truncate_trace/2
 	       ]).
 
 :- use_module('COM/param').
@@ -86,7 +86,9 @@ ssid_scripid(SSpecId,ScripId) :-
 modid_monid(ModelId,MonitorId) :-
         atom_concat(modid_,N,ModelId), atom_concat(monid_,N,MonitorId).
 
-        % some built-in samples:
+%
+% some built-in samples:
+%
 
 app(app001,a,b,c,d,e,f).
 
@@ -108,6 +110,9 @@ trc( trace('counter-example',
        state('13',[p='TRUE',q='FALSE']),state('14',[p='TRUE',q='FALSE']),state('15',[p='TRUE',q='FALSE']),
        state('16',[p='TRUE',q='FALSE'])])
    ).
+
+truncate_trace(trace(N,[A,B,C,D,E,F|_]),trace(N,[A,B,C,D,E,F])) :- !. % truncate to 6 steps
+truncate_trace(T,T).
 
 %
 % Service Specifications

@@ -239,6 +239,3 @@ test4 :- % test trace interactively with NuRV monitor
 	quit_nurv_session(Sid),
 	writeln('session ended'),
 	!.
-
-truncate_trace(trace(N,[A,B,C,D,E,F|_]),trace(N,[A,B,C,D,E,F])) :- !. % truncate to 6 steps
-truncate_trace(T,T).
