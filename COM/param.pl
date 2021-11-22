@@ -210,7 +210,7 @@ epp_url(EPP_URL) :-
 epp_logging(file). % 'file', or 'on' (to std out), or 'off'
 epp_stream(user_error). % default stream for EPP log (standard error)
 epp_initialized(false).
-epp_status(inactive). % inactive, policy_server, standalone
+epp_status(inactive). % inactive, policy_server, standalone, rmv_server
 
 % AUTHORIZATION TOKENS
 admin_token('admin_token'). % default policy admin token

@@ -64,9 +64,9 @@ rmv_server(Port) :-
 	;   true
 	),
 	http_server(http_dispatch, [port(Port)]),
-	format('ngac-server listening on port ~d~n',[Port]),
-	audit_gen(ngac_start, success),
-	param:setparam(epp_status,policy_server),
+	format('rmv-server listening on port ~d~n',[Port]),
+	audit_gen(rmv_start, success),
+	param:setparam(epp_status,rmv_server),
 	epp:epp_with_server,
 	(   param:sleep_after_server_start(on)
 	->  param:server_sleeptime(S), go_to_sleep(S)
