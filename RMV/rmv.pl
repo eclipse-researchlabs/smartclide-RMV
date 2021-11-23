@@ -102,7 +102,32 @@ un_init :-
 initialize_once :- param:initialized(true), !.
 initialize_once :-
 	open_null_stream(Null), param:setparam(null_stream,Null),
-	true.
+	start_nameserver.
+
+% nameserver session tracking
+:- dynamic nameserver_instance/4.
+nameserver_instance(nspid,to_stream,from_stream,ior). % nsid is nameserver pid as an atom
+
+start_nameserver :-
+	param:local_nameserver(_,NameServ),
+	process_create(path(NameServ),[],
+		       [process(NSpid),stdin(pipe(ToS)),stdout(pipe(FromS))]),
+	atom_number(NSinstanceId,NSpid),
+	param:raw_read_delay(Delay),
+	sleep(Delay), % a short delay of less than a second
+	with_tty_raw((fill_buffer(FromS),read_pending_codes(FromS,Codes,T))), T=[],
+	atom_codes(Response,Codes), atomic_list_concat(L,'\n',Response), nth1(2,L,IOR),
+	param:setparam(local_nameserver_IOR,IOR),
+	retractall( nameserver_instance(_,_,_,_) ),
+	assert( nameserver_instance(NSinstanceId,ToS,FromS,IOR) ).
+
+stop_nameserver :- % doesn't really stop it right now, just waits for it
+	nameserver_instance(InstanceId,ToStream,FromStream,_),
+	close(ToStream), close(FromStream),
+	retractall( nameserver_instance(InstanceId,_,_,_) ),
+	atom_number(InstanceId,NSpid),
+	process_wait(NSpid,Exit),
+	writeln(Exit).
 
 % RMV is the top-level module, so initialize all subsystems and modules
 % requiring startup initialization

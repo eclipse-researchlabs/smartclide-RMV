@@ -276,7 +276,7 @@ execapi_e2e(Request) :-
 	(   nonvar(E)
 	->  writeln(failure)
 	;   writeln('E2E called'),
-	    e2e_api(local),
+	    e2e_api(remote),
 	    writeln(success)
 	).
 

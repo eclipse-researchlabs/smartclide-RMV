@@ -8,6 +8,7 @@
 		  initialized/1, epp_initialized/1, user_level/1, settable_params/1,
 		  self_test_modules/1, regression_test_modules/1,
 		  local_pdf_viewer/2, local_dot_render/2,local_open_file/2,local_NuRV/2,local_NuRV_prompt/1,
+                  local_nameserver/2, local_nameserver_IOR/1,
                   build_version/2, build_version/3,
                   build_current_version_description/2, build_name/3,
 		  name_string/1, name_string/2, prompt_string/1, prompt_string/2, msg_failed_command/1,
@@ -24,7 +25,7 @@
                   server_sleeptime/1, audit_token/1, audit_logging/1, audit_stream/1, audit_record/1,
 		  audit_selection/1, default_condition_variables/1,
                   conditions_file/1, default_condition_predicates/1,
-                  context_file/1, eppapi_port/1, epp_token/1, rmv_token/1,
+                  context_file/1, eppapi_port/1, epp_token/1, rmv_token/1, rmv_epp_token/1,
                   epp_logging/1, epp_stream/1, null_stream/1, sleep_after_server_start/1,
                   jsonresp_epp/1, jsonresp_server/1, jsonresp/1, epp_status/1,
                   deny_resp/1, grant_resp/1,
@@ -115,19 +116,20 @@ name_string(epp,'Event Processing Point - TOG').
 	user_level/1, current_policy/1, pqapi_port/1, paapi_port/1, gpqapi_port/1,
         admin_token/1, audit_token/1, audit_logging/1, audit_stream/1, audit_selection/1, audit_record/1,
         current_gpolicy/1, current_cpolicy/1, current_erp/1, epp_status/1,
-        conditions_file/1, context_file/1, eppapi_port/1, epp_token/1, rmv_token/1,
+        conditions_file/1, context_file/1, eppapi_port/1, epp_token/1, rmv_token/1, rmv_epp_token/1,
         epp_logging/1, epp_stream/1, null_stream/1, sleep_after_server_start/1,
         jsonresp_epp/1, jsonresp_server/1, jsonresp/1,
-	serverhost_ip/1, context_url/1, context_sim/1.
+	serverhost_ip/1, context_url/1, context_sim/1, local_nameserver_IOR/1.
 
 settable_params([debug,self_test,statusprt,guitracer,guiserver,initialize,initialized,regression_test,verbose,
 		 user_level, current_policy, pqapi_port, paapi_port, gpqapi_port, admin_token, prompt_string,
 		 audit_token, audit_logging, audit_stream, audit_selection, audit_record, name_string,
                  current_gpolicy, current_cpolicy,
                  current_erp, epp_initialized, epp_status,
-                 conditions_file, context_file, eppapi_port, epp_token, rmv_token,
+                 conditions_file, context_file, eppapi_port, epp_token, rmv_token, rmv_epp_token,
                  epp_logging, epp_stream, null_stream, sleep_after_server_start,
-                 jsonresp_epp, jsonresp_server, jsonresp, serverhost_ip, context_url, context_sim
+                 jsonresp_epp, jsonresp_server, jsonresp, serverhost_ip, context_url, context_sim,
+                 local_nameserver_IOR
                 ]).
 
 setparam(Param,Value) :- atom(Param), ground(Value),
@@ -217,6 +219,7 @@ admin_token('admin_token'). % default policy admin token
 audit_token('audit_token'). % default audit token
 epp_token('epp_token'). % default epp token
 rmv_token('rmv_token'). % default rmv token
+rmv_epp_token('rmv_epp_token'). % default rmv_epp token
 
 % DPL CONDITIONS
 %
@@ -271,5 +274,7 @@ raw_read_delay(0.05).
 local_pdf_viewer(os_x,'"/Applications/Adobe Reader 9/Adobe Reader.app/Contents/MacOS/AdobeReader"').
 local_dot_render(os_x,'dot').
 local_open_file(os_x,'open').
+local_nameserver(os_x,'tnameserv').
+local_nameserver_IOR('IOR;').
 local_NuRV(os_x,'NuRV_orbit').
 local_NuRV_prompt('NuRV > ').

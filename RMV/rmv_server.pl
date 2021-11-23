@@ -4,6 +4,7 @@
 
 :- use_module('AUDIT/audit',[audit_gen/2]).
 :- use_module('COM/param').
+:- use_module('RMV/rmv').
 %:- use_module('COM/jsonresp').
 
 
@@ -28,8 +29,6 @@
 rmv_server_opt_spec([
         [opt(portnumber), meta('RP'), type(integer), shortflags([p]), longflags(['port','portnumber']),
          help( 'server listens for API calls on port RP' )],
-        [opt(initialfile), meta('FILE'), type(atom), shortflags([i]), longflags(['initialfile']),
-         help( 'initialization directives from FILE' )],
         [opt(selftest), type(boolean), default(false), shortflags([s]), longflags(['selftest']),
          help( 'run self tests on startup' )],
         [opt(token), meta('TOKEN'), type(atom), shortflags([t]), longflags(['token']),
@@ -96,35 +95,16 @@ rmv_server_with_args(Argv) :-
 
 rmv_server_with_opts(Opts) :-
 	format('Options=~q~n',[Opts]),
-	(   memberchk(pqportnumber(QPort),Opts); true ),
-	(   var(QPort)
-	->  param:pqapi_port(QPort)
-	;   param:setparam(pqapi_port,QPort)
+	(   memberchk(portnumber(RPort),Opts); true ),
+	(   var(RPort)
+	->  param:rmv_port(RPort)
+	;   param:setparam(rmv_port,RPort)
 	),
-
-%	(   memberchk(paportnumber(APort),Opts); true ),
-%	(   var(APort)
-%	->  param:paapi_port(APort)
-%	;   param:setparam(paapi_port,APort)
-%	),
 
 	(   memberchk(context(CTX_URL),Opts); true ),
 	(   var(CTX_URL)
 	->  true % param:context_url(CTX_URL)
 	;   param:setparam(context_url,CTX_URL)
-	),
-
-	(   memberchk(grant(true),Opts)
-	->  param:setparam(current_policy,grant)
-	;   true
-	),
-
-	(   memberchk(deny(true),Opts)
-	->  (   memberchk(grant(true),Opts)
-	    ->  writeln('grant and deny options cannot both be true--exiting'), halt(1)
-	    ;   param:setparam(current_policy,deny)
-	    )
-	;   true
 	),
 
 	(   memberchk(verbose(true),Opts)
@@ -133,14 +113,14 @@ rmv_server_with_opts(Opts) :-
 	),
 
 	(   memberchk(jsonresp(true),Opts)
-	->  param:setparam(jsonresp_server,on), % turns on JSON responses for policy server
+	->  param:setparam(jsonresp_server,on), % turns on JSON responses for server
 	    param:setparam(jsonresp,on)
 	;   param:setparam(jsonresp_server,off),
 	    param:setparam(jsonresp,off)
 	),
 
 	(   memberchk(epp(true),Opts)
-	->  param:setparam(epp_status,policy_server) % activate EPP as part of policy server
+	->  param:setparam(epp_status,policy_server) % activate EPP as part of rmv server
 	;   true
 	),
 
@@ -151,33 +131,19 @@ rmv_server_with_opts(Opts) :-
 
 	(   memberchk(token(Token),Opts); true ),
 	(   atom(Token)
-	->  param:setparam(admin_token,Token)
+	->  param:setparam(rmv_token,Token)
 	;   true
 	),
 
 	param:build_version(rmv,Vnum), format('rmv-server version ~a starting~n',Vnum),
 	create_server_audit_log,
 	http_server(http_dispatch, [port(QPort)]),
-	format('ngac-server listening on port ~d~n',[QPort]),
-	audit_gen(ngac_start, success),
+	format('rmv-server listening on port ~d~n',[QPort]),
+	audit_gen(rmv_start, success),
 
 	% run self-test here if turned on in param or command line
-	% ngac:self_test_all,
 
-	(   memberchk(importfile(Pfile),Opts) ; true ),
-	(   var(Pfile)
-	->  true % initial load file not specified
-	;   (   ( atom(Pfile), exists_file(Pfile) )
-	    ->	dpl:load_decl_policy(Pfile,PolicyName),
-		pap:set_current_policy(PolicyName),
-		format('policy ~q loaded from ~a~n',[PolicyName,Pfile]),
-		audit_gen(policy_admin, importopt(Pfile,PolicyName,success))
-	    ;   format('policy file load error: ~a~n',[Pfile]),
-		audit_gen(policy_admin, importopt(Pfile,failure))
-	    )
-	),
-
-        (   param:epp_status(policy_server)
+        (   param:epp_status(rmv_server)
 	->  epp:epp_with_server
 	;   true
 	),
