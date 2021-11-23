@@ -54,7 +54,7 @@ activate MEP
 
 region [INITIALIZATION]
 MF->TNS: start tnameserv
-TNS->MF: IOR
+TNS->MF: Interoperable Object Reference (IOR)
 MF->ML: save nameservice IOR
 end # region
 
@@ -170,6 +170,7 @@ S->S: 𝑺 completes
 S->MS: Shutdown 𝓜𝑺
 MS->MEP: 𝓜𝑺 Shutting down
 MEP<->NuRVi: Close NuRV session for 𝓜
+NuRVi<-->ML: Remove NuRV\nsession for 𝓜
 NuRVi->Mserv: Terminate 𝓜 server
 S->EC: 𝑺 normal completion
 EC->SCC: Service 𝑺+𝓜𝑺 completed
