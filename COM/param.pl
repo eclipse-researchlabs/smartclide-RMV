@@ -77,10 +77,11 @@ build_version(priv,'0.1.2' /* ongoing development */ ).
 build_current_version_description(priv,'ongoing development of privacy tools for smashHit').
 %
 build_version(rmv,'0.1','initial structure setup').
-build_version(rmv,'0.1.1','initial development' ).
+build_version(rmv,'0.1.1','runtime monitoring initial development' ).
 
-build_version(rmv,'0.1.2' /* ongoing development */ ).
-build_current_version_description(rmv,'runtime monitoring').
+build_version(rmv,'0.1.2', 'monitor sensor, simple NuRV sessions, nameserver session' ).
+build_version(rmv,'0.1.3' /* ongoing development */ ).
+build_current_version_description(rmv,'NuRV sessions with nameserver, more realistic sequencing, tests').
 %
 build_version(epp,'0.1','initial structure setup').
 build_version(epp,'0.1.1','initial development' ).
