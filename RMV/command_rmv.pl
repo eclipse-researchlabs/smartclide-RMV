@@ -5,9 +5,10 @@
 syntax(rmv,                            basic).
 syntax(rmv_server,                                               rmv).
 syntax(rmvt,                                                     rmv).
+syntax(rmvt(test_id),                                            rmv).
 
 syntax(nurv_session,                                             rmv).
-syntax(import_sspec(serv_spec_file,serv_spec_id),                  rmv).
+syntax(import_sspec(serv_spec_file,serv_spec_id),                rmv).
 
 syntax(sspec_load(serv_spec_id,smv_model),                       rmv).
 syntax(sspec_smv(serv_spec_id,smv_model),                        rmv).
@@ -22,6 +23,8 @@ syntax(nu_add_prop,                                              rmv).
 syntax(nu_show_prop,                                             rmv).
 syntax(nu_build_mon,                                             rmv).
 syntax(nu_gen_mon,                                               rmv).
+
+syntax(stop_nameserver,                                          rmv).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % RMV tool command semantics
 % semantics(<signature with formal params>) :- <constraints>.
@@ -30,6 +33,7 @@ syntax(nu_gen_mon,                                               rmv).
 % distinct from syntax so syntax can be called separately
 %
 semantics(import_sspec(F,V)) :- !, atom(F), var(V).
+semantics(rmvt(T)) :- !, atom(T).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % command help strings
 %   help(Key,    HelpString)
@@ -39,6 +43,7 @@ semantics(import_sspec(F,V)) :- !, atom(F), var(V).
 %
 help(rmv,       'Switch to rmv user mode.').
 help(rmv_server,'Start the runtime monitoring and verification server.').
+help(rmvt,      'run an rmv built-in test. Default is \'test1\'.').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % do the command, should be one for every implemented valid command form
 % known broken or unimplemented commands should just "fail." straightaway
@@ -48,8 +53,11 @@ do(rmv) :- !, user_mode(M), retractall(user_mode(_)), assert(user_mode(rmv)),
 	param:prompt_string(rmv,Prompt), param:setparam(prompt_string,Prompt),
 	rem_commands(M), add_commands(rmv), banner(rmv).
 do(rmv_server) :- !, writeln('not starting rmv_server'). % rmv_server:rmv_server.
-do(rmvt) :- !, ext_svcs:e2e_api(test).
+do(rmvt) :- !, ext_svcs:e2e_api(test1).
+do(rmvt(T)) :- !, ext_svcs:e2e_api(T).
 do(import_sspec(F,Sid)) :- !, sspec_load(F,Sid,_SMV_model).
+
+do(stop_nameserver) :- !, rmv:stop_nameserver.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % command procedures
 %

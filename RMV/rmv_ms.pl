@@ -1,11 +1,11 @@
 % RMV - Monitor Sensor
 % Runs as part of the Service Under Scrutiny (SUS)
 
-:- module(rmv_ms,[
+:- module(rmv_ms,[ms_startup/0, ms_shutdown/0, ms_step/0
 	       ]).
 
 :- use_module('COM/param').
-:- use_module('RMV/rmv_mf_mep',[mep_initiate_monitor/2]).
+:- use_module('RMV/rmv_mf_mep').
 
 % MS CONFIGURATION
 %   provided by Monitor Creation to accompany the generated monitor
@@ -18,19 +18,29 @@ monitor_observables([w,x,y,z]).
 monitor_reportables([x,z]). % subset of monitor_observables
 monitor_triggers([x]). % setter on these vars causes MS Responder trigger
 
-% MS INITIALIZATION
+% MS STARTUP/SHUTDOWN INITIALIZATION
 %
 
 :- dynamic ms_initialized/1.
 ms_initialized(false).
 
+% functions exposed to the SUS
 % called by the SUS when it begins execution
-init:- ms_initialized(true), !. % already initialized
+ms_startup :- init.
+
+% called by the SUS when it is shutting down
+ms_shutdown :- shutdown.
+
+ms_step :- responder.
+
+% internal startup / shutdown functions
+%
+init :- ms_initialized(true), !. % already initialized
 init :-
         initialize_ms_configuration,
 	% initiate Monitor M the monitor server for this service
         monitor_id(Mid),
-        mep_initiate_monitor(Mid,Mstatus),
+        mep_start_monitor(Mid,Mstatus),
         (   Mstatus \== success
         ->  writeln('failed to initiate monitor'),
             fail
@@ -46,6 +56,10 @@ initialize_ms_configuration :-
         % For now these appear as example definitions at the top of this file
         true.
 
+shutdown :-
+        monitor_id(Mid),
+        mep_stop_monitor(Mid).
+
 re_init :- un_init, init.
 
 un_init :-
@@ -55,7 +69,7 @@ un_init :-
 % Monitor Sensor Responder
 % triggered by SUS, usually by a Observable variable setter
 %
-ms_responder :-
+responder :-
         monitor_id(Mid),
         monitor_atoms(As),
         aT_list_constructor(As,ATs),
@@ -106,7 +120,8 @@ or_list_constructor(ORl) :- % create a list of var=value pairs
 %
 %   ORlist is a list of name=value pairs for the reportable variables
 ms_heartbeat(MonitorID,ATlist,ORlist) :-
-        format('HEARTBEAT: ~w ~w ~w~n',[MonitorID,ATlist,ORlist]).
+        format('HEARTBEAT: ~w ~w ~w~n',[MonitorID,ATlist,ORlist]),
+        mep_heartbeat(MonitorID,ATlist,ORlist).
 
 % functions to set/get SUS variable values
 %
@@ -115,7 +130,7 @@ o_setter(Ovar,Oval) :-
         retractall(sus_var(Ovar,_)), assert(sus_var(Ovar,Oval)),
         monitor_triggers(Triggers),
         (   member(Ovar,Triggers)
-        ->  ms_responder
+        ->  responder
         ;   true
         ).
 

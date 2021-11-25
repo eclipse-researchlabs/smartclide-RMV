@@ -4,18 +4,19 @@
 
 %:- use_module(library(http/http_client)).
 
-:- use_module(sim_sensor).
+:- use_module('RMV/rmv_ms').
+:- use_module('COM/param').
 
-rmv_port(8003).
-
-app :-rmv_port(P),
+app :-  param:rmv_port(P),
 	app(P). % default RMV monitor port
 
 app(Port) :-
 	format('APP sim starting~n'),
 	format('talking to RMV at port ~d~n',[Port]),
 	reset_state,
-	mon_start,
+	ms_startup,
+	app_go,
+	ms_shutdown,
 	true.
 
 app_go :-
@@ -35,8 +36,8 @@ reset_state :-
 
 sim_execution :-
 	current_state(Old),
-	step(Old,New), % run ends when step or sensor fails
-	sensor(New),
+	step(Old,_New), % run ends when step or sensor fails
+	ms_step,
 	sim_execution.
 sim_execution.
 

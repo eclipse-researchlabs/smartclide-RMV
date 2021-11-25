@@ -66,7 +66,7 @@ initiate_service(remote,S) :- !, is_service(S),
 	true.
 
 initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),
-        open_nurv_session(SessId), % format('NuRV session ~a~n',Sid),
+        open_nurv_session(int,SessId), % format('NuRV session ~a~n',Sid),
 	nurv_session_get_resp(SessId),
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),

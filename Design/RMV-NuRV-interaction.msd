@@ -3,7 +3,10 @@
 #//# https://www.macsequencediagram.com
 #//# https://itunes.apple.com/gb/app/sequence-diagram/id1195426709?mt=12
 #//# --------------------------------------------------------------------------------------
-title "RMV-to-NuRV component interaction"
+title "RMV-to-NuRV component interaction - v3"
+# v3	complete detailed sequence
+# v2	completed monitor creation
+# v1	initial version
 
 box "Runtime Monitoring & Verification" #00ff00 .1
 participant "Monitor\nCreation" as MC
@@ -120,10 +123,10 @@ activate MF
 region [SERVICE EXECUTION]
 SCC->EC: Run Service 𝑺+𝓜𝑺
 EC->S: execute 𝑺+𝓜𝑺
-S->MS: initialize 𝓜𝑺
-MS->MEP: initiate 𝓜
+S->MS: 𝓜𝑺 Startup
+MS->MEP: Start monitor 𝓜
 
-MEP->NuRVi: Initiate 𝓜
+MEP->NuRVi: Start 𝓜
 NuRVi<-->ML: Get 𝓜 info
 NuRVi<-->ML: Create NuRV\nsession for 𝓜
 NuRVi->NuRV: start NuRV instance
@@ -167,9 +170,9 @@ EC->S: 𝑺 forced termination
 end
 
 S->S: 𝑺 completes
-S->MS: Shutdown 𝓜𝑺
-MS->MEP: 𝓜𝑺 Shutting down
-MEP<->NuRVi: Close NuRV session for 𝓜
+S->MS: 𝓜𝑺 Shutdown
+MS->MEP: Stop Monitor 𝓜
+MEP->NuRVi: Stop 𝓜
 NuRVi<-->ML: Remove NuRV\nsession for 𝓜
 NuRVi->Mserv: Terminate 𝓜 server
 S->EC: 𝑺 normal completion

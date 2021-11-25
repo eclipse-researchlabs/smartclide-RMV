@@ -267,7 +267,7 @@ prettyprint_tab(2). % tab indent for pretty printed output
 host_os(os_x). % define only one
 % host_os(linux). % define only one
 % host_os(windows). % define only one
-raw_read_delay(0.05).
+raw_read_delay(0.1). % 0.05 seems fairly reliable; 0.01 is too short to be reliable
 
 % External utilities
 %

@@ -119,14 +119,21 @@ start_nameserver :-
 	atom_codes(Response,Codes), atomic_list_concat(L,'\n',Response), nth1(2,L,IOR),
 	param:setparam(local_nameserver_IOR,IOR),
 	retractall( nameserver_instance(_,_,_,_) ),
-	assert( nameserver_instance(NSinstanceId,ToS,FromS,IOR) ).
+	assert( nameserver_instance(NSinstanceId,ToS,FromS,IOR) ),
+	write('tnameserv started: '), writeln(IOR),
+	true.
 
-stop_nameserver :- % doesn't really stop it right now, just waits for it
-	nameserver_instance(InstanceId,ToStream,FromStream,_),
-	close(ToStream), close(FromStream),
+check_nameserver :-
+	true.
+
+stop_nameserver :-
+	nameserver_instance(InstanceId,_ToStream,_FromStream,IOR),
+	% close(ToStream), close(FromStream),
 	retractall( nameserver_instance(InstanceId,_,_,_) ),
 	atom_number(InstanceId,NSpid),
-	process_wait(NSpid,Exit),
+	process_kill(NSpid), process_wait(NSpid,Exit),
+	param:setparam(local_nameserver_IOR,'IOR:'),
+	write('tnameserv stopped: '), writeln(IOR),
 	writeln(Exit).
 
 % RMV is the top-level module, so initialize all subsystems and modules

@@ -1,7 +1,7 @@
 % simple MONITOR SENSOR sim
 %   currently just sents one heartbeat message to RMV
 
-:- module(sim_sensor, [mon_start/0, mon_start/1, sensor/1]).
+:- module(sim_sensor, [mon_start/0, mon_start/1, mon_step/1]).
 
 :- use_module(library(http/http_client)).
 
@@ -16,9 +16,8 @@ mon_start(Arg) :-
 
 % sensor is called initially and by execution of the monitored app
 %
-sensor(init) :- !.
-%sensor(4) :- !, fail.
-sensor(Arg) :-
+mon_step(init) :- !.
+mon_step(Arg) :-
 	gen_heartbeat(Arg).
 
 gen_heartbeat(Arg) :-

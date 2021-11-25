@@ -2,7 +2,7 @@
 % for human and automated interaction
 
 :- module(rmv_mc_nui,[nurv_monitor_init/3,
-		      open_nurv_session/1,quit_nurv_session/1,close_nurv_session/1,
+		      open_nurv_session/2,quit_nurv_session/1,close_nurv_session/1,
 		      nurv_session_cmd/2,nurv_session_cmd_resp/2,nurv_session_get_resp/1
 		     ]).
 
@@ -12,7 +12,7 @@
 %
 % enter top level loop for live developer interaction with NuRV session
 nu_tl(Session) :-
-	nurv_session(Session,ToS,FrS),
+	nurv_session(Session,_.ToS,FrS),
 	nu_tl(Session,ToS,FrS).
 
 % nu_tl/3 ends either by typing quit or an end_of_file
@@ -40,17 +40,18 @@ read_nu_line(Slp,S,Lines,Len) :- % read a buffer of the stream from NuRV
 
 % send a NuRV command to a session
 nurv_session_cmd(Sid,Cmd) :-
-	nurv_session(Sid,ToS,_),
-	writeln(ToS,Cmd), flush_output(ToS).
+	nurv_session(Sid,_,ToS,_),
+	writeln(ToS,Cmd), flush_output(ToS),
+	writeln(Cmd), flush_output.
 
 nurv_session_cmd_resp(Sid,Cmd) :-
-	nurv_session(Sid,ToS,_),
+	nurv_session(Sid,_,ToS,_),
 	writeln(ToS,Cmd), flush_output(ToS),
 	writeln(Cmd), flush_output,
 	nurv_session_get_resp(Sid).
 
 nurv_session_get_resp(Sid) :-
-	nurv_session(Sid,_,FrS),
+	nurv_session(Sid,_,_,FrS),
 	param:local_NuRV_prompt(NuRVp),
 	param:raw_read_delay(Delay),
 	read_nu_line(Delay,FrS,NuL,LenL),
@@ -70,28 +71,53 @@ nurv_monitor_init(Infile,Ordfile,Sid) :-
 	nurv_session_cmd_resp(Sid,'build_monitor -n 0'),
 	true.
 
-% session tracking
-:- dynamic nurv_session/3.
-nurv_session(sid,to_stream,from_stream). % sid is pid as an atom
+% NuRV session tracking
+:- dynamic nurv_session/4.
+nurv_session(sid,stype,to_stream,from_stream). % sid is pid as an atom
 
-open_nurv_session(SessionId) :- % open interactive NuRV session
+open_nurv_session(int,SessionId) :- % open interactive NuRV session
 	param:local_NuRV(_,NuRV),
 	process_create(path(NuRV),['-quiet', '-int'],
 		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
 	atom_number(SessionId,NuRVpid),
 	init_session(SessionId, monitor_framework),
 	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
-	assert( nurv_session(SessionId,ToStream,FromStream) ).
+	assert( nurv_session(SessionId,int,ToStream,FromStream) ).
 
+open_nurv_session(orbit,SessionId) :- % open orbit NuRV session
+	param:monitor_directory_name(MD),
+	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
+	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
+	param:local_NuRV(_,NuRV),
+	process_create(path(NuRV),
+		       ['-quiet','-int','-i',SMVordFile,SMVmodelFile],
+		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
+	atom_number(SessionId,NuRVpid),
+	init_session(SessionId, monitor_framework),
+	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
+	assert( nurv_session(SessionId,orbit,ToStream,FromStream) ),
+	nurv_session_cmd_resp(Sid,go),
+	nurv_session_cmd_resp(Sid,'build_monitor -n 0').
+/*
+% NuRV -quiet -int -i disjoint.ord -source t.cmd disjoint.smv
+
+	param:local_NuRV(_,NuRV),
+	process_create(path(NuRV),['-quiet', '-int'],
+		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
+	atom_number(SessionId,NuRVpid),
+	init_session(SessionId, monitor_framework),
+	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
+	assert( nurv_session(SessionId,int,ToStream,FromStream) ).
+*/
 quit_nurv_session(SessionId) :- % send quit command, then close
 	nurv_session_cmd(SessionId,quit),
 	close_nurv_session(SessionId).
 
 close_nurv_session(SessionId) :- % only close the session
-	nurv_session(SessionId,ToStream,FromStream),
+	nurv_session(SessionId,_Stype,ToStream,FromStream),
 	close(ToStream), close(FromStream),
 	(   is_session(SessionId, monitor_framework) -> end_session(SessionId) ; true ),
-	retractall( nurv_session(SessionId,_,_) ),
+	retractall( nurv_session(SessionId,_,_,_) ),
 	atom_number(SessionId,NuRVpid),
 	process_wait(NuRVpid,Exit),
 	writeln(Exit).
@@ -211,10 +237,10 @@ run_trace_do(Mon,State,NewMon,Sid) :-
 %	  monitor and run trace sending each state to monitor, close
 %	  session
 %
-test :- open_nurv_session(Sid), format('NuRV session ~a~n',Sid),
+test :- open_nurv_session(int,Sid), format('NuRV session ~a~n',Sid),
 	nu_tl(Sid), close_nurv_session(Sid), writeln('session ended'), !.
 
-test2 :- open_nurv_session(Sid), format('NuRV session ~a~n',Sid),
+test2 :- open_nurv_session(int,Sid), format('NuRV session ~a~n',Sid),
 	quit_nurv_session(Sid), writeln('session ended'), !.
 
 test3 :- % test trace conversion and app_run stubs
@@ -228,7 +254,7 @@ test4 :- % test trace interactively with NuRV monitor
 	atomic_list_concat([MD,'/','disjoint_trace.xml'],TraceFile),
 	xml_trace(TraceFile,Trace),
 	truncate_trace(Trace,TTrace),
-	open_nurv_session(Sid), % format('NuRV session ~a~n',Sid),
+	open_nurv_session(int,Sid), % format('NuRV session ~a~n',Sid),
 	nurv_session_get_resp(Sid),
 	% need to initialize the session with the monitor
 	atomic_list_concat([MD,'/','disjoint.smv'],SMVFile),

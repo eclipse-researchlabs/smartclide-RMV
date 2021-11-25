@@ -1,7 +1,7 @@
 % RMV - Monitoring Framework - Monitor Event Processing
 % Work in Progress
 
-:- module(rmv_mf_mep,[mep_initiate_monitor/2
+:- module(rmv_mf_mep,[mep_start_monitor/2, mep_stop_monitor/1, mep_heartbeat/3
 	       ]).
 
 :- use_module('COM/param').
@@ -11,6 +11,12 @@
 % MONITOR EVENT PROCESSING
 %
 
-mep_initiate_monitor(_Mid,Status) :-
+mep_start_monitor(_Mid,Status) :-
     Status = success,
+    true.
+
+mep_stop_monitor(_Mid) :-
+    true.
+
+mep_heartbeat(_Mid,_AtomIds,_Reportables) :-
     true.

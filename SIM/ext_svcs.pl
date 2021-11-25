@@ -22,6 +22,63 @@
 :- use_module(library(http/http_parameters)).
 
 %-------------------------------------------------------
+% EXECUTION SIM API
+%   only used in standalone ext_svcs for 'remote' test
+%
+:- http_handler(root(.), use_valid_api, []).
+:- http_handler(root('exec'), root_apis('exec'), []).
+:- http_handler(root('exec/'), api_unimpl, [prefix]).
+:- http_handler(root('exec/exec_notification_registration'), execapi_notification_reg, [prefix]).
+:- http_handler(root('exec/e2e'), execapi_e2e, [prefix]).
+
+execapi([exec_notification_registration, e2e]). % EXEC SIM API
+
+% ------------------------------------------------------------------------
+% API IMPLEMENTATION
+%
+% called from the exec_notification_registration API
+execapi_notification_reg(Request) :-
+	std_resp_prefix,
+	catch(
+	     http_parameters(Request,[exec_variables(VarsAtom,[atom]),
+				      epp_url(EPP,[atom]),
+				      epp_token(Token,[atom])
+				     ]),
+	    E,writeln('missing parameter')),	!,
+	(   nonvar(E)
+	->  writeln(failure)
+	;
+	    read_term_from_atom(VarsAtom,Vars,[]),
+	    %format('Context notification registration:~n  ~q ~q ~q~n',[Vars,EPP,Token]),
+	    %flush_output,
+	    notification_reg(Vars,EPP,Token),
+	    writeln(success)
+	).
+
+notification_reg(Vars,URL,Token) :-
+	exec_notification_registration_sim(Vars,URL,Token),
+	true.
+
+% this is used to enter end-to-end test in simulated environment
+execapi_e2e(Request) :-
+	std_resp_prefix,
+	catch(
+	     http_parameters(Request,[
+				     ]),
+	    E,writeln('missing parameter')),	!,
+	(   nonvar(E)
+	->  writeln(failure)
+	;   writeln('E2E called'),
+	    e2e_api(remote),
+	    writeln(success)
+	).
+
+e2e_api(test1) :- !, writeln('e2e_api local test'), flush_output,
+	e2e(local). % called from command_rmv
+e2e_api(Mode) :- % mode can be int, local, remote, orbit
+	writeln(e2e_api), e2e(Mode).
+
+%-------------------------------------------------------
 % SYSTEM CONTROL SIMULATION DRIVER
 %
 % End-to-End test of monitor construction and execution
@@ -30,7 +87,7 @@
 %
 % The rmvt command in the RMV tool calls this through e2e_api
 %
-e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
+e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local ; RemOrLoc == orbit ), !,
 	% SCENARIO:
 	% service creation calls monitor creation API to create a monitor
 	% service and monitor are executed (or simulated execution)
@@ -58,20 +115,11 @@ e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	ext_deploy_service_with_monitor(Service,Monitor,Deployment),
 	ext_execute_service(RemOrLoc,Deployment), % trace is passed in with deployed service
 	!.
-e2e(_) :- writeln('specify remote or local').
+e2e(test2) :- !,
+	ext_execute_service(test2,_),
+	!.
+e2e(_) :- writeln('specify remote, local or testn').
 
-
-%-------------------------------------------------------
-% EXECUTION SIM API
-%   only used in standalone ext_svcs for 'remote' test
-%
-:- http_handler(root(.), use_valid_api, []).
-:- http_handler(root('exec'), root_apis('exec'), []).
-:- http_handler(root('exec/'), api_unimpl, [prefix]).
-:- http_handler(root('exec/exec_notification_registration'), execapi_notification_reg, [prefix]).
-:- http_handler(root('exec/e2e'), execapi_e2e, [prefix]).
-
-execapi([exec_notification_registration, e2e]). % EXEC SIM API
 
 % EXEC SIM SERVER entry point and stop server
 
@@ -160,9 +208,21 @@ ext_deploy_service_with_monitor(Service, Monitor, Deployment) :-
 ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	is_deployment(Deployment, Service, Monitor),
 	is_service(Service,_,_,_,_,_,_,States),
+	is_monitor(Monitor,_MonitorId,_,_,_,_,_,_),
 	initiate_monitor(Monitor,SessionId),
 	execute_service(RemOrLoc,Service,Deployment,SessionId,States),
 	terminate_monitor(SessionId).
+ext_execute_service(orbit,Deployment) :- !,
+	is_deployment(Deployment, Service, Monitor),
+	is_service(Service,_,_,_,_,_,_,States),
+	is_monitor(Monitor,MonitorId,_,_,_,_,_,_),
+	initiate_monitor(Monitor,SessionId),
+	execute_service(orbit,Service,Deployment,SessionId,States),
+	param:local_nameserver_IOR(IOR),
+	atomic_list_concat(['monitor_server -N ',IOR,' -i ',MonitorId],ServerCmd),
+	nurv_session_cmd_resp(SessionId,ServerCmd),
+	% terminate_monitor
+	true.
 
 % end EXECUTION CONTROL SIMULATION
 %-------------------------------------------------------
@@ -171,7 +231,7 @@ ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc =
 %-------------------------------------------------------
 % STEP - simulated stepping of the service
 %
-sim_exec_steps(_, _, []).
+sim_exec_steps(_, _, []) :- !.
 sim_exec_steps(Deployment, Sid, [Step|Steps]) :-
 	sim_exec_step(Deployment, Sid, Step),
 	sim_exec_steps(Deployment, Sid, Steps).
@@ -200,11 +260,14 @@ execute_service(remote,Service,Deployment,SessionId,States) :- !, is_service(Ser
 	sim_exec_steps(Deployment, SessionId, States),
 	true.
 
+execute_service(orbit,_Service,_Deployment,_SessionId,_States) :-
+	true.
 %-------------------------------------------------------
 % INITIATE THE MONITOR SESSION
 %
-initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),
-        open_nurv_session(SessId), % format('NuRV session ~a~n',Sid),
+initiate_monitor(M,SessId) :- is_monitor(M,MonitorId,ModelId,_,_,_,_,_),
+        open_nurv_session(int,SessId),
+	format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
 	nurv_session_get_resp(SessId),
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
@@ -212,6 +275,12 @@ initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),
 	nurv_monitor_init(SMVmodelFile,SMVordFile,SessId),
 	true.
 
+initiate_monitor2(M,SessId) :- is_monitor(M,_MonitorId,_ModelId,_,_,_,_,_),
+        open_nurv_session(orbit,SessId),
+	param:local_nameservier_IOR(IOR),
+	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
+	nurv_session_cmd_resp(SessId,ServerCmd),
+	true.
 %-------------------------------------------------------
 % monitor controls
 %
@@ -239,49 +308,6 @@ assignments2argatom(Assignments, Argatom) :-
 terminate_monitor(SessId) :-
 	quit_nurv_session(SessId),
 	writeln('session ended').
-
-% ------------------------------------------------------------------------
-% API IMPLEMENTATION
-%
-% called from the exec_notification_registration API
-execapi_notification_reg(Request) :-
-	std_resp_prefix,
-	catch(
-	     http_parameters(Request,[exec_variables(VarsAtom,[atom]),
-				      epp_url(EPP,[atom]),
-				      epp_token(Token,[atom])
-				     ]),
-	    E,writeln('missing parameter')),	!,
-	(   nonvar(E)
-	->  writeln(failure)
-	;
-	    read_term_from_atom(VarsAtom,Vars,[]),
-	    %format('Context notification registration:~n  ~q ~q ~q~n',[Vars,EPP,Token]),
-	    %flush_output,
-	    notification_reg(Vars,EPP,Token),
-	    writeln(success)
-	).
-
-notification_reg(Vars,URL,Token) :-
-	exec_notification_registration_sim(Vars,URL,Token),
-	true.
-
-% this is used to enter end-to-end test in simulated environment
-execapi_e2e(Request) :-
-	std_resp_prefix,
-	catch(
-	     http_parameters(Request,[
-				     ]),
-	    E,writeln('missing parameter')),	!,
-	(   nonvar(E)
-	->  writeln(failure)
-	;   writeln('E2E called'),
-	    e2e_api(remote),
-	    writeln(success)
-	).
-
-e2e_api(test) :- !, writeln('e2e_api local test'), e2e(local).
-e2e_api(Mode) :- writeln(e2e_api), e2e(Mode).
 
 % ------------------------------------------------------------------------
 % SERVICE / MONITOR EXECUTION SIMULATION
