@@ -5,18 +5,24 @@
 	       ]).
 
 :- use_module('COM/param').
+:- use_module('RMV/rmv_mc_nui').
 %:- use_module('EPP/epp').
 %:- use_module('EPP/eppapi').
 
 % MONITOR EVENT PROCESSING
 %
 
-mep_start_monitor(_Mid,Status) :-
-    Status = success,
+mep_start_monitor(Mid) :-
+    rmv_mc_nui:start_monitor(Mid,_Status),
+    % return status
     true.
 
-mep_stop_monitor(_Mid) :-
+mep_stop_monitor(Mid) :-
+    rmv_mc_nui:stop_monitor(Mid),
+    % return acknowledgment
     true.
 
-mep_heartbeat(_Mid,_AtomIds,_Reportables) :-
+mep_heartbeat(Mid,AtomIds,Reportables) :-
+    rmv_mc_nui:heartbeat(Mid,AtomIds,Reportables,_Response),
+    % return Response
     true.

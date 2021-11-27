@@ -1,7 +1,7 @@
 % RMV - Notification Agent
 % Work in Progress
 
-:- module(rmv_na,[
+:- module(rmv_na,[notifications/3
 	       ]).
 
 :- use_module('COM/param').
@@ -20,3 +20,5 @@ un_init :-
 	% ...
         retractall(na_initialized(_)), assert(na_initialized(false)).
 
+notifications(_MonitorId,_Reportables,_Verdict) :-
+        true.

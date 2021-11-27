@@ -89,6 +89,8 @@ ssid_scripid(SSpecId,ScripId) :-
 modid_monid(ModelId,MonitorId) :-
         atom_concat(modid_,N,ModelId), atom_concat(monid_,N,MonitorId).
 
+monitorid_nurvid(Mid,NuRVid) :- Mid = NuRVid. % define if necessary
+
 %
 % some built-in samples:
 %

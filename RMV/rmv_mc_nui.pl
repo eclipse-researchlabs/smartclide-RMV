@@ -1,12 +1,13 @@
 % interface to NuRV (and nuXmvm NuSMV)
 % for human and automated interaction
 
-:- module(rmv_mc_nui,[nurv_monitor_init/3,
+:- module(rmv_mc_nui,[start_monitor/2, stop_monitor/1, heartbeat/4,
+		      nurv_monitor_init/3,
 		      open_nurv_session/2,quit_nurv_session/1,close_nurv_session/1,
 		      nurv_session_cmd/2,nurv_session_cmd_resp/2,nurv_session_get_resp/1
 		     ]).
 
-:- use_module(['COM/param','COM/ui','COM/sessions',rmv_ml,rmv_mc]).
+:- use_module(['COM/param','COM/ui','COM/sessions','RMV/rmv_na','RMV/rmv_ml',rmv_mc]).
 
 % Interactive
 %
@@ -147,6 +148,52 @@ struct_trace(XMLstruct,Trace) :-
 		 findall(Var=VAL, (xpath(S,//(value),element(value,[variable=Var],[VAL]))), Vars)
 		),
 		States).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Monitor Server Interactions
+%
+%   These functions are relayed here by rmv_mf_mep for
+%   events received from monitor sensors to be sent to
+%   monitor servers
+%
+
+% start a NuRV server instance with instance id derived form monitor id
+start_monitor(Mid,Status) :-
+	start_monitor_server(Mid),
+	Status = [server_started],
+	!.
+start_monitor(_Mid,[server_failure]) :-
+	true.
+
+% stop the NuRV server intance corresponding to monitor id
+stop_monitor(Mid) :-
+	stop_monitor_server(Mid),
+	!.
+stop_monitor(_).
+
+% pass the T atoms to the monitor server for a verdict
+% send reportables to subscribers
+heartbeat(Mid,AtomIds,Reportables,Response) :-
+	heartbeat_monitor_server(Mid,AtomIds,_Reset,Verdict),
+	Response = [acknowledged,verdict=Verdict,recover=false],
+	notifications(Mid,Reportables,Verdict),
+	!.
+heartbeat(_,_,_,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%  Communicate with appropriate monitor server instance
+%
+
+start_monitor_server(Mid) :-
+	monitor(Mid,_,_,_,_,_,_).
+
+stop_monitor_server(Mid) :-
+	monitor(Mid,_,_,_,_,_,_).
+
+heartbeat_monitor_server(Mid,_,_,_) :-
+	monitor(Mid,_,_,_,_,_,_).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %

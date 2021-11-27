@@ -126,7 +126,7 @@ EC->S: execute 𝑺+𝓜𝑺
 S->MS: 𝓜𝑺 Startup
 MS->MEP: Start monitor 𝓜
 
-MEP->NuRVi: Start 𝓜
+MEP->NuRVi: Start Monitor 𝓜
 NuRVi<-->ML: Get 𝓜 info
 NuRVi<-->ML: Create NuRV\nsession for 𝓜
 NuRVi->NuRV: start NuRV instance
@@ -172,9 +172,9 @@ end
 S->S: 𝑺 completes
 S->MS: 𝓜𝑺 Shutdown
 MS->MEP: Stop Monitor 𝓜
-MEP->NuRVi: Stop 𝓜
+MEP->NuRVi: Stop Monitor 𝓜
 NuRVi<-->ML: Remove NuRV\nsession for 𝓜
-NuRVi->Mserv: Terminate 𝓜 server
+NuRVi->Mserv: Stop 𝓜 server
 S->EC: 𝑺 normal completion
 EC->SCC: Service 𝑺+𝓜𝑺 completed
 end # region
