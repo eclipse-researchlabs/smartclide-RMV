@@ -23,6 +23,12 @@ mep_stop_monitor(Mid) :-
     true.
 
 mep_heartbeat(Mid,AtomIds,Reportables) :-
-    rmv_mc_nui:heartbeat(Mid,AtomIds,Reportables,_Response),
+    rmv_mc_nui:heartbeat(Mid,AtomIds,Verdict),
+    notifications(Mid,Reportables,Verdict),
+    (   (Verdict == true ; Verdict == inconclusive)
+    ->  Response = [acknowledged,verdict=Verdict,recover=false]
+    ;   Response = [acknowledged,verdict=Verdict,recover=true],
+        notifications(Mid,exception,Verdict)
+    ),
     % return Response
     true.

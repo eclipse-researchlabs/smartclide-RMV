@@ -1,7 +1,7 @@
 % interface to NuRV (and nuXmvm NuSMV)
 % for human and automated interaction
 
-:- module(rmv_mc_nui,[start_monitor/2, stop_monitor/1, heartbeat/4,
+:- module(rmv_mc_nui,[start_monitor/2, stop_monitor/1, heartbeat/3,
 		      nurv_monitor_init/3,
 		      open_nurv_session/2,quit_nurv_session/1,close_nurv_session/1,
 		      nurv_session_cmd/2,nurv_session_cmd_resp/2,nurv_session_get_resp/1
@@ -174,12 +174,10 @@ stop_monitor(_).
 
 % pass the T atoms to the monitor server for a verdict
 % send reportables to subscribers
-heartbeat(Mid,AtomIds,Reportables,Response) :-
+heartbeat(Mid,AtomIds,Verdict) :-
 	heartbeat_monitor_server(Mid,AtomIds,_Reset,Verdict),
-	Response = [acknowledged,verdict=Verdict,recover=false],
-	notifications(Mid,Reportables,Verdict),
 	!.
-heartbeat(_,_,_,_).
+heartbeat(_,_,_).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
