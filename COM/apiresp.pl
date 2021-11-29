@@ -101,12 +101,6 @@ response(RespStatus,RespMessage,RespBody) :-
 	    )
 	).
 
-epp_resp(_) :-
-	true.
-
-server_resp(_) :-
-	true.
-
 atomify(M,MA,B,BA) :- atomify(M,MA), atomify(B,BA).
 
 atomify(X,XA) :- compound(X), !,
