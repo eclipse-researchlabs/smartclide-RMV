@@ -1,7 +1,52 @@
-:- module(jsonresp,[json_resp/3,json_resp/5]).
+:- module(apiresp,[std_resp_prefix/0,
+		    std_resp_MS/3,
+		    std_resp_BS/3,
+		    std_resp_M/3,
+		    api_unimpl/1,root_apis/2,
+		    json_resp/3,json_resp/5]).
 
 :- use_module(param).
 :- use_module(library(http/json)).
+
+std_resp_prefix :-
+	(   param:jsonresp(on)
+	->  format('Content-type: application/json~n~n')
+	;   format('Content-type: text/plain~n~n')
+	).
+
+std_resp_MS(Status, M, B) :-
+	(   param:jsonresp(on)
+	->  json_resp(Status, M, B)
+	;   writeln(M), writeln(Status)
+	).
+
+std_resp_BS(Status, M, B) :-
+	(   param:jsonresp(on)
+	->  json_resp(Status, M, B)
+	;   writeln(B), writeln(Status)
+	).
+
+std_resp_M(Status, M, B) :-
+	(   param:jsonresp(on)
+	->  json_resp(Status, M, B)
+	;   writeln(M)
+	).
+
+%
+%
+%
+
+api_unimpl(_) :-
+	std_resp_prefix,
+	format('Unimplemented API~n').
+
+root_apis(Kind,_) :- std_resp_prefix, list_apis(Kind), !.
+root_apis(_,_).
+
+list_apis(Kind) :-
+	format('Valid ~a paths:~n',[Kind]),
+	G=..[Kind,APIs], call(G),
+	foreach( member(A,APIs), writeln(A)).
 
 % JSON response structure
 % {
@@ -26,6 +71,11 @@ responseBody([null_status,
 	    grant,
 	    deny
 	   ]).
+
+% json_resp(RespStatus,RespMessage,RespBody,JrespTerm,JrespAtom)
+%
+% assignments to the JSON response structure for each API are given in
+% the documentation
 
 % imperative
 json_resp(RespStatus,RespMessage,RespBody) :-

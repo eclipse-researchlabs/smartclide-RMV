@@ -124,9 +124,9 @@ region [SERVICE EXECUTION]
 SCC->EC: Run Service 𝑺+𝓜𝑺
 EC->S: execute 𝑺+𝓜𝑺
 S->MS: 𝓜𝑺 Startup
-MS->MEP: Start monitor 𝓜
+MS->MEP: Start monitor 𝓜id
 
-MEP->NuRVi: Start Monitor 𝓜
+MEP->NuRVi: Start Monitor 𝓜id
 NuRVi<-->ML: Get 𝓜 info
 NuRVi<-->ML: Create NuRV\nsession for 𝓜
 NuRVi->NuRV: start NuRV instance
@@ -147,8 +147,12 @@ MS-->S: 𝓜𝑺 initialized
 S->MS: 𝓜𝑺 Step 𝓥
 MS->MS: evaluate 𝓐(𝓥)
 MS->MEP: heartbeat 𝓜id, 𝓥, 𝓐
-MEP->Mserv: heartbeat 𝓜id, 𝓐
-Mserv-->MEP: NuRV 𝓜 verdict: 𝓑4 [⟙/⟘/?/!]
+
+MEP->NuRVi: heartbeat 𝓜id, 𝓐
+NuRVi->Mserv: heartbeat 𝓜id, 𝓐
+Mserv-->NuRVi: NuRV 𝓜 verdict: 𝓑4 [⟙/⟘/?/!]
+NuRVi-->MEP: NuRV 𝓜 verdict: 𝓑4 [⟙/⟘/?/!]
+
 MEP->NA: [If monitor\nnotifications] 
 NA->CXH: Monitor Report: 𝓥, 𝓐(𝓥), NuRV Verdict 𝓑4 [⟙/⟘/?/!]
 
@@ -171,8 +175,8 @@ end
 
 S->S: 𝑺 completes
 S->MS: 𝓜𝑺 Shutdown
-MS->MEP: Stop Monitor 𝓜
-MEP->NuRVi: Stop Monitor 𝓜
+MS->MEP: Stop Monitor 𝓜id
+MEP->NuRVi: Stop Monitor 𝓜id
 NuRVi<-->ML: Remove NuRV\nsession for 𝓜
 NuRVi->Mserv: Stop 𝓜 server
 S->EC: 𝑺 normal completion
