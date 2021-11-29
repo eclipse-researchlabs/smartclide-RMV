@@ -3,9 +3,9 @@
 
 :- use_module('AUDIT/audit',[audit_gen/2]).
 :- use_module('COM/param').
-:- use_module([rmv_mc, rmv_mc_cm, rmv_mc_cps]).
+:- use_module('COM/apiresp').
 
-:- use_module('COM/jsonresp').
+:- use_module([rmv_mc, rmv_mc_cm, rmv_mc_cps]).
 
 :- use_module(library(http/thread_httpd)).
 :- use_module(library(http/http_dispatch)).
