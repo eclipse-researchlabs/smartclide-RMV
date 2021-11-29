@@ -126,58 +126,6 @@ mcapi_graph_monitor(_) :- audit_gen(monitor_creation, graph_monitor(failure)).
 
 graph_monitor_aux(_,_,_,_,_,_).
 
-%
-% JSON response structure
-% {
-%     "respStatus" : "statusType",
-%     "respMessage" : "statusDesc",
-%     "respBody" : "statusBody"
-% }
-%
-% json_resp(RespStatus,RespMessage,RespBody)
-%
-
-std_resp_prefix :-
-	(   param:jsonresp(on)
-	->  format('Content-type: application/json~n~n')
-	;   format('Content-type: text/plain~n~n')
-	).
-
-std_resp_MS(Status, M, B) :-
-	(   param:jsonresp(on)
-	->  json_resp(Status, M, B)
-	;   writeln(M), writeln(Status)
-	).
-
-std_resp_BS(Status, M, B) :-
-	(   param:jsonresp(on)
-	->  json_resp(Status, M, B)
-	;   writeln(B), writeln(Status)
-	).
-
-std_resp_M(Status, M, B) :-
-	(   param:jsonresp(on)
-	->  json_resp(Status, M, B)
-	;   writeln(M)
-	).
-
-%
-%
-
-api_unimpl(_) :-
-	std_resp_prefix,
-	format('Unimplemented API~n').
-
-root_apis(Kind,_) :- std_resp_prefix, list_apis(Kind), !.
-root_apis(_,_).
-
-list_apis(Kind) :-
-	format('Valid ~a paths:~n',[Kind]),
-	G=..[Kind,APIs], call(G),
-	foreach( member(A,APIs), writeln(A)).
-
-use_valid_api(_) :-
-	format('Use valid endpoint~n').
 
 %
 %

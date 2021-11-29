@@ -1,7 +1,7 @@
 % RMV - Monitoring Framework - Monitor Event Processing
 % Work in Progress
 
-:- module(rmv_mf_mep,[mep_start_monitor/2, mep_stop_monitor/1, mep_heartbeat/3
+:- module(rmv_mf_mep,[mep_start_monitor/2, mep_stop_monitor/1, mep_heartbeat/4
 	       ]).
 
 :- use_module('COM/param').
@@ -12,17 +12,15 @@
 % MONITOR EVENT PROCESSING
 %
 
-mep_start_monitor(Mid) :-
-    rmv_mc_nui:start_monitor(Mid,_Status),
-    % return status
+mep_start_monitor(Mid,Status) :-
+    rmv_mc_nui:start_monitor(Mid,Status),
     true.
 
 mep_stop_monitor(Mid) :-
     rmv_mc_nui:stop_monitor(Mid),
-    % return acknowledgment
     true.
 
-mep_heartbeat(Mid,AtomIds,Reportables) :-
+mep_heartbeat(Mid,AtomIds,Reportables,Response) :-
     rmv_mc_nui:heartbeat(Mid,AtomIds,Verdict),
     notifications(Mid,Reportables,Verdict),
     (   (Verdict == true ; Verdict == inconclusive)
@@ -30,5 +28,4 @@ mep_heartbeat(Mid,AtomIds,Reportables) :-
     ;   Response = [acknowledged,verdict=Verdict,recover=true],
         notifications(Mid,exception,Verdict)
     ),
-    % return Response
     true.

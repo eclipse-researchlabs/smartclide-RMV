@@ -32,6 +32,9 @@ std_resp_M(Status, M, B) :-
 	;   writeln(M)
 	).
 
+use_valid_api(_) :-
+	format('Use valid endpoint~n').
+
 %
 %
 %

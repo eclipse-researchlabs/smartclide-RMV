@@ -3,7 +3,7 @@
 
 :- use_module('AUDIT/audit',[audit_gen/2]).
 :- use_module('COM/param').
-:- use_module('COM/restresp').
+:- use_module('COM/apiresp').
 
 :- use_module(library(http/thread_httpd)).
 :- use_module(library(http/http_dispatch)).

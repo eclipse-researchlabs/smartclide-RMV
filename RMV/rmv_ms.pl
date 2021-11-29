@@ -151,7 +151,7 @@ or_list_constructor(ORl) :- % create a list of var=value pairs
 %   ORlist is a list of name=value pairs for the reportable variables
 ms_heartbeat(MonitorID,ATlist,ORlist) :-
         format('HEARTBEAT: ~w ~w ~w~n',[MonitorID,ATlist,ORlist]),
-        mep_heartbeat(MonitorID,ATlist,ORlist).
+        mep_heartbeat(MonitorID,ATlist,ORlist,_Response).
 
 % functions to set/get SUS variable values
 %
