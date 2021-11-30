@@ -23,16 +23,11 @@ lnapi([subscribe]). % LOGGING AND NOTIFICATION ADMIN API
 lnapi_subscribe(Request) :-
 	std_resp_prefix,
 	catch(
-	     http_parameters(Request,[user(User,[atom]),
-				 ar(AR,[atom]),
-				 object(Object,[atom]),
-				 purpose(Purpose,[atom,optional(true)]), % DPLP
-				 cond(CondAtom,[atom,optional(true)])
+	     http_parameters(Request,[
 				]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	param:current_policy(Policy),
-	subscribe(Policy,User,AR,Object,Purpose,CondAtom),
+	subscribe(_,_,_,_,_,_),
 	!.
 lnapi_subscribe(_) :- audit_gen(monitor_creation, create(failure)).
 

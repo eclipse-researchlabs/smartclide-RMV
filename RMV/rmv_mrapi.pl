@@ -23,40 +23,46 @@ mraapi([monitor_list,monitor_subscribe,monitor_unsubscribe]). % MONITOR REQUEST 
 
 
 % monitor_start
-mrapi_monitor_start(Request) :-
+mrapi_monitor_list(Request) :-
 	std_resp_prefix,
 	catch(
-	     http_parameters(Request,[user(User,[atom]),
-				 ar(AR,[atom]),
-				 object(Object,[atom]),
-				 purpose(Purpose,[atom,optional(true)]), % DPLP
-				 cond(CondAtom,[atom,optional(true)])
+	     http_parameters(Request,[
 				]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	monitor_start(_,User,AR,Object,Purpose,CondAtom),
+	monitor_list(_),
 	!.
-mrapi_monitor_start(_) :- audit_gen(monitor_request, monitor_start(failure)).
+mrapi_monitor_list(_) :- audit_gen(monitor_request, monitor_list(failure)).
 
-monitor_start(_,_,_,_,_,_) :-
+monitor_list(_) :-
 	true.
 
-% monitor_stop
-mrapi_monitor_stop(Request) :-
+% monitor_subscribe
+mrapi_monitor_subscribe(Request) :-
 	std_resp_prefix,
 	catch(
-	     http_parameters(Request,[user(User,[atom]),
-				 ar(AR,[atom]),
-				 object(Object,[atom]),
-				 purpose(Purpose,[atom,optional(true)]), % DPLP
-				 cond(CondAtom,[atom,optional(true)])
+	     http_parameters(Request,[
 				]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	param:current_policy(Policy),
-	monitor_stop(Policy,User,AR,Object,Purpose,CondAtom),
+	monitor_subscribe(_),
 	!.
-mrapi_monitor_stop(_) :- audit_gen(monitor_request, monitor_stop(failure)).
+mrapi_monitor_stop(_) :- audit_gen(monitor_request, monitor_subscribe(failure)).
 
-monitor_stop(_,_,_,_,_,_).
+monitor_subscribe(_).
+
+
+% monitor_unsubscribe
+mrapi_monitor_unsubscribe(Request) :-
+	std_resp_prefix,
+	catch(
+	     http_parameters(Request,[
+				]),
+	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
+	), !,
+	monitor_unsubscribe(_),
+	!.
+mrapi_monitor_stop(_) :- audit_gen(monitor_request, monitor_unsubscribe(failure)).
+
+monitor_unsubscribe(_).
 

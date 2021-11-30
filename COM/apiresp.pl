@@ -3,9 +3,11 @@
 		    std_resp_BS/3,
 		    std_resp_M/3,
 		    api_unimpl/1,root_apis/2,
-		    json_resp/3,json_resp/5]).
+		    json_resp/3,json_resp/5,
+		    authenticate/2]).
 
 :- use_module(param).
+:- use_module('AUDIT/audit').
 :- use_module(library(http/json)).
 
 std_resp_prefix :-
@@ -87,7 +89,7 @@ json_resp(RespStatus,RespMessage,RespBody) :-
 	  writeln(RespAtom),
 	  true.
 
-% relation
+% relational
 json_resp(RespStatus,RespMessage,RespBody,JrespTerm,JrespAtom) :-
 	  JrespTerm =
 	  json([respStatus=RespStatus,respMessage=RespMessage,respBody=RespBody]),
@@ -109,6 +111,25 @@ atomify(M,MA,B,BA) :- atomify(M,MA), atomify(B,BA).
 atomify(X,XA) :- compound(X), !,
 	term_to_atom(X,XA).
 atomify(X,X).
+
+% API authentication
+%   token for each admin interface is declared in module param
+%   in the form: param:<TokenKind>_token(<token string>)
+%   e.g. param:admin_token('admin_token') % default token
+
+authenticate(TokenKind,Token) :-
+	(   authenticate_token(TokenKind,Token)
+	->  true
+	;   std_resp_M(failure,'authentication error',''),
+	    atom_concat(TokenKind,'_admin',Where),
+	    audit_gen(Where, 'authentication error'),
+	    !, fail
+	).
+
+authenticate_token(TokenKind,Token) :- atom(TokenKind), atom(Token),
+	atomic_list_concat(['param:',TokenKind,'_token'],ParamToken),
+	compound_name_arguments(CheckStoredToken,ParamToken,[Token]),
+	call(CheckStoredToken), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % TESTING

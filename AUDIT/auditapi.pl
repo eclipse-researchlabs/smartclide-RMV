@@ -40,7 +40,7 @@ auditapi_control(Request) :-
 	    _,
 	    (	std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	(   authenticate(Token)
+	(   authenticate(audit,Token)
 	->  control(Operation), !
 	;   true
 	).
@@ -65,7 +65,7 @@ auditapi_select(Request) :-
 	    _,
 	    (	std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	(   authenticate(Token)
+	(   authenticate(audit,Token)
 	->  select(Events), !
 	;   true
 	).
@@ -115,7 +115,7 @@ auditapi_gen(Request) :-
 	    _,
 	    (	std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	(   authenticate(Token)
+	(   authenticate(audit,Token)
 	->  gen(Source,Event,Data), !
 	;   true
 	).
@@ -130,19 +130,8 @@ gen(_S,X,_Y) :-
 	).
 
 
-authenticate(Token) :-
-	(   authenticate_token(Token)
-	->  true
-	;   std_resp_M(failure,'authentication error',''),
-	    audit_gen(policy_admin, 'authentication error'),
-	    !, fail
-	).
-
-authenticate_token(Token) :- atom(Token), param:audit_token(Token), !.
-
 
 read_term_from_atom_in_list([],[]).
 read_term_from_atom_in_list([Elt|Elts],[TElt|TElts]) :-
 	read_term_from_atom(Elt,TElt,[]),
 	read_term_from_atom_in_list(Elts,TElts).
-
