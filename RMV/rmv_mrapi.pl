@@ -47,7 +47,7 @@ mrapi_monitor_subscribe(Request) :-
 	), !,
 	monitor_subscribe(_),
 	!.
-mrapi_monitor_stop(_) :- audit_gen(monitor_request, monitor_subscribe(failure)).
+mrapi_monitor_subscribe(_) :- audit_gen(monitor_request, monitor_subscribe(failure)).
 
 monitor_subscribe(_).
 
@@ -62,7 +62,7 @@ mrapi_monitor_unsubscribe(Request) :-
 	), !,
 	monitor_unsubscribe(_),
 	!.
-mrapi_monitor_stop(_) :- audit_gen(monitor_request, monitor_unsubscribe(failure)).
+mrapi_monitor_unsubscribe(_) :- audit_gen(monitor_request, monitor_unsubscribe(failure)).
 
 monitor_unsubscribe(_).
 

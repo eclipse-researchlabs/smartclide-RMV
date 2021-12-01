@@ -1,7 +1,7 @@
 % interface to NuRV (and nuXmvm NuSMV)
 % for human and automated interaction
 
-:- module(rmv_mc_nui,[start_monitor/2, stop_monitor/1, heartbeat/3,
+:- module(rmv_mc_nui,[start_monitor/2, stop_monitor/2, heartbeat/3,
 		      nurv_monitor_init/3,
 		      open_nurv_session/2,quit_nurv_session/1,close_nurv_session/1,
 		      nurv_session_cmd/2,nurv_session_cmd_resp/2,nurv_session_get_resp/1
@@ -161,16 +161,17 @@ struct_trace(XMLstruct,Trace) :-
 % start a NuRV server instance with instance id derived form monitor id
 start_monitor(Mid,Status) :-
 	start_monitor_server(Mid),
-	Status = [server_started],
+	Status = [monitor_started],
 	!.
-start_monitor(_Mid,[server_failure]) :-
+start_monitor(_Mid,[monitor_failure]) :-
 	true.
 
 % stop the NuRV server intance corresponding to monitor id
-stop_monitor(Mid) :-
+stop_monitor(Mid,Status) :-
 	stop_monitor_server(Mid),
+	Status = [monitor_stopping],
 	!.
-stop_monitor(_).
+stop_monitor(_,[monitor_failure]).
 
 % pass the T atoms to the monitor server for a verdict
 % send reportables to subscribers
@@ -185,13 +186,16 @@ heartbeat(_,_,_).
 %
 
 start_monitor_server(Mid) :-
-	monitor(Mid,_,_,_,_,_,_).
+	monitor(Mid,_,_,_,_,_,_),
+	atom_concat('NuRV/Monitor/',Mid,_FullMid).
 
 stop_monitor_server(Mid) :-
-	monitor(Mid,_,_,_,_,_,_).
+	monitor(Mid,_,_,_,_,_,_),
+	atom_concat('NuRV/Monitor/',Mid,_FullMid).
 
 heartbeat_monitor_server(Mid,_,_,_) :-
-	monitor(Mid,_,_,_,_,_,_).
+	monitor(Mid,_,_,_,_,_,_),
+	atom_concat('NuRV/Monitor/',Mid,_FullMid).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %

@@ -18,12 +18,43 @@
 :- use_module('COM/param').
 :- use_module([rmv_ml_mt,rmv_ml_pst]).
 
+
+%-------------------------------------------
+%
+% Parameters used
+%
+
+
+%-------------------------------------------
+%
+% STORAGE of various structures
+%
+
 % structures stored in the monitor library
 %
 :- dynamic app/7, model/2, monitor/7, property/2, service/7, service_spec/2, trc/1.
 
+% app(_,_,_._._._._)
+% model(_,_)
+% monitor(MonId,ModId,_._._._._)
+%   MonId - unique monitor ID (suffix should be unique over all runs)
+%   ModId - unique model ID (same suffix as MonId)
+%   MSinitial - abstract initialization vector for monitor sensor
+%   MonEval - where atoms are evaluated [ms,mep,not_eval]
+% ms_initial_abstract()
+% ms_initial_concrete()
+% property(PropId,Formula,Atoms,Variables)
+% service(_,_,_._._._._)
+% service_spec(_,_)
+% trc(_)
+
+
+%-------------------------------------------
+
+
+%-------------------------------------------
 %
-% types checkers / constructors
+% TYPE CHECKERS / CONSTRUCTORS
 %
 
 % is_app(App,AppId,AppVars,AppTS,AppInputVars,AppOutputVars,AppCurrentInput,AppCurrentOutput).
@@ -49,6 +80,14 @@ is_model(Model,Name) :- Model = model(Name),
         true.
 
 % is_monitor(Monitor,MonId,MonState,MonTS,MonObservables,MonOut,MonCurrentInput,MonCurrentOutput) :-
+%   1 MonId - monitor unique ID
+%   2 ModId - model unique ID
+%   3 MonObservables -
+%   4 MonReportables -
+%   5 MonAtoms -
+%   6 MonAtomEval - ms | mep - where are atoms evaluated?
+%   7 MonSensor -
+
 is_monitor(Monitor) :- is_monitor(Monitor,_,_,_,_,_,_,_).
 is_monitor(Monitor,MonId,ModId,_,_,_,_,_) :-
         Monitor = monitor(MonId,ModId,_,_,_,_,_).
@@ -76,7 +115,9 @@ is_trace(Trace, TraceId, States) :-
 
 is_service_creation_context(SCC) :- is_list(SCC).
 
-% ids
+
+%-------------------------------------------
+% Conversions among identifiers
 ssid_modid(SSpecId,ModelId) :-
     atom_concat(ssid_,N,SSpecId), atom_concat(modid_,N,ModelId).
 
@@ -91,8 +132,63 @@ modid_monid(ModelId,MonitorId) :-
 
 monitorid_nurvid(Mid,NuRVid) :- Mid = NuRVid. % define if necessary
 
+
+%-------------------------------------------
+% IMPORT / EXPORT of structures
 %
-% some built-in samples:
+
+% Service Specifications
+%   service_spec( SpecId, SpecBody )
+%
+
+load_service_specification_immediate(SSAtom,Sid) :-
+        read_term_from_atom(SSAtom,SSTerm,[]),
+        load_service_specification(SSTerm,Sid).
+
+load_service_specification(SSTerm,Sid) :-
+        is_service_spec(SSTerm,Sid,Sbody),
+        retractall( service_spec(Sid,_) ),
+        assert( service_spec(Sid,Sbody) ),
+        unpack_sspec(Sbody).
+
+unload_service_specification(Sid) :-
+        retractall( service_spec(Sid,_) ).
+
+unpack_sspec(_Sbody).
+
+% Monitors
+load_monitor(Mon) :-
+        Mon = monitor(MonId,_,_,_,_,_,_),
+        retractall(monitor(MonId,_,_,_,_,_,_)),
+        assert(Mon),
+        true.
+
+unload_monitor(MonId) :-
+        retractall(monitor(MonId,_,_,_,_,_,_)).
+
+
+%-------------------------------------------
+% INITIALIZATION
+%
+:- dynamic ml_initialized/1.
+ml_initialized(false).
+
+init:- ml_initialized(true), !. % already initialized
+init :-
+	% ...
+        retractall(ml_initialized(_)), assert(ml_initialized(true)).
+
+re_init :- un_init, init.
+
+un_init :-
+	% ...
+        retractall(ml_initialized(_)), assert(ml_initialized(false)).
+
+%-------------------------------------------
+%
+% Examples
+%
+%  including built-ins used in some self-test cases
 %
 
 app(app001,a,b,c,d,e,f).
@@ -119,47 +215,3 @@ trc( trace('counter-example',
 truncate_trace(trace(N,[A,B,C,D,E,F|_]),trace(N,[A,B,C,D,E,F])) :- !. % truncate to 6 steps
 truncate_trace(T,T).
 
-%
-% Service Specifications
-%   service_spec( SpecId, SpecBody )
-%
-
-load_service_specification_immediate(SSAtom,Sid) :-
-        read_term_from_atom(SSAtom,SSTerm,[]),
-        load_service_specification(SSTerm,Sid).
-
-load_service_specification(SSTerm,Sid) :-
-        is_service_spec(SSTerm,Sid,Sbody),
-        retractall( service_spec(Sid,_) ),
-        assert( service_spec(Sid,Sbody) ),
-        unpack_sspec(Sbody).
-
-unload_service_specification(Sid) :-
-        retractall( service_spec(Sid,_) ).
-
-load_monitor(Mon) :-
-        Mon = monitor(MonId,_,_,_,_,_,_),
-        retractall(monitor(MonId,_,_,_,_,_,_)),
-        assert(Mon),
-        true.
-
-unload_monitor(MonId) :-
-        retractall(monitor(MonId,_,_,_,_,_,_)).
-
-unpack_sspec(_Sbody).
-
-% INITIALIZATION
-%
-:- dynamic ml_initialized/1.
-ml_initialized(false).
-
-init:- ml_initialized(true), !. % already initialized
-init :-
-	% ...
-        retractall(ml_initialized(_)), assert(ml_initialized(true)).
-
-re_init :- un_init, init.
-
-un_init :-
-	% ...
-        retractall(ml_initialized(_)), assert(ml_initialized(false)).
