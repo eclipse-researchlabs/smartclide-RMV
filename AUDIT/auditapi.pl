@@ -89,7 +89,7 @@ auditapi_logfile(Request) :-
 	    _,
 	    (	std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	(   authenticate(Token)
+	(   authenticate(audit,Token)
 	->  logfile(File), !
 	;   true
 	).

@@ -10,9 +10,12 @@
                   is_app/1, is_app/8, is_service/1, is_service/8, is_trace/1, is_trace/3,
                   is_service_creation_context/1,
                   ssid_modid/2, ssid_propid/2, ssid_scripid/2, modid_monid/2,
+                  load_service_specification_from_file/2,
                   load_service_specification_immediate/2, load_service_specification/2,
                   unload_service_specification/1,
-                  load_monitor/1, unload_monitor/1, truncate_trace/2
+                  load_monitor/1, unload_monitor/1, truncate_trace/2,
+
+                  ms_test_cv/1
 	       ]).
 
 :- use_module('COM/param').
@@ -141,6 +144,9 @@ monitorid_nurvid(Mid,NuRVid) :- Mid = NuRVid. % define if necessary
 %   service_spec( SpecId, SpecBody )
 %
 
+load_service_specification_from_file(_F,_Sid) :- writeln(unimplemented),
+        true.
+
 load_service_specification_immediate(SSAtom,Sid) :-
         read_term_from_atom(SSAtom,SSTerm,[]),
         load_service_specification(SSTerm,Sid).
@@ -215,3 +221,27 @@ trc( trace('counter-example',
 truncate_trace(trace(N,[A,B,C,D,E,F|_]),trace(N,[A,B,C,D,E,F])) :- !. % truncate to 6 steps
 truncate_trace(T,T).
 
+% monitor sensor configuration vector
+% CV = ms_cv(SV,Mid,Ma,Mv,Mo,Mp,Mr,Mt,Mae,SVi)
+%
+ms_test_cv( ms_cv(
+             /* shared variables */   [a,b,c,s,t,u,v,w,x,y,z],
+             /* monitor_id */         'Mid_00001',
+             /* monitor_atoms */      [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
+             /* monitor_variables */  [s,t,u,v,w,x,y,z],
+             /* monitor_observable_vars */ [u,v,w,x,y,z],
+             /* monitor_property_vars */   [v,w,x,y,z],
+             /* monitor_reportable_vars */ [v,w,x,y,z],
+             /* monitor_trigger_vars */    [x],
+             /* monitor_atom_eval */  ms_eval,
+             /* SUS variable init */  [sus_var(s, undefined),
+                                       sus_var(t, undefined),
+                                       sus_var(u, undefined),
+                                       sus_var(v, false),
+                                       sus_var(w, true),
+                                       sus_var(x, 1),
+                                       sus_var(y, 2),
+                                       sus_var(z, 3)
+                                      ]
+         )
+       ).

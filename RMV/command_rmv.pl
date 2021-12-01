@@ -1,3 +1,4 @@
+:- use_module('RMV/rmv_ml').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % definition of the RMV tool interactive commands syntax
 % syntax( Signature, CommandSet ).
@@ -55,7 +56,8 @@ do(rmv) :- !, user_mode(M), retractall(user_mode(_)), assert(user_mode(rmv)),
 do(rmv_server) :- !, writeln('not starting rmv_server'). % rmv_server:rmv_server.
 do(rmvt) :- !, ext_svcs:e2e_api(test1).
 do(rmvt(T)) :- !, ext_svcs:e2e_api(T).
-do(import_sspec(F,Sid)) :- !, sspec_load(F,Sid,_SMV_model).
+do(import_sspec(F,Sid)) :- !,
+    load_service_specification_from_file(F,Sid).
 
 do(stop_nameserver) :- !, rmv:stop_nameserver.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%

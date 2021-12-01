@@ -39,19 +39,30 @@ mep_heartbeat(Mid,AtomIds,Reportables,Response) :-
 % temporary stub:
 notifications(verdicts,_,_,_) :- writeln('verdicts notification').
 
+:- dynamic test_vars/1.
+
+test_setup :-
+    rmv_ml:ms_test_cv(CV),
+    CV = ms_cv(_SV,_Mid,_Ma,_Mv,_Mo,_Mp,_Mr,_Mt,_Mae,SVi),
+    maplist(g,SVi,SVv),
+    assert( test_vars(SVv) ).
+
+g(sus_var(N,V), (N=V)).
+
+
 % Note differences of these predicates to those in rmv_ms
 %   evaluate atoms for the monitor using values from the mep_heartbeat
 %   Monitor configuration will have to make sure that all observables
 %   needed for atom evaluation are in the Reportables list
 %
-aT_list_constructor(As,Vars,ATs) :-
+aT_list_constructor(As,Vars,ATs) :- % Vars is list of name=value pairs
     findall(Ai, (member(Ai:Ap,As), af_evaluator(Ap,Vars)), ATs).
 
 af_evaluator(Ap,Vars) :-
     aformula_instantiate(Ap,Vars,IAp),
     a_eval(IAp).
 
-aformula_instantiate(AF,Vars,IAF) :- atom(AF), memberchk(AF:IAF,Vars), !.
+aformula_instantiate(AF,Vars,IAF) :- atom(AF), memberchk(AF=IAF,Vars), !.
 aformula_instantiate(AF,Vars,IAF) :- compound(AF),
     compound_name_arguments(AF,F,Args),
     maplist(arg_instantiate(Vars),Args,IArgs),
