@@ -24,7 +24,7 @@
 
 %-------------------------------------------
 %
-% Parameters used
+% Parameters used from COM/param:
 %
 
 
@@ -35,22 +35,41 @@
 
 % structures stored in the monitor library
 %
-:- dynamic app/7, model/2, monitor/7, property/2, service/7, service_spec/2, trc/1.
-
+:- dynamic app/7, model/2, monitor/7, ms_cv/10, property/2, service/7, service_spec/2, trc/1.
+/*
 % app(_,_,_._._._._)
 % model(_,_)
-% monitor(MonId,ModId,_._._._._)
+% monitor(MonId,ModId,ModMScv._._._._)
 %   MonId - unique monitor ID (suffix should be unique over all runs)
-%   ModId - unique model ID (same suffix as MonId)
-%   MSinitial - abstract initialization vector for monitor sensor
-%   MonEval - where atoms are evaluated [ms,mep,not_eval]
+%   MonModId - unique model ID (same suffix as MonId)
+%   MonMScv - mv_cv/10 abstract initialization vector for monitor sensor, example values:
+        ms_cv(
+             /* monitor_id */              'Mid_00001',
+             /* shared variables */        [a,b,c,s,t,u,v,w,x,y,z],
+             /* monitor_atoms */           [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
+             /* monitor_variables */       [s,t,u,v,w,x,y,z],
+             /* monitor_observable_vars */ [u,v,w,x,y,z],
+             /* monitor_property_vars */   [v,w,x,y,z],
+             /* monitor_reportable_vars */ [v,w,x,y,z],
+             /* monitor_trigger_vars */    [x],
+             /* monitor_atom_eval */       ms_eval, /* where atoms evaluated: ms_eval,mep_eval,not_eval */
+             /* SUS variable init */       [] /* list SUS variable initializations name=val */
+             )
+ %
+
+ms_config_elements([monitor_id, shared_variables,
+                    monitor_atoms, monitor_variables, monitor_observable_vars,
+                    monitor_property_vars, monitor_reportable_vars, monitor_trigger_vars,
+                    monitor_atom_eval
+                   ]).
+
 % ms_initial_abstract()
 % ms_initial_concrete()
 % property(PropId,Formula,Atoms,Variables)
 % service(_,_,_._._._._)
 % service_spec(_,_)
 % trc(_)
-
+*/
 
 %-------------------------------------------
 

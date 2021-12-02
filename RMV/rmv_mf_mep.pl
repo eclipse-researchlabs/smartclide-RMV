@@ -23,7 +23,7 @@ mep_stop_monitor(Mid,Status) :-
 
 mep_heartbeat(Mid,AtomIds,Reportables,Response) :-
     monitor(Mid,_Mod,_Obs,_Reps,Atoms,AtomEval,_Sensor),
-    (   ( /* AtomIds == [], */ AtomEval == mep ) % monior specifies mep evaluation
+    (   ( /* AtomIds == [], */ AtomEval == mep_eval ) % monior specifies mep evaluation
     ->  aT_list_constructor(Atoms,Reportables,TAtomIdList) % ignore AtomIds from MS
     ;   TAtomIdList = AtomIds
     ),

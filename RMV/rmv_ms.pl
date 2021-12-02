@@ -50,8 +50,8 @@ monitor_reportable_vars([]).
 monitor_trigger_vars([]).
 monitor_atom_eval(no_eval). % ms_eval, mep_eval or no_eval
 
-ms_config_elements([shared_variables,
-                    monitor_id, monitor_atoms, monitor_variables, monitor_observable_vars,
+ms_config_elements([monitor_id, shared_variables,
+                    monitor_atoms, monitor_variables, monitor_observable_vars,
                     monitor_property_vars, monitor_reportable_vars, monitor_trigger_vars,
                     monitor_atom_eval
                    ]).
@@ -64,10 +64,11 @@ ms_initialized(false).
 
 % CONCRETE CONFIGURATION VECTOR
 % These definitions are presented as examples and are used by the self tests
+% It is also defined in the monitor library rmv_ml as ms_test_cv.
 
 test_cv( ms_cv(
-             /* shared variables */   [a,b,c,s,t,u,v,w,x,y,z],
              /* monitor_id */         'Mid_00001',
+             /* shared variables */   [a,b,c,s,t,u,v,w,x,y,z],
              /* monitor_atoms */      [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
              /* monitor_variables */  [s,t,u,v,w,x,y,z],
              /* monitor_observable_vars */ [u,v,w,x,y,z],
@@ -87,7 +88,11 @@ test_cv( ms_cv(
          )
        ).
 
-% get_cv will be expanded to import actual concrete CV
+% get_cv will import actual concrete MS configuration vector
+% monitor_id, monitor_atoms, monitor_variables, monitor_observables,
+% monitor_reportables, monitor triggers
+%
+% for now we use the test configuration vector
 get_cv(CV) :- test_cv(CV).
 
 % internal startup / shutdown functions
@@ -108,9 +113,6 @@ init :-
         true.
 
 initialize_ms_configuration :-
-        % this operation will import the MS configuration definitions:
-        % monitor_id, monitor_atoms, monitor_variables, monitor_observables,
-        % monitor_reportables, monitor triggers
         get_cv(CV),
         CV = ms_cv(SV,Mid,Ma,Mv,Mo,Mp,Mr,Mt,Mae,SVi),
         retractall(rmv_ml:monitor(Mid,_,_,_,_,_,_)),
