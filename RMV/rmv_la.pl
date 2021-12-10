@@ -20,3 +20,7 @@ un_init :-
 	% ...
         retractall(la_initialized(_)), assert(la_initialized(false)).
 
+% initialize_once - do these things only once per run
+initialize_once :- la_initialized(true), !.
+initialize_once :-
+	true.
