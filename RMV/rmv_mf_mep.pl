@@ -42,10 +42,12 @@ notifications(verdicts,_,_,_) :- writeln('verdicts notification').
 :- dynamic test_vars/1.
 
 test_setup :-
-    rmv_ml:ms_test_cv(CV),
-    CV = ms_cv(_SV,_Mid,_Ma,_Mv,_Mo,_Mp,_Mr,_Mt,_Mae,SVi),
-    maplist(g,SVi,SVv),
-    assert( test_vars(SVv) ).
+    rmv_ml:ms_cv(Mid,CV),
+    CV = ms_cv(Mid,_SV,_Ma,_Mv,_Mo,_Mp,_Mr,_Mt,_Mae,SVi),
+    %maplist(g,SVi,SVv),
+    assert( test_vars(SVi) ),
+    retractall( rmv_ms:sus_var(_,_) ),
+    forall( member(N=V,SVi), assert( rmv_ms:sus_var(N,V) ) ).
 
 g(sus_var(N,V), (N=V)).
 
@@ -76,10 +78,14 @@ a_eval(true) :- !.
 a_eval(not(X)) :- atom(X), !, X \== true.
 a_eval(eq(X,Y)) :- number(X), number(Y), !, X=:=Y.
 a_eval(eq(X,Y)) :- atom(X), atom(Y), !, X==Y.
+a_eval(ne(X,Y)) :- number(X), number(Y), !, X=\=Y.
+a_eval(ne(X,Y)) :- atom(X), atom(Y), !, X\==Y.
 a_eval(neq(X,Y)) :- number(X), number(Y), !, X=\=Y.
 a_eval(neq(X,Y)) :- atom(X), atom(Y), !, X\==Y.
 a_eval(gt(X,Y)) :- number(X), number(Y), !, X>Y.
 a_eval(lt(X,Y)) :- number(X), number(Y), !, X<Y.
 a_eval(geq(X,Y)) :- number(X), number(Y), !, X>=Y.
 a_eval(leq(X,Y)) :- number(X), number(Y), !, X=<Y.
+a_eval(ge(X,Y)) :- number(X), number(Y), !, X>=Y.
+a_eval(le(X,Y)) :- number(X), number(Y), !, X=<Y.
 a_eval(_) :- !, fail.

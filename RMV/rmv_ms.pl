@@ -23,37 +23,38 @@ ms_step :- responder.
 %   provided by Monitor Creation to accompany the generated monitor
 %   imported by initialize_ms_configuration
 %
-%   shared_variables - all variables shared by SUS and MS
-%
 %   monitor_id - established when the Monitor Sensor is defined
-%   monitor_atoms - list of atomID:atomExpr to be evaluated
+%   shared_variables - all variables shared by SUS and MS
+%   monitor_atoms - list of atoms {aid: , aex: } to be evaluated
 %   monitor_variables - all potentially observable SUS variables in the model
 %   monitor_observable_vars - all SUS variables used in properties or reportable
 %   monitor_property_vars - all observable vars used in property evaluation
 %   monitor_reportable_vars - subset of monitor_observables to be reported in heartbeat
 %   monitor_trigger_vars - variables for which setter should trigger responder
-%
+%   monitor_atom_eval - where atoms are evaluated (ms_eval or mep_eval)
+%   sus_variable_init - optional initializations list of {name: , value: }
 */
 
-:- dynamic shared_variables/1, monitor_id/1, monitor_atoms/1, monitor_variables/1,
+:- dynamic shared_variables/1, monitor_id/1, monitor_atoms/1, monitor_vars/1,
         monitor_observable_vars/1, monitor_property_vars/1, monitor_reportable_vars/1,
-        monitor_trigger_vars/1, monitor_atom_eval/1.
+        monitor_trigger_vars/1, monitor_atom_eval/1, shared_vars_init/1.
 
 shared_variables([]).
 
 monitor_id('').
 monitor_atoms([]).
-monitor_variables([]).
+monitor_vars([]).
 monitor_observable_vars([]).
 monitor_property_vars([]).
 monitor_reportable_vars([]).
 monitor_trigger_vars([]).
 monitor_atom_eval(no_eval). % ms_eval, mep_eval or no_eval
 
-ms_config_elements([monitor_id, shared_variables,
-                    monitor_atoms, monitor_variables, monitor_observable_vars,
+% these configuration elements are unary functors, but most are ord sets
+ms_config_elements([monitor_id, shared_vars,
+                    monitor_atoms, monitor_vars, monitor_observable_vars,
                     monitor_property_vars, monitor_reportable_vars, monitor_trigger_vars,
-                    monitor_atom_eval
+                    monitor_atom_eval, shared_vars_init
                    ]).
 
 % MS STARTUP/SHUTDOWN INITIALIZATION
@@ -68,22 +69,22 @@ ms_initialized(false).
 
 test_cv( ms_cv(
              /* monitor_id */         'Mid_00001',
-             /* shared variables */   [a,b,c,s,t,u,v,w,x,y,z],
+             /* shared vars */        [a,b,c,s,t,u,v,w,x,y,z],
              /* monitor_atoms */      [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
-             /* monitor_variables */  [s,t,u,v,w,x,y,z],
+             /* monitor_vars */       [s,t,u,v,w,x,y,z],
              /* monitor_observable_vars */ [u,v,w,x,y,z],
              /* monitor_property_vars */   [v,w,x,y,z],
              /* monitor_reportable_vars */ [v,w,x,y,z],
              /* monitor_trigger_vars */    [x],
              /* monitor_atom_eval */  ms_eval,
-             /* SUS variable init */  [sus_var(s, undefined),
-                                       sus_var(t, undefined),
-                                       sus_var(u, undefined),
-                                       sus_var(v, false),
-                                       sus_var(w, true),
-                                       sus_var(x, 1),
-                                       sus_var(y, 2),
-                                       sus_var(z, 3)
+             /* shared_vars_init */   [s=undefined,
+                                       t=undefined,
+                                       u=undefined,
+                                       v=false,
+                                       w=true,
+                                       x=1,
+                                       y=2,
+                                       z=3
                                       ]
          )
        ).
@@ -114,12 +115,12 @@ init :-
 
 initialize_ms_configuration :-
         get_cv(CV),
-        CV = ms_cv(SV,Mid,Ma,Mv,Mo,Mp,Mr,Mt,Mae,SVi),
+        CV = ms_cv(Mid,SV,Ma,Mv,Mo,Mp,Mr,Mt,Mae,SVi),
         retractall(rmv_ml:monitor(Mid,_,_,_,_,_,_)),
         assert(rmv_ml:monitor(Mid,_,_,_,_,_,_)),
 
         clear_ms_configuration,
-        set_ms_configuration([SV,Mid,Ma,Mv,Mo,Mp,Mr,Mt,Mae]),
+        set_ms_configuration([Mid,SV,Ma,Mv,Mo,Mp,Mr,Mt,Mae,SVi]),
         set_ms_sus_vars(SVi).
 
 set_ms_configuration(CL) :-
@@ -129,8 +130,8 @@ set_ms_configuration(CL) :-
 set_ms_conf_elt(E,V) :- EV =.. [E,V], assert(EV), !.
 
 set_ms_sus_vars([]).
-set_ms_sus_vars([SV|SVs]) :-
-        assert( SV ), set_ms_sus_vars(SVs).
+set_ms_sus_vars([N=V|SVs]) :-
+        assert( sus_var(N,V) ), set_ms_sus_vars(SVs).
 
 clear_ms_configuration :-
         % clear all unary config elements
@@ -195,12 +196,16 @@ a_eval(true) :- !.
 a_eval(not(X)) :- atom(X), !, X \== true.
 a_eval(eq(X,Y)) :- number(X), number(Y), !, X=:=Y.
 a_eval(eq(X,Y)) :- atom(X), atom(Y), !, X==Y.
+a_eval(ne(X,Y)) :- number(X), number(Y), !, X=\=Y.
+a_eval(ne(X,Y)) :- atom(X), atom(Y), !, X\==Y.
 a_eval(neq(X,Y)) :- number(X), number(Y), !, X=\=Y.
 a_eval(neq(X,Y)) :- atom(X), atom(Y), !, X\==Y.
 a_eval(gt(X,Y)) :- number(X), number(Y), !, X>Y.
 a_eval(lt(X,Y)) :- number(X), number(Y), !, X<Y.
 a_eval(geq(X,Y)) :- number(X), number(Y), !, X>=Y.
 a_eval(leq(X,Y)) :- number(X), number(Y), !, X=<Y.
+a_eval(ge(X,Y)) :- number(X), number(Y), !, X>=Y.
+a_eval(le(X,Y)) :- number(X), number(Y), !, X=<Y.
 a_eval(_) :- !, fail.
 
 % or_vector_constructor and or_list_constructor are alternatives
@@ -212,7 +217,7 @@ or_vector_constructor(ORv) :- % create an ordered vector of values
         true.
 
 or_list_constructor(ORl) :- % create a list of var=value pairs
-        % monitor_observables(Ovars),
+        % monitor_observable_vars(Ovars),
         (   monitor_reportable_vars(Rnames) -> true ; Rnames = []  ),
         findall(V=Val, (member(V,Rnames), o_getter(V,Val)), ORl).
 

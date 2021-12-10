@@ -102,7 +102,10 @@ un_init :-
 initialize_once :- param:initialized(true), !.
 initialize_once :-
 	open_null_stream(Null), param:setparam(null_stream,Null),
-	start_nameserver.
+	(   param:rmv_start_nameserver_on_init(true)
+	->  start_nameserver
+	;   true
+	).
 
 % nameserver session tracking
 :- dynamic nameserver_instance/4.
@@ -124,7 +127,15 @@ start_nameserver :-
 	true.
 
 check_nameserver :-
-	true.
+	(   nameserver_instance(NSinstanceId,ToS,FromS,IOR)
+	->  (   NSinstanceId==nspid
+	    ->	write('name server never started\n')
+	    ;	atom_number(NSinstanceId,NSpid),
+		process_wait(NSpid,Status,[timeout(0)]),
+		writeln(status(NSinstanceId,ToS,FromS,IOR,Status))
+	    )
+	;   write('no nameserver running\n')
+	).
 
 stop_nameserver :-
 	nameserver_instance(InstanceId,_ToStream,_FromStream,IOR),

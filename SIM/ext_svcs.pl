@@ -76,7 +76,8 @@ execapi_e2e(Request) :-
 e2e_api(test1) :- !, writeln('e2e_api local test'), flush_output,
 	e2e(local). % called from command_rmv
 e2e_api(Mode) :- % mode can be int, local, remote, orbit
-	writeln(e2e_api), e2e(Mode).
+	writeln(e2e_api),
+	e2e(Mode).
 
 %-------------------------------------------------------
 % SYSTEM CONTROL SIMULATION DRIVER

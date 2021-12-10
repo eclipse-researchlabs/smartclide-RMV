@@ -1,3 +1,6 @@
+% RMV-specific command set
+
+:- use_module('RMV/rmv').
 :- use_module('RMV/rmv_ml').
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % definition of the RMV tool interactive commands syntax
@@ -7,6 +10,7 @@ syntax(rmv,                            basic).
 syntax(rmv_server,                                               rmv).
 syntax(rmvt,                                                     rmv).
 syntax(rmvt(test_id),                                            rmv).
+syntax(rmvtests,                                                 rmv).
 
 syntax(nurv_session,                                             rmv).
 syntax(import_sspec(serv_spec_file,serv_spec_id),                rmv).
@@ -25,6 +29,8 @@ syntax(nu_show_prop,                                             rmv).
 syntax(nu_build_mon,                                             rmv).
 syntax(nu_gen_mon,                                               rmv).
 
+syntax(check_nameserver,                                         rmv).
+syntax(start_nameserver,                                         rmv).
 syntax(stop_nameserver,                                          rmv).
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % RMV tool command semantics
@@ -56,9 +62,12 @@ do(rmv) :- !, user_mode(M), retractall(user_mode(_)), assert(user_mode(rmv)),
 do(rmv_server) :- !, writeln('not starting rmv_server'). % rmv_server:rmv_server.
 do(rmvt) :- !, ext_svcs:e2e_api(test1).
 do(rmvt(T)) :- !, ext_svcs:e2e_api(T).
+do(rmvtests) :- !, load_test_files([]), run_tests.
 do(import_sspec(F,Sid)) :- !,
     load_service_specification_from_file(F,Sid).
 
+do(check_nameserver) :- !, rmv:check_nameserver.
+do(start_nameserver) :- !, rmv:start_nameserver.
 do(stop_nameserver) :- !, rmv:stop_nameserver.
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % command procedures

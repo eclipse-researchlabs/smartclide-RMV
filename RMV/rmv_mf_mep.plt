@@ -1,5 +1,5 @@
 :- begin_tests(rmv_mf_mep, [setup(rmv_mf_mep:test_setup),cleanup(true)]).
-% relies on test configuration vector test_cv defined in module rmv_ml
+% relies on test configuration vector defined in module rmv_ml
 %
 test(evaluator1) :- rmv_mf_mep:test_vars(V), !, rmv_mf_mep:af_evaluator(eq(x,1),V).
 

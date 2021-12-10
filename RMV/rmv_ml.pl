@@ -15,12 +15,14 @@
                   unload_service_specification/1,
                   load_monitor/1, unload_monitor/1, truncate_trace/2,
 
-                  ms_test_cv/1
+                  pjson_ms_cv/1
 	       ]).
 
 :- use_module('COM/param').
 :- use_module([rmv_ml_mt,rmv_ml_pst]).
 
+:- use_module(library(test_wizard)).
+:- set_prolog_flag(log_query_file, 'queries.pl').
 
 %-------------------------------------------
 %
@@ -156,6 +158,11 @@ monitorid_nurvid(Mid,NuRVid) :- Mid = NuRVid. % define if necessary
 
 
 %-------------------------------------------
+% JSON CONVERSION
+%
+
+
+%-------------------------------------------
 % IMPORT / EXPORT of structures
 %
 
@@ -241,11 +248,16 @@ truncate_trace(trace(N,[A,B,C,D,E,F|_]),trace(N,[A,B,C,D,E,F])) :- !. % truncate
 truncate_trace(T,T).
 
 % monitor sensor configuration vector
-% CV = ms_cv(SV,Mid,Ma,Mv,Mo,Mp,Mr,Mt,Mae,SVi)
+% ms_cv/10 is the repository of configuration vectors
+% ms_cv/4 was an abbreviated test
 %
-ms_test_cv( ms_cv(
-             /* shared variables */   [a,b,c,s,t,u,v,w,x,y,z],
+% CV = ms_cv(Mid,Sv,Ma,Mv,Mo,Mp,Mr,Mt,Mae,Svi)
+%
+:- dynamic ms_cv/4, ms_cv/10.
+
+ms_cv(
              /* monitor_id */         'Mid_00001',
+             /* shared variables */   [a,b,c,s,t,u,v,w,x,y,z],
              /* monitor_atoms */      [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
              /* monitor_variables */  [s,t,u,v,w,x,y,z],
              /* monitor_observable_vars */ [u,v,w,x,y,z],
@@ -253,14 +265,192 @@ ms_test_cv( ms_cv(
              /* monitor_reportable_vars */ [v,w,x,y,z],
              /* monitor_trigger_vars */    [x],
              /* monitor_atom_eval */  ms_eval,
-             /* SUS variable init */  [sus_var(s, undefined),
-                                       sus_var(t, undefined),
-                                       sus_var(u, undefined),
-                                       sus_var(v, false),
-                                       sus_var(w, true),
-                                       sus_var(x, 1),
-                                       sus_var(y, 2),
-                                       sus_var(z, 3)
+             /* SUS variable init */  [s=undefined,
+                                       t=undefined,
+                                       u=undefined,
+                                       v=false,
+                                       w=true,
+                                       x=1,
+                                       y=2,
+                                       z=3
                                       ]
-         )
        ).
+
+% JSON conversions for MS configuration vectors
+%
+
+:- use_module(library('http/json')).
+:- use_module(library('http/json_convert')).
+
+% ms_cv/2 retrieves an ms_cv/10 record by monitor Id
+ms_cv(Mid, ms_cv(Mid,Sv,Ma,Mv,Mo,Mp,Mr,Mt,Mae,Svi)) :-
+        ms_cv(Mid,Sv,Ma,Mv,Mo,Mp,Mr,Mt,Mae,Svi), !.
+
+ms_cv_to_pjson(CV,PJCV) :-
+        CV =  ms_cv(Mid,Sv,Ma,Mv,Mo,Mp,Mr,Mt,Mae,Svi),
+%        findall(json([struct=atm,aid=Ai,aex=Eaf]),
+        findall(json([aid=Ai,aex=Eaf]),
+                ( member(Ai:Af,Ma), encode_as_atoms(Af,Eaf)),
+                JMa),
+%        findall(json([struct=sus_var,name=Svn,value=Svv]),
+        findall(json([name=Svn,value=Svv]),
+                ( member(Svn=Svv,Svi) ),
+                JSvi),
+        PJCV = json([
+                   monitor_id=Mid,
+                   shared_variables=Sv,
+                   monitor_atoms=JMa,
+                   monitor_variables=Mv,
+                   monitor_observable_vars=Mo,
+                   monitor_property_vars=Mp,
+                   monitor_reportable_vars=Mr,
+                   monitor_trigger_vars=Mt,
+                   monitor_atom_eval=Mae,
+                   sus_variable_init=JSvi
+               ]).
+
+pjson_to_ms_cv(PJCV,CV) :-
+        PJCV = json([
+                   monitor_id=Mid,
+                   shared_variables=Sv,
+                   monitor_atoms=JMa,
+                   monitor_variables=Mv,
+                   monitor_observable_vars=Mo,
+                   monitor_property_vars=Mp,
+                   monitor_reportable_vars=Mr,
+                   monitor_trigger_vars=Mt,
+                   monitor_atom_eval=Mae,
+                   sus_variable_init=JSvi
+               ]),
+        findall(Ai:Af,
+%                ( member(json([struct=atm,aid=Ai,aex=Eaf]), JMa),
+                ( member(json([aid=Ai,aex=Eaf]), JMa),
+                  reconstitute_atoms(Eaf,Af) ),
+                Ma
+        ),
+        findall(Svn=Svv,
+%                ( member(json([struct=sus_var,name=Svn,value=Svv]), JSvi) ),
+                ( member(json([name=Svn,value=Svv]), JSvi) ),
+                Svi
+        ),
+        CV =  ms_cv(Mid,Sv,Ma,Mv,Mo,Mp,Mr,Mt,Mae,Svi).
+
+% ms_cv/4 example:
+ms_cv(
+    monitor_id('Mid_00001'),
+    shared_variables([a,b,c]),
+    monitor_atoms([
+        atm(a1,eq(x,2)),
+        atm(a2,lt(x,2))
+    ]),
+    sus_variable_init([])
+).
+
+% ms_cv/2 retrieves an ms_cv/4 record by monitor Id
+xms_cv(Mid,ms_cv(MonId,SV,MA,SVI)) :-
+        MonId=monitor_id(Mid),
+        ms_cv(MonId,SV,MA,SVI), !.
+
+xms_cv_to_pjson(CV,PJCV) :-
+        CV = ms_cv( monitor_id(Mid),
+                    shared_variables(Sv),
+                    monitor_atoms(Ma),
+                    sus_variable_init(Svi)
+                  ),
+        findall(json([struct=atm,aid=Ai,aex=Eaf]),
+                (member(atm(Ai,Af),Ma), encode_as_atoms(Af,Eaf)),
+                JMa),
+        PJCV = json([
+                   monitor_id=Mid,
+                   shared_variables=Sv,
+                   monitor_atoms=JMa,
+                   sus_variable_init=Svi
+               ]),
+        true.
+
+pjson_ms_cv( % /4
+    json([
+        monitor_id='Mid_00001',
+        shared_variables=[a,b,c],
+%        shared_variables=[a,b,c,s,t,u,v,w,x,y,z],
+%        at=atm(a1,2),
+%        monitor_atoms=[atm(a1,2),atm(a2,2),atm(a3,x),atm(a4,2)],
+%        monitor_atoms=[atm(a1,eq(x,2)),atm(a2,lt(x,2)),atm(a3,lt(y,x)),atm(a4,leq(x,2))],
+%        monitor_atoms=[a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
+%        monitor_atoms=json([atm(a1,rmv_ml:lt(z,x))]),
+%        %,a2-json([op=lt,arg1=x,arg2=2])]),
+%        monitor_variables=[s,t,u,v,w,x,y,z],
+%        monitor_observable_vars=[u,v,w,x,y,z],
+%        monitor_property_vars=[v,w,x,y,z],
+%        monitor_reportable_vars=[v,w,x,y,z], monitor_trigger_vars=[x],
+%        monitor_atom_eval=ms_eval,
+        monitor_atoms=[
+            json([struct=atm, aid=a2, aex='lt(x,2)'])
+        ],
+        sus_variable_init=[]
+    ])
+).
+
+pt(rmv_ml:lt(x,2)).
+pt1( rmv_ml:atm(a,lt(x,2)) ).
+pt2(rmv_ml:atm(a,b)).
+pt3(atm(a,(rmv_ml:lt(x,2)))).
+
+check_conversions :- Mid='Mid_00001',
+        ms_cv(Mid,MS_CV), format('ms_cv from library: ~q~n',MS_CV),
+        nl,
+        ms_cv_to_pjson(MS_CV,PJCV), format('ms_cv_to_pjson: ~q~n',PJCV),
+        nl,
+        atom_json_term(JSA,PJCV,[as(atom)]), format('atom_json_term atom from pjson_ms_cv: ~q~n',JSA),
+
+        param:monitor_directory_name(MD), atomic_list_concat([MD,'/',Mid,'_conf.json'], CF),
+        current_output(Old),
+        open(CF,write,CFstream,[create([default])]),
+        set_output(CFstream),
+        writeln(CFstream,JSA),
+        close(CFstream,[force(true)]),
+        set_output(Old),
+
+        is_json_term(JSA), format('the above is a valid JSON string, written to: ~s\n',CF),
+        nl,nl,
+
+        atom_json_term(JSA,JST,[]), format('atom_json_term term from prev conversion: ~q~n',JST),
+        nl,
+        pjson_to_ms_cv(JST,RCV), format('back to a CV term: ~q~n',RCV),
+
+        ground(MS_CV), ground(RCV),
+        MS_CV = RCV, % check that final round-trip result unifies with original
+        true.
+
+atom_ops([not,eq,ne,neq,gt,lt,geq,leq,ge,le]).
+
+encode_as_atoms(A,A) :- atomic(A), !. % includes [] case
+encode_as_atoms([A|As],[EA|EAs]) :- !,
+        encode_as_atoms(A,EA), encode_as_atoms(As,EAs).
+encode_as_atoms(A,E) :- compound(A), atom_ops(Ops),
+        compound_name_arguments(A,N,_Args), memberchk(N,Ops), !,
+        encode_as_atom(A,E).
+encode_as_atoms(A,E) :- compound(A), !,
+        compound_name_arguments(A,N,Args),
+        encode_as_atoms(N,EN),
+        maplist(encode_as_atoms,Args,EArgs),
+        compound_name_arguments(E,EN,EArgs).
+
+encode_as_atom(T,A) :- with_output_to(atom(A),write(T)).
+
+%reconstitute_atoms(json(L),json(R)) :-!, reconstitute_atoms(L,R).
+reconstitute_atoms([],[]) :- !.
+reconstitute_atoms([A|As],[R|Rs]) :- !,
+        reconstitute_atoms(A,R), reconstitute_atoms(As,Rs).
+reconstitute_atoms(A1=A2,R1=R2) :- !,
+        reconstitute_atoms(A1,R1), reconstitute_atoms(A2,R2).
+reconstitute_atoms(A,R) :- atom(A), !,
+        read_term_from_atom(A,T,[var_prefix(true)]), ground(T),
+        (   T == A ->  R = A ; reconstitute_atoms(T,R) ).
+reconstitute_atoms(A,A) :- number(A), !.
+reconstitute_atoms(A,R) :- compound(A), !,
+        compound_name_arguments(A,N,Args),
+        reconstitute_atoms(N,RN),
+        maplist(reconstitute_atoms,Args,RArgs),
+        compound_name_arguments(R,RN,RArgs).
+
