@@ -46,7 +46,7 @@
 %   MonModId - unique model ID (same suffix as MonId)
 %   MonMScv - mv_cv/10 abstract initialization vector for monitor sensor, example values:
         ms_cv(
-             /* monitor_id */              'Mid_00001',
+             /* monitor_id */              'mid_00001',
              /* shared variables */        [a,b,c,s,t,u,v,w,x,y,z],
              /* monitor_atoms */           [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
              /* monitor_variables */       [s,t,u,v,w,x,y,z],
@@ -256,7 +256,7 @@ truncate_trace(T,T).
 :- dynamic ms_cv/4, ms_cv/10.
 
 ms_cv(
-             /* monitor_id */         'Mid_00001',
+             /* monitor_id */         'mid_00001',
              /* shared variables */   [a,b,c,s,t,u,v,w,x,y,z],
              /* monitor_atoms */      [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
              /* monitor_variables */  [s,t,u,v,w,x,y,z],
@@ -337,7 +337,7 @@ pjson_to_ms_cv(PJCV,CV) :-
 
 % ms_cv/4 example:
 ms_cv(
-    monitor_id('Mid_00001'),
+    monitor_id('mid_00001'),
     shared_variables([a,b,c]),
     monitor_atoms([
         atm(a1,eq(x,2)),
@@ -370,7 +370,7 @@ xms_cv_to_pjson(CV,PJCV) :-
 
 pjson_ms_cv( % /4
     json([
-        monitor_id='Mid_00001',
+        monitor_id='mid_00001',
         shared_variables=[a,b,c],
 %        shared_variables=[a,b,c,s,t,u,v,w,x,y,z],
 %        at=atm(a1,2),
@@ -396,7 +396,7 @@ pt1( rmv_ml:atm(a,lt(x,2)) ).
 pt2(rmv_ml:atm(a,b)).
 pt3(atm(a,(rmv_ml:lt(x,2)))).
 
-check_conversions :- Mid='Mid_00001',
+check_conversions :- Mid='mid_00001',
         ms_cv(Mid,MS_CV), format('ms_cv from library: ~q~n',MS_CV),
         nl,
         ms_cv_to_pjson(MS_CV,PJCV), format('ms_cv_to_pjson: ~q~n',PJCV),

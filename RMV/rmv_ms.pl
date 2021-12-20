@@ -68,7 +68,7 @@ ms_initialized(false).
 % It is also defined in the monitor library rmv_ml as ms_test_cv.
 
 test_cv( ms_cv(
-             /* monitor_id */         'Mid_00001',
+             /* monitor_id */         'mid_00001',
              /* shared vars */        [a,b,c,s,t,u,v,w,x,y,z],
              /* monitor_atoms */      [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
              /* monitor_vars */       [s,t,u,v,w,x,y,z],

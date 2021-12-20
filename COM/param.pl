@@ -32,7 +32,8 @@
                   localhost_ip/1, serverhost_ip/1, context_url/1, context_sim/1, epp_url/1,
                   context_port/1, exec_sim_port/1, warrant_port/1,
                   rmv_port/1, rmv_mcapi_port/1, rmv_mfapi_port/1, rmv_eppapi_port/1,
-                  rmv_auditapi_port/1, rmv_lnapi_port/1, rmv_start_nameserver_on_init/1
+                  rmv_auditapi_port/1, rmv_lnapi_port/1, rmv_start_nameserver_on_init/1,
+                  rmv_monitor_id_prefix/1, rmv_model_id_prefix/1
 		 ]).
 
 % Versioning of various things
@@ -283,3 +284,6 @@ local_NuRV_prompt('NuRV > ').
 % RMV Flags
 %
 rmv_start_nameserver_on_init(false).
+rmv_monitor_id_prefix('monid_').
+rmv_model_id_prefix('modid_').
+
