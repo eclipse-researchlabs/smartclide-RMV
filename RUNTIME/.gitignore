@@ -1,4 +1,6 @@
 .DS_Store
+*~
+*#
 
 LOG/audit_log*
 LOG/epp_log*
