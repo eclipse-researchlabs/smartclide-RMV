@@ -6,7 +6,7 @@
 [subrepo]
 	remote = ../RUNTIME
 	branch = master
-	commit = 701e5756c8f9cc5499466553c084b7f6f23edf71
-	parent = 001bd1d88dacce467c89ac2bd306906b3ce2a1e2
+	commit = bff16728941d9ff6a1eb624f2bf42bcba49b5369
+	parent = 72bec5b7be26b5026f2a8ce1958aa97dc79794ff
 	method = merge
 	cmdver = 0.4.3
