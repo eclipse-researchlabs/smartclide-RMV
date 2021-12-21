@@ -11,7 +11,7 @@
 :- use_module(epp_era).
 :- use_module(epp_cpa, [context_change_notification/1]).
 :- use_module('AUDIT/audit').
-:- use_module('COM/jsonresp').
+:- use_module('COM/apiresp').
 
 % EPP WEB APIs - note mapping of path names to internal predicate names
 %
@@ -226,47 +226,6 @@ context_notify(ContextAtom) :-
 	    epp_log_gen(event_processing, context_notify(failure))
 	).
 
-%
-% JSON response structure
-% {
-%     "respStatus" : "statusType",
-%     "respMessage" : "statusDesc",
-%     "respBody" : "statusBody"
-% }
-%
-% json_resp(RespStatus,RespMessage,RespBody,JrespTerm,JrespAtom)
-%
-
-std_resp_prefix :-
-	(   param:jsonresp(on)
-	->  format('Content-type: application/json~n~n')
-	;   format('Content-type: text/plain~n~n')
-	).
-
-std_resp_MS(Status, M, B) :-
-	(   param:jsonresp(on)
-	->  json_resp(Status, M, B)
-	;   writeln(M), writeln(Status)
-	).
-
-std_resp_BS(Status, M, B) :-
-	(   param:jsonresp(on)
-	->  json_resp(Status, M, B)
-	;   writeln(B), writeln(Status)
-	).
-
-std_resp_M(Status, M, B) :-
-	(   param:jsonresp(on)
-	->  json_resp(Status, M, B)
-	;   writeln(M)
-	).
-
-std_resp_S(Status, M, B) :-
-	(   param:jsonresp(on)
-	->  json_resp(Status, M, B)
-	;   writeln(Status)
-	).
-
 
 authenticate_epp(Token) :-
 	(   authenticate_epp_token(Token)
@@ -278,21 +237,3 @@ authenticate_epp(Token) :-
 
 authenticate_epp_token(Token) :- atom(Token), param:epp_token(Token), !.
 
-%
-%
-%
-
-api_unimpl(_) :-
-	std_resp_prefix,
-	format('Unimplemented API~n').
-
-root_apis(Kind,_) :- std_resp_prefix, list_apis(Kind), !.
-root_apis(_,_).
-
-list_apis(Kind) :-
-	format('Valid ~a paths:~n',[Kind]),
-	G=..[Kind,APIs], call(G),
-	foreach( member(A,APIs), writeln(A)).
-
-use_valid_api(_) :-
-	format('Use eppapi for EPP interaction~n').
