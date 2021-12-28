@@ -304,7 +304,7 @@ do(proc(Pid,Opt)) :- !, procs:proc(Pid,Proc), user_mode(M),
 do(quit) :- !.
 do(halt) :- !, halt.
 do(regtest) :- !, user_mode(M), M:regression_test_all.
-do(reinit) :- !, dpl:re_init.
+do(reinit) :- !, writeln('No top-level reinit currently').
 do(reset) :- !, pap:preset(conditions,all).
 do(reset(D,N)) :- !, pap:preset(D,N).
 do(script(F)) :- !, user_mode(M), run_command_script(M,F,none).

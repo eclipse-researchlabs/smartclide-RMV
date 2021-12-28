@@ -92,20 +92,17 @@ unload_sspec_aux(Sid) :-
 mcapi_create_monitor(Request) :-
 	std_resp_prefix,
 	catch(
-	     http_parameters(Request,[user(User,[atom]),
-				 ar(AR,[atom]),
-				 object(Object,[atom]),
-				 purpose(Purpose,[atom,optional(true)]), % DPLP
-				 cond(CondAtom,[atom,optional(true)])
-				]),
+	    http_parameters(Request,
+			[service_spec(SS,[atom])
+			]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
 	param:current_policy(Policy),
-	create_monitor_aux(Policy,User,AR,Object,Purpose,CondAtom),
+	create_monitor_aux(SS),
 	!.
 mcapi_create_monitor(_) :- audit_gen(monitor_creation, create_monitor(failure)).
 
-create_monitor_aux(_,_,_,_,_,_).
+create_monitor_aux(_).
 
 % graph_monitor
 mcapi_graph_monitor(Request) :-

@@ -59,7 +59,8 @@ service_spec2monitor(SS, Monitor) :-
         is_monitor(Monitor,MonitorId,A,B,C,D,E,F).
 
 %
-% create_monitor(+Model,+ModelVars,+SharedVars,+Properties,-Monitor)
+% create_monitor(+Model,+ModelVars,+SharedVars,+Properties,+Commands,-Monitor)
+%
 %
 %   monitor(MonState,MonXS,MonObservables,MonOut,MonCurrentInput,MonCurrentOutput)
 %
@@ -69,7 +70,8 @@ create_monitor(Model,/*ModelVars,SharedVars,*/Properties,Cmds,MonitorId) :-
         forall( member(P,Properties), is_property(P) ),
         forall( member(C,Cmds), is_cmd(C) ),
         modid_monid(ModelId,MonitorId),
-        % put the new monitor in the library
+
+        % install the new monitor in the library
         is_monitor(Monitor,MonitorId,ModelId,_,_,_,_,_),
         load_monitor(Monitor),
         true.

@@ -9,7 +9,7 @@
                   is_property/1, is_property/3,
                   is_app/1, is_app/8, is_service/1, is_service/8, is_trace/1, is_trace/3,
                   is_service_creation_context/1,
-                  ssid_modid/2, ssid_propid/2, ssid_scripid/2, modid_monid/2,
+                  ssid2modid/2, ssid2propid/2, ssid2scripid/2, modid2monid/2,
                   load_service_specification_from_file/2,
                   load_service_specification_immediate/2, load_service_specification/2,
                   unload_service_specification/1,
@@ -54,9 +54,10 @@
              /* monitor_property_vars */   [v,w,x,y,z],
              /* monitor_reportable_vars */ [v,w,x,y,z],
              /* monitor_trigger_vars */    [x],
-             /* monitor_atom_eval */       ms_eval, /* where atoms evaluated: ms_eval,mep_eval,not_eval */
-             /* SUS variable init */       [] /* list SUS variable initializations name=val */
+             /* monitor_atom_eval */       ms_eval, % where atoms evaluated: ms_eval,mep_eval,not_eval
+             /* SUS variable init */       [] % list SUS variable initializations name=val
              )
+ %
  %
 
 ms_config_elements([monitor_id, shared_variables,
@@ -142,17 +143,20 @@ is_service_creation_context(SCC) :- is_list(SCC).
 
 %-------------------------------------------
 % Conversions among identifiers
-ssid_modid(SSpecId,ModelId) :-
+ssid2modid(SSpecId,ModelId) :-
     atom_concat(ssid_,N,SSpecId), atom_concat(modid_,N,ModelId).
 
-ssid_propid(SSpecId,PropId) :-
-    atom_concat(ssid_,N,SSpecId), atom_concat(modid_,N,PropId).
+ssid2propid(SSpecId,PropId) :-
+    atom_concat(ssid_,N,SSpecId), atom_concat(propid_,N,PropId).
 
-ssid_scripid(SSpecId,ScripId) :-
+ssid2scripid(SSpecId,ScripId) :-
     atom_concat(ssid_,N,SSpecId), atom_concat(scripid_,N,ScripId).
 
-modid_monid(ModelId,MonitorId) :-
+modid2monid(ModelId,MonitorId) :-
         atom_concat(modid_,N,ModelId), atom_concat(monid_,N,MonitorId).
+
+monid2modid(MonitorId,ModelId) :-
+        atom_concat(monid_,N,MonitorId), atom_concat(modid_,N,ModelId).
 
 monitorid_nurvid(Mid,NuRVid) :- Mid = NuRVid. % define if necessary
 

@@ -184,6 +184,8 @@ ext_service_spec2service(ServiceSpec, Service) :-
 	is_service(Service,ServId,_,_,_,_,_,T).
 
 % end SERVICE CREATION SIMULATION
+create_monitor(ServSpec,Monitor) :- % bypass HTTP API
+	rmv_mcapi:create_monitor_aux(ServSpec).
 %-------------------------------------------------------
 
 
@@ -204,7 +206,15 @@ ext_deploy_service_with_monitor(Service, Monitor, Deployment) :-
 %-------------------------------------------------------
 % EXECUTION CONTROL SIMULATION
 % (using state sequence from service)
+% There are several distinct scenarios for testing and production.
+% First, NuRV can be run by interacting with an interactive NuRV
+% session, or the NuRV server version can be run. The latter involves
+% interaction through ORBit and is more complicated but more reliable.
 %
+% Then the monitored service can be either simulated or run as a
+% distinct process with a monitor sensor that communicates with the
+% monitor event processing. The sim_app module provides application
+% simulation in Prolog (see execute_service(remote, ...)).
 
 ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	is_deployment(Deployment, Service, Monitor),

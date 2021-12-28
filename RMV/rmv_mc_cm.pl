@@ -8,7 +8,7 @@
 
 create_smv_model(SSpecId, SSpecBody, SMVmodel) :-
     % service_spec(SSpecId, SSpecBody),
-    ssid_modid(SSpecId,ModelId),
+    ssid2modid(SSpecId,ModelId),
 
     % magic goes here
     magic(SSpecBody,Model),

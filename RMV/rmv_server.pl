@@ -18,7 +18,7 @@
 % rmv-server command line options
 %
 %    --port    --portnumber --pqport -p    <integer>
-%    --initialfile -i   <filename>
+%    --initialfile -i   <filename>   % not currently used, could be a global rmv config file
 %    --selftest -s
 %    --token   -t    <rmvtoken>
 %    --verbose  -v
@@ -62,6 +62,12 @@ rmv_server(Port) :-
 	->  trace
 	;   true
 	),
+	(   param:rmv_run_with_http_server(true)
+	->  run_http_rmv_server(Port)
+	;   true
+	).
+
+run_http_rmv_server(Port) :-
 	http_server(http_dispatch, [port(Port)]),
 	format('rmv-server listening on port ~d~n',[Port]),
 	audit_gen(rmv_start, success),

@@ -33,7 +33,7 @@
                   context_port/1, exec_sim_port/1, warrant_port/1,
                   rmv_port/1, rmv_mcapi_port/1, rmv_mfapi_port/1, rmv_eppapi_port/1,
                   rmv_auditapi_port/1, rmv_lnapi_port/1, rmv_start_nameserver_on_init/1,
-                  rmv_monitor_id_prefix/1, rmv_model_id_prefix/1
+                  rmv_run_with_http_server/1, rmv_monitor_id_prefix/1, rmv_model_id_prefix/1
 		 ]).
 
 % Versioning of various things
@@ -82,7 +82,7 @@ build_version(rmv,'0.1.1','runtime monitoring initial development' ).
 
 build_version(rmv,'0.1.2', 'monitor sensor, simple NuRV sessions, nameserver session' ).
 build_version(rmv,'0.1.3' /* ongoing development */ ).
-build_current_version_description(rmv,'NuRV sessions with nameserver, more realistic sequencing, tests').
+build_current_version_description(rmv,'NuRV sessions with nameserver,improved sequencing, tests, C monitor sensor').
 %
 build_version(epp,'0.1','initial structure setup').
 build_version(epp,'0.1.1','initial development' ).
@@ -121,7 +121,8 @@ name_string(epp,'Event Processing Point - TOG').
         conditions_file/1, context_file/1, eppapi_port/1, epp_token/1, rmv_token/1, rmv_epp_token/1,
         epp_logging/1, epp_stream/1, null_stream/1, sleep_after_server_start/1,
         jsonresp_epp/1, jsonresp_server/1, jsonresp/1,
-	serverhost_ip/1, context_url/1, context_sim/1, local_nameserver_IOR/1.
+	serverhost_ip/1, context_url/1, context_sim/1, local_nameserver_IOR/1,
+        rmv_run_with_http_server/1.
 
 settable_params([debug,self_test,statusprt,guitracer,guiserver,initialize,initialized,regression_test,verbose,
 		 user_level, current_policy, pqapi_port, paapi_port, gpqapi_port, admin_token, prompt_string,
@@ -131,7 +132,7 @@ settable_params([debug,self_test,statusprt,guitracer,guiserver,initialize,initia
                  conditions_file, context_file, eppapi_port, epp_token, rmv_token, rmv_epp_token,
                  epp_logging, epp_stream, null_stream, sleep_after_server_start,
                  jsonresp_epp, jsonresp_server, jsonresp, serverhost_ip, context_url, context_sim,
-                 local_nameserver_IOR
+                 local_nameserver_IOR, rmv_run_with_http_server/1
                 ]).
 
 setparam(Param,Value) :- atom(Param), ground(Value),
@@ -284,6 +285,7 @@ local_NuRV_prompt('NuRV > ').
 % RMV Flags
 %
 rmv_start_nameserver_on_init(false).
+rmv_run_with_http_server(true). % 'false' is used for testing (set to false by test harness)
 rmv_monitor_id_prefix('monid_').
 rmv_model_id_prefix('modid_').
 
