@@ -11,7 +11,7 @@
 % in rmv_mc: service_spec2nurv(ServiceSpec, NuRVscript).
 
 
-create_ltl_properties(SSpecId,SSpecBody,LTLprops) :-
+create_ltl_properties(SSpecId,SSpecBody,LTLprops) :- % TODO make proper magic
     service_spec(SSpecId, SSpecBody),
     atom_concat(ssid,N,SSpecId), atom_concat(ltlid,N,LTLid),
     % magic normally goes here

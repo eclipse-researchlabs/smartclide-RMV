@@ -1,7 +1,7 @@
 % RMV - Monitoring Framework - Monitor Event Processing
 % Work in Progress
 
-:- module(rmv_mf_mep,[mep_start_monitor/2, mep_stop_monitor/2, mep_heartbeat/4
+:- module(rmv_mf_mep,[mep_start_monitor/2, mep_stop_monitor/3, mep_heartbeat/5
 	       ]).
 
 :- use_module('COM/param').
@@ -14,30 +14,71 @@
 %
 
 mep_start_monitor(Mid,Status) :-
-    rmv_mc_nui:start_monitor(Mid,Status),
+    %rmv_mc_nui:start_monitor(Mid,Status), % TODO - currently only returns a status
+    rmv_ml:is_monitor(Monitor,Mid,_,_,_,_,_,_),
+    initiate_monitor(Monitor,SessId), % TODO - need SessId
+	Status = [monitor_started,session(SessId)],
     true.
 
-mep_stop_monitor(Mid,Status) :-
-    rmv_mc_nui:stop_monitor(Mid,Status),
+mep_stop_monitor(Mid,SessId,Status) :-
+    %rmv_mc_nui:stop_monitor(Mid,Status), % TODO - currently only returns a status
+    rmv_ml:is_monitor(_Monitor,Mid,_,_,_,_,_,_),
+    terminate_monitor(SessId), % TODO - don't really need Monitor, just SessId
+	Status = [monitor_stopping],
     true.
 
-mep_heartbeat(Mid,AtomIds,Reportables,Response) :-
+mep_heartbeat(Mid,Sid,AtomIds,Reportables,Response) :-
     monitor(Mid,_Mod,_Obs,_Reps,Atoms,AtomEval,_Sensor),
-    (   ( /* AtomIds == [], */ AtomEval == mep_eval ) % monior specifies mep evaluation
+    (   ( /* AtomIds == [], */ AtomEval == mep_eval ) % monitor specifies mep evaluation
+        % for mep evaluation, property variables must be a subset of reportables
     ->  aT_list_constructor(Atoms,Reportables,TAtomIdList) % ignore AtomIds from MS
     ;   TAtomIdList = AtomIds
     ),
-    rmv_mc_nui:heartbeat(Mid,TAtomIdList,Verdict),
-    notifications(verdicts,Mid,Reportables,Verdict),
-    (   (Verdict == true ; Verdict == inconclusive)
-    ->  Response = [acknowledged,verdict=Verdict,recover=false]
-    ;   Response = [acknowledged,verdict=Verdict,recover=true],
-        notifications(verdicts,Mid,exception,Verdict)
+    rmv_mc_nui:heartbeat(Mid,Sid,TAtomIdList,Verdict),
+    notifications(report,Mid,Sid,Reportables,Verdict),
+    (   (Verdict == true ; Verdict == unknown)
+    ->  Response = [acknowledged,verdict(Verdict)]
+    ;   (   Verdict == false
+        ->  Response = [acknowledged,verdict(Verdict),recovery(true)]
+        ;   Response = [exception(Verdict)],
+            notifications(report,Mid,Sid,exception,Verdict)
+        )
     ),
     true.
 
-% temporary stub:
-notifications(verdicts,_,_,_) :- writeln('verdicts notification').
+% temporary stub for notifications:
+notifications(report,Mid,Sid,Reportables,Verdict) :-
+    format('monitor report ~q:~a verdict: ~q, vars: ~q~n',[Mid,Sid,Verdict,Reportables]),
+    true.
+
+notifications(verdict,Mid,Sid,_,Verdict) :-
+    format('monitor report ~q:~a verdict: ~q~n',[Mid,Sid,Verdict]),
+    true.
+
+%-------------------------------------------------------
+% INITIATE/TERMINATE A RUNTIME MONITOR SESSION
+%
+initiate_monitor(M,SessId) :- is_monitor(M,MonitorId,ModelId,_,_,_,_,_),
+    open_nurv_session(int,SessId),
+	format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
+	nurv_session_get_resp(SessId,''),
+	param:monitor_directory_name(MD),
+	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
+	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
+	nurv_monitor_init(SMVmodelFile,SMVordFile,SessId),
+	true.
+
+terminate_monitor(SessId) :-
+	quit_nurv_session(SessId),
+	writeln('session ended').
+
+initiate_monitor2(M,SessId) :- is_monitor(M,_MonitorId,_ModelId,_,_,_,_,_),
+    open_nurv_session(orbit,SessId),
+	param:local_nameserver_IOR(IOR),
+	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
+	nurv_session_cmd_resp(SessId,ServerCmd,_Resp),
+	true.
+
 
 :- dynamic test_vars/1.
 

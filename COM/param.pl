@@ -143,7 +143,7 @@ setparam(_,_).
 
 debug(off). % off/on
 statusprt(off). % off/on
-guitracer(off). % off/on
+guitracer(on). % off/on
 guiserver(off). % off/on
 self_test(off). % off/on
 regression_test(off). % off/on

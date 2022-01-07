@@ -9,8 +9,10 @@
        rmv_ml,       % rmv_ml_mt,rmv_ml_pst,
        rmv_mc,       % rmv_mc_cm,rmv_mc_cps,
        rmv_mf,       % rmv_mf_epp,
-       'COM/param','COM/command','COM/test','COM/procs'%,
-       %'EPP/erl','EPP/epp','EPP/epp_cpa','EPP/epp_era','EPP/eppapi'
+       'COM/param','COM/command','COM/test','COM/procs'
+	   %,'EPP/epp'
+       %'EPP/erl',
+	   %,'EPP/epp_cpa','EPP/epp_era','EPP/eppapi'
    ]).
 :- use_module('SIM/ext_svcs').
 :- use_module(library(http/http_client)).

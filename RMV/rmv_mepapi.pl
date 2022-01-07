@@ -4,6 +4,7 @@
 :- use_module('AUDIT/audit',[audit_gen/2]).
 :- use_module('COM/param').
 :- use_module('COM/apiresp').
+:- use_module(rmv_mf_mep).
 
 :- use_module(library(http/thread_httpd)).
 :- use_module(library(http/http_dispatch)).
@@ -30,11 +31,11 @@ mepapi_monitor_start(Request) :-
 				]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	monitor_start(Mid,_,_,_,_,_),
+	monitor_start_aux(Mid,_,_,_,_,_),
 	!.
 mepapi_monitor_start(_) :- audit_gen(monitor_event, monitor_start(failure)).
 
-monitor_start(_Mid,_,_,_,_,_) :-
+monitor_start_aux(_Mid,_,_,_,_,_) :-
 	true.
 
 % monitor_stop
@@ -46,11 +47,11 @@ mepapi_monitor_stop(Request) :-
 				]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	monitor_stop(Mid,_,_,_,_,_),
+	monitor_stop_aux(Mid,_,_,_,_,_),
 	!.
 mepapi_monitor_stop(_) :- audit_gen(monitor_event, monitor_stop(failure)).
 
-monitor_stop(_Mid,_,_,_,_,_).
+monitor_stop_aux(_Mid,_,_,_,_,_).
 
 % monitor_heartbeat
 mepapi_monitor_heartbeat(Request) :-
@@ -63,9 +64,13 @@ mepapi_monitor_heartbeat(Request) :-
 				]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	monitor_heartbeat(Mid,AtomsListAtom,OVarsListAtom,_,_,_),
+	monitor_heartbeat_aux(Mid,AtomsListAtom,OVarsListAtom,_),
 	!.
-mepapi_monitor_stop(_) :- audit_gen(monitor_event, monitor_heartbeat(failure)).
+mepapi_monitor_heartbeat(_) :- audit_gen(monitor_event, monitor_heartbeat(failure)).
 
-monitor_heartbeat(_Mid,_AtomsListAtom,_OVarsListAtom,_,_,_).
+monitor_heartbeat_aux(Mid,AtomsListAtom,OVarsListAtom,Response) :-
+	format(‘MEP API received heartbeat from ~q~n’,Mid),
+	read_term_from_atom(AtomsListAtom,AtomsList,[]),
+	read_term_from_atom(OVarsListAtom,OVarsList,[]),
+	mep_heartbeat(Mid,AtomsList,OVarsList,Response).
 

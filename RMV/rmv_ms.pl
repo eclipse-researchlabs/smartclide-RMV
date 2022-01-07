@@ -1,11 +1,13 @@
 % RMV - Monitor Sensor
 % Runs as part of the Service Under Scrutiny (SUS)
 
-:- module(rmv_ms,[ms_startup/0, ms_shutdown/0, ms_step/0
+:- module(rmv_ms,[ms_startup/0, ms_shutdown/0, ms_step/0, ms_recovery/1,
+                sv_setter/2, sv_getter/2
 	       ]).
 
 :- use_module('COM/param').
 :- use_module('RMV/rmv_mf_mep').
+:- use_module(library(http/json)).
 
 % MONITOR SENSOR functions exposed to the SUS
 %
@@ -18,6 +20,26 @@ ms_shutdown :- shutdown.
 % ms_step is called by SUS logic to explicitly trigger the responder
 ms_step :- responder.
 
+% ms_recovery registers a callback with MS for recovery
+% the predicate is assumed to be of arity 1 to accommodate
+% the recovery value returned by the monitoring framework
+ms_recovery(Pred) :-
+        retractall(sus_recovery_callback(_)), assert(sus_recovery_callback(Pred)).
+
+sus_recovery(R) :-
+        %format('recovery(~q) received by MS~n',R),
+        sus_recovery_callback(Callback),
+        (   Callback \== null
+        ->  RecoveryCall =.. [Callback,R],
+            call(RecoveryCall)
+        ;   true
+        ).
+
+:- dynamic sus_recovery_callback/1.
+sus_recovery_callback(null).
+
+invoke_SUS_recovery(_).
+
 /*
 % MS CONFIGURATION
 %   provided by Monitor Creation to accompany the generated monitor
@@ -25,14 +47,15 @@ ms_step :- responder.
 %   See test_cv below for definition of ms_cv structure.
 */
 
-:- dynamic monitor_id/1, shared_var_decl/1,
+:- dynamic monitor_id/1, shared_var_decls/1,
         observable_vars/1, model_vars/1,
         property_vars/1, reportable_vars/1,
         trigger_vars/1, monitor_atoms/1,
-        monitor_atom_eval/1, shared_vars_init/1.
+        monitor_atom_eval/1, shared_var_inits/1,
+        monitor_session/1.
 
-monitor_id('').
-shared_var_decl([]).
+monitor_id('monid_00002'). % TODO somehow must be set before init
+shared_var_decls([]).
 observable_vars([]).
 model_vars([]).
 property_vars([]).
@@ -41,15 +64,9 @@ trigger_vars([]).
 monitor_atoms([]).
 monitor_atom_eval(no_eval). % ms_eval, mep_eval or no_eval
 
+monitor_session('').
+
 % these configuration elements are unary functors, but most are ord sets
-/* old format
-ms_config_elements([monitor_id, shared_vars,
-                    monitor_atoms, monitor_vars, monitor_observable_vars,
-                    monitor_property_vars, monitor_reportable_vars, monitor_trigger_vars,
-                    monitor_atom_eval, shared_vars_init
-                   ]).
-                */
-% new format:
 ms_config_elements([monitor_id, shared_var_decl,
                     observable_vars, model_vars,
                     property_vars, reportable_vars,
@@ -88,9 +105,9 @@ test_cv(1, ms_cv( % old format
          )
        ).
 
-test_cv(2, ms_cv( % new format
+test_cv(2, ms_cv( % new format - identical to ex_cv(2, CV) in rmv_ml
              /* monitor_id */         'monid_00002',
-             /* shared_var_decl */    [n:integer,
+             /* shared_var_decls */   [n:integer,
                                        o:integer,
                                        p:boolean,
                                        q:boolean,
@@ -99,25 +116,36 @@ test_cv(2, ms_cv( % new format
              /* observable_vars */    [n, o, p, q, r, s],
              /* model_vars */         [n, p, q, s],
              /* property_vars */      [n, p, q],
-             /* reportable_vars */    [o, s],
+             /* reportable_vars */    [n, o, s, p, q],
              /* trigger_vars */       [q, s],
-             /* monitor_atoms */      [a1:eq(n,2),a2:lt(n,2),a3:eq(p,q)],
+             /* monitor_atoms */      [p:p,a1:eq(n,2),a2:lt(n,2),a3:eq(p,q),q:q],
              /* monitor_atom_eval */  ms_eval,
-             /* shared_vars_init */   [n=undefined,
-                                       o=undefined,
-                                       p=undefined,
+             /* shared_var_inits */   [n=1,
+                                       o=2,
+                                       p=true,
                                        q=false,
-                                       r=true,
+                                       r=undefined,
                                        s=1
                                       ]
          )
        ).
 
 % get_cv will import actual concrete MS configuration vector
+% or use the test configuration vector
 %
-% for now we use the test configuration vector
 %get_cv(CV) :- test_cv(1,CV).
+get_cv(CV) :- !, get_cv(CV,'monid_00002'). % default
 get_cv(CV) :- test_cv(2,CV).
+get_cv(CV,N) :- integer(N), !, test_cv(N,CV).
+get_cv(CV,Mid) :- atom(Mid), !,
+        param:monitor_directory_name(MD),
+        atomic_list_concat([MD,'/',Mid,'_conf.json'], CF),
+        open(CF,read,Stream),
+        json_read(Stream,JSONterm),
+        %writeln(JSONterm),
+        rmv_ml:pjson_to_ms_cv(JSONterm,CV),
+        %format('\n~q\n',CV),
+        true.
 
 % internal startup / shutdown functions
 %
@@ -126,40 +154,61 @@ init :-
         initialize_ms_configuration,
 	% initiate Monitor M the monitor server for this service
         monitor_id(Mid),
-        mep_start_monitor(Mid,Mstatus),
+        mep_start_monitor(Mid,Mstatus), % TODO - call through mepapi
         (   memberchk(monitor_started,Mstatus)
         ->  true
         ;   writeln('failed to initiate monitor'),
             fail
+        ),
+        (   memberchk(session(Sid),Mstatus)
+        ->  retractall(monitor_session(_)),
+            assert(monitor_session(Sid))
+        ;   writeln('mep_start_monitor did not return a session id')
         ),
         retractall(ms_initialized(_)), assert(ms_initialized(true)),
         % return with success to indicate MS initialized and ready,
         true.
 
 initialize_ms_configuration :-
-        get_cv(CV),
-        % CV = ms_cv(Mid,SV,Ma,Mv,Mo,Mp,Mr,Mt,Mae,SVi),
-        CV = ms_cv(Monid,SVD,Ov,Mv,Pv,Rv,Tv,Ma,Mae,SVi),
-        rmv_ml:monid2modid(Monid,Modid),
-        retractall(rmv_ml:monitor(Monid,_,_,_,_,_,_)),
-        assert(rmv_ml:monitor(Monid,Modid,_,_,_,_,_)),
+        (       ( monitor_id(Mid), Mid \== '' )
+        ->      get_cv(CV,Mid)
+        ;       get_cv(CV)
+        ),
+        initialize_ms_configuration(CV).
 
+initialize_ms_configuration(CV) :-
+        %writeln(initializing), rmv_ml:display_cv(CV),
+        CV = ms_cv(Monid,SVD,Ov,Mv,Pv,Rv,Tv,Ma,Mae,SVi),
         clear_ms_configuration,
-        % set_ms_configuration([Monid,SV,Ma,Mv,Mo,Mp,Mr,Mt,Mae,SVi]),
         set_ms_configuration([Monid,SVD,Ov,Mv,Pv,Rv,Tv,Ma,Mae,SVi]),
+        declare_sus_vars(SVD),
         set_ms_sus_vars(SVi).
-/*
-ms_config_elements([monitor_id, shared_var_decl,
-                    observable_vars, model_vars,
-                    property_vars, reportable_vars,
-                    trigger_vars, monitor_atoms,
-                    monitor_atom_eval, shared_vars_init ]).
-*/
+
 set_ms_configuration(CL) :-
         ms_config_elements(CE),
-        maplist(set_ms_conf_elt,CE,CL).
+        maplist(set_ms_conf_elt,CE,CL),
+        % handle the overrides recorded in rmv_ml
+        % currently only the atom evaluation mode
+        % these are only for testing as the monitor library
+        % is not available in the standalone.
+        % If this is to be permitted dynamically then another
+        % way of getting the override into the monitor sensor
+        % must be devised. Probably direct modification of
+        % the configuration vector before MS initialization.
+        (		rmv_ml:atom_eval_mode(Emode)
+        ->	retractall( monitor_atom_eval(_) ),
+				assert( monitor_atom_eval(Emode) )
+        ;   true
+        ).
 
 set_ms_conf_elt(E,V) :- EV =.. [E,V], assert(EV), !.
+
+declare_sus_vars([]) :- !.
+declare_sus_vars([Decl|Decls]) :- !,
+        declare_sus_var(Decl), declare_sus_vars(Decls).
+
+declare_sus_var(SVname:SVtype) :-
+        assert( sus_var(SVname,SVtype,undefined) ).
 
 set_ms_sus_vars([]).
 set_ms_sus_vars([N=V|SVs]) :-
@@ -177,19 +226,20 @@ clear_ms_configuration :-
         ms_config_elements(CE),
         forall(member(F,CE), (R=..[F,_], retractall(R))),
         % clear all simulated SUS variables
-        % retractall(sus_var(_,_)),
-        retractall(sus_var(_,_,_)),
+         retractall(sus_var(_,_,_)),
         true.
 
 shutdown :-
         monitor_id(Mid),
-        mep_stop_monitor(Mid,Mstatus),
+        monitor_session(Sid),
+        mep_stop_monitor(Mid,Sid,Mstatus), % TODO - call through mepapi
         (   memberchk(monitor_stopping,Mstatus)
         ->  true
         ;   writeln('error from mep_stop_monitor'),
             fail
         ),
-        retractall(ms_initialized(_)), assert(ms_initialized(complete)).
+        retractall(ms_initialized(_)), assert(ms_initialized(complete)),
+        rmv_mc_nui:display_session_log(Sid).
 
 re_init :- un_init, init.
 
@@ -198,21 +248,24 @@ un_init :-
         retractall(ms_initialized(_)), assert(ms_initialized(false)).
 
 % Monitor Sensor Responder
-% triggered by SUS, usually by a Observable variable setter
-%
+% triggered by SUS, usually by an Observable variable sv_setter
+% most recently changed trigger var old and new values in var_oldval_newval/3
 
 responder :-
         monitor_id(Mid),
+        monitor_session(Sid),
         monitor_atoms(As),
         aT_list_constructor(As,ATl),
         or_list_constructor(ORl),
-        ms_heartbeat(Mid,ATl,ORl),
+        ms_heartbeat(Mid,Sid,ATl,ORl),
         true.
 
 % Note differences of these predicates to those in rmv_mf_mep
-%   evaluate atoms for the monitor using values from o_getter map
+%   evaluate atoms for the monitor using values from sv_getter map
 %   Monitor configuration will have to make sure that all variables
 %   needed for atom evaluation are in the Observables list
+%
+% TODO - use var_oldval_newval/3 for reference to past values by var
 %
 aT_list_constructor(As,ATs) :-
         findall(Ai, (member(Ai:Ap,As), af_evaluator(Ap)), ATs).
@@ -221,14 +274,14 @@ af_evaluator(Ap) :-
         aformula_instantiate(Ap,IAp),
         a_eval(IAp).
 
-aformula_instantiate(AF,IAF) :- atom(AF), !, o_getter(AF,IAF).
+aformula_instantiate(AF,IAF) :- atom(AF), !, sv_getter(AF,IAF).
 aformula_instantiate(AF,IAF) :- compound(AF),
         compound_name_arguments(AF,F,Args),
         property_vars(PV),
         maplist(arg_instantiate(PV),Args,IArgs),
         compound_name_arguments(IAF,F,IArgs).
 
-arg_instantiate(ObsNames,A,IA) :- atom(A), member(A,ObsNames), !, o_getter(A,IA).
+arg_instantiate(ObsNames,A,IA) :- atom(A), member(A,ObsNames), !, sv_getter(A,IA).
 arg_instantiate(_,A,A).
 
 % basic set of atomic expressions
@@ -252,46 +305,67 @@ a_eval(_) :- !, fail.
 %
 or_vector_constructor(ORv) :- % create an ordered vector of values
         (   reportable_vars(Rnames) -> true ; Rnames = []  ),
-        maplist(o_getter,Rnames,Rvals),
+        maplist(sv_getter,Rnames,Rvals),
         ORv =.. [or_v|Rvals],
         true.
 
 or_list_constructor(ORl) :- % create a list of var=value pairs
         % observable_vars(Ovars),
         (   reportable_vars(Rnames) -> true ; Rnames = []  ),
-        findall(V=Val, (member(V,Rnames), o_getter(V,Val)), ORl).
+        findall(V=Val, (member(V,Rnames), sv_getter(V,Val)), ORl).
 
 
 % MS HEARTBEAT
+%   Construct and send the MS heartbeat message to the MEP
+%
 %   ATlist is a list of the atom identifiers that evaluated to true in
 %   the current observable variables assignment
 %
 %   ORlist is a list of name=value pairs for the reportable variables
-ms_heartbeat(MonitorID,ATlist,ORlist) :-
-        format('HEARTBEAT: ~w ~w ~w~n',[MonitorID,ATlist,ORlist]),
-        mep_heartbeat(MonitorID,ATlist,ORlist,_Response).
+ms_heartbeat(MonitorID,SessionID,ATlist,ORlist) :-
+%        format(atom(H),'MS-HEARTBEAT: ~w ~w ~w~n',[MonitorID,ATlist,ORlist]),
+%        write(H),
+        send_ms_heartbeat(MonitorID,SessionID,ATlist,ORlist,Response),
+        (   memberchk(recovery(R),Response)
+        ->  sus_recovery(R)
+        ;   true
+        ),
+        true.
+
+send_ms_heartbeat(Mid,Sid,ATl,ORl,Resp) :-
+        % synchronously send heartbeat and wait for response
+        % for standalone test bypass mepapi and send direct to MEP internal
+        % normally would serialize the args and send via mepapi
+        rmv_mf_mep:mep_heartbeat(Mid,Sid,ATl,ORl,Resp),
+        true.
 
 % functions to set/get SUS variable values
 %
-:- dynamic var_oldval_newval/3.
+% TODO - expand use of var_oldval_newval to all property vars always?
+% TODO - move manipulation of var_oldval_newval outside triggers below
+% ΤΟDO - extend sus_var/4 to include pastval (may be tricky in C version)
+% TODO - then retract only clause for current var before assert
+:- dynamic var_oldval_newval/3. % cache old values
 
-o_setter(Ovar,Onewval) :-
+% TODO - edit local var names Ovar -> SVname, etc
+sv_setter(Ovar,Onewval) :-
         atom(Ovar), atomic(Onewval), !,
-        %sus_var(Ovar,Otype,_Ooldval),
-        retractall(sus_var(Ovar,Otype,Ooldval)), assert(sus_var(Ovar,Otype,Onewval)),
+        sus_var(Ovar,Otype,Ooldval),
+        retractall(sus_var(Ovar,_,_)), assert(sus_var(Ovar,Otype,Onewval)),
         trigger_vars(Triggers),
         (   member(Ovar,Triggers)
-        ->  % invoke ms_step if called from outside this module
+        ->  % invoke ms_step if called from outside this module - TODO
             % temporarily store changed variable in case needed by atom evaluator
+            retractall( var_oldval_newval(Ovar,_,_) ),
             assert( var_oldval_newval(Ovar,Ooldval,Onewval) ),
-            responder,
-            retractall( var_oldval_newval(_,_,_) )
+            responder
+            % retractall( var_oldval_newval(_,_,_) )
         ;   true
         ).
 
-o_getter(Ovar,Oval) :-
-        atom(Ovar), var(Oval), sus_var(Ovar,Oval), !.
-o_getter(_,undefined).
+sv_getter(Ovar,Oval) :-
+        atom(Ovar), var(Oval), sus_var(Ovar,_Otype,Oval), !.
+sv_getter(_,undefined).
 
 
 % simulation of the SUS variables

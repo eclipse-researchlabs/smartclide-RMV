@@ -97,12 +97,11 @@ mcapi_create_monitor(Request) :-
 			]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	param:current_policy(Policy),
-	create_monitor_aux(SS),
+	create_monitor_aux(SS,_),
 	!.
 mcapi_create_monitor(_) :- audit_gen(monitor_creation, create_monitor(failure)).
 
-create_monitor_aux(_).
+create_monitor_aux(_,_).
 
 % graph_monitor
 mcapi_graph_monitor(Request) :-

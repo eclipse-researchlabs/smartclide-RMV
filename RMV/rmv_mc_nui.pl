@@ -1,13 +1,75 @@
 % interface to NuRV (and nuXmvm NuSMV)
 % for human and automated interaction
 
-:- module(rmv_mc_nui,[start_monitor/2, stop_monitor/2, heartbeat/3,
+:- module(rmv_mc_nui,[start_monitor/2, stop_monitor/2, heartbeat/4,
 		      nurv_monitor_init/3,
 		      open_nurv_session/2,quit_nurv_session/1,close_nurv_session/1,
-		      nurv_session_cmd/2,nurv_session_cmd_resp/2,nurv_session_get_resp/1
+		      nurv_session_cmd/2,nurv_session_cmd_resp/3,nurv_session_get_resp/2
 		     ]).
 
 :- use_module(['COM/param','COM/ui','COM/sessions','RMV/rmv_na','RMV/rmv_ml',rmv_mc]).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% Monitor Server Interactions
+%
+%   These functions are relayed here by rmv_mf_mep for
+%   events received from monitor sensors to be sent to
+%   monitor servers
+%
+
+% start a NuRV server instance with instance id derived form monitor id
+start_monitor(Mid,Status) :- % TODO
+	start_monitor_server(Mid),
+	Status = [monitor_started],
+	!.
+start_monitor(_Mid,[monitor_failure]) :-
+	true.
+
+% stop the NuRV server intance corresponding to monitor id
+stop_monitor(Mid,Status) :-
+	stop_monitor_server(Mid),
+	Status = [monitor_stopping],
+	!.
+stop_monitor(_,[monitor_failure]).
+
+% pass the T atoms to the monitor server for a verdict
+% send reportables to subscribers
+heartbeat(Mid,Sid,AtomIds,Verdict) :-
+	heartbeat_monitor_server(Mid,Sid,AtomIds,_Reset,Verdict),
+	!.
+heartbeat(_,_,_,_).
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+%  Communicate with appropriate monitor server instance
+%
+
+start_monitor_server(Mid) :- % TODO
+	monitor(Mid,_,_,_,_,_,_),
+	atom_concat('NuRV/Monitor/',Mid,_FullMid).
+
+stop_monitor_server(Mid) :-
+	monitor(Mid,_,_,_,_,_,_),
+	atom_concat('NuRV/Monitor/',Mid,_FullMid).
+
+heartbeat_monitor_server(Mid,Sid,AtomIds,Reset,Verdict) :-
+	monitor(Mid,_,_,_,_,_,_),
+	atom_concat('NuRV/Monitor/',Mid,_FullMid),
+	% send NuRV heartbeat to session Sid and return verdict
+	% dummy values for testing
+	(   memberchk(p,AtomIds)
+	->  ArgAtom = '-c p'
+	;   (   memberchk(q,AtomIds)
+        ->  ArgAtom = '-c q'
+	    ;   ArgAtom = ''
+	    )
+	),
+	format(atom(Cmd),'heartbeat -n 0 ~w',[ArgAtom]),
+	nurv_session_cmd_resp(Sid,Cmd,Verdict),
+	%format('Response from NuRV heartbeat: ~q~n',Verdict),
+	Reset = false, % to be determined by model/parameters
+	true.
 
 % Interactive
 %
@@ -43,38 +105,55 @@ read_nu_line(Slp,S,Lines,Len) :- % read a buffer of the stream from NuRV
 nurv_session_cmd(Sid,Cmd) :-
 	nurv_session(Sid,_,ToS,_),
 	writeln(ToS,Cmd), flush_output(ToS),
-	writeln(Cmd), flush_output.
+%	writeln(Cmd), flush_output,
+	assertz( nurv_session_log(Sid,Cmd) ),
+	true.
 
-nurv_session_cmd_resp(Sid,Cmd) :-
+nurv_session_cmd_resp(Sid,Cmd,Resp) :-
 	nurv_session(Sid,_,ToS,_),
 	writeln(ToS,Cmd), flush_output(ToS),
-	writeln(Cmd), flush_output,
-	nurv_session_get_resp(Sid).
+%	writeln(Cmd), flush_output,
+	assertz( nurv_session_log(Sid,Cmd) ),
+	nurv_session_get_resp(Sid,Resp).
 
-nurv_session_get_resp(Sid) :-
+nurv_session_get_resp(Sid,Resp) :-
 	nurv_session(Sid,_,_,FrS),
-	param:local_NuRV_prompt(NuRVp),
 	param:raw_read_delay(Delay),
 	read_nu_line(Delay,FrS,NuL,LenL),
-	write(NuL), flush_output,
-	Pos is LenL - 7,
-	(   Pos >= 0, sub_atom(NuL,Pos,7,_,NuRVp)
-	->  true
-	;   nurv_session_get_resp(Sid)
+%	write(NuL), flush_output,
+	assertz( nurv_session_log(Sid,NuL) ),
+	param:local_NuRV_prompt(NuRVp),
+	atom_length(NuRVp,NuRVpLen),
+	Pos is LenL - NuRVpLen,
+	(   (Pos >= 0, sub_atom(NuL,Pos,NuRVpLen,_,NuRVp) )
+	->  % NuRV prompt found at end of NuL
+		% If NuL is multi-line then the preceding line is the response
+		(	sub_atom(NuL,Before,1,After,'\n')
+		->	After1 is After+1,
+			sub_atom(NuL,0,Before,After1,Resp)
+		;	Resp = ''
+		)
+	;   % keep looking for prompt
+		nurv_session_get_resp(Sid,Resp)
 	).
 
 nurv_monitor_init(Infile,Ordfile,Sid) :-
 	atomic_list_concat(['set input_file ',Infile],Cmd1),
 	atomic_list_concat(['set input_order_file ',Ordfile],Cmd2),
-	nurv_session_cmd_resp(Sid,Cmd1),
-	nurv_session_cmd_resp(Sid,Cmd2),
-	nurv_session_cmd_resp(Sid,go),
-	nurv_session_cmd_resp(Sid,'build_monitor -n 0'),
+	nurv_session_cmd_resp(Sid,Cmd1,_Resp1),
+	nurv_session_cmd_resp(Sid,Cmd2,_Resp2),
+	nurv_session_cmd_resp(Sid,go,_Resp3),
+	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp4),
 	true.
 
 % NuRV session tracking
-:- dynamic nurv_session/4.
+:- dynamic nurv_session/4, nurv_session_log/2.
+
 nurv_session(sid,stype,to_stream,from_stream). % sid is pid as an atom
+nurv_session_log(sid,response).
+
+display_session_log(Sid) :- writeln('NuRV Log:'),
+	forall(nurv_session_log(Sid,Msg), format('~q ~s~n',[Sid,Msg])).
 
 open_nurv_session(int,SessionId) :- % open interactive NuRV session
 	param:local_NuRV(_,NuRV),
@@ -97,8 +176,8 @@ open_nurv_session(orbit,SessionId) :- % open orbit NuRV session
 	init_session(SessionId, monitor_framework),
 	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
 	assert( nurv_session(SessionId,orbit,ToStream,FromStream) ),
-	nurv_session_cmd_resp(Sid,go),
-	nurv_session_cmd_resp(Sid,'build_monitor -n 0').
+	nurv_session_cmd_resp(Sid,go,_Resp1),
+	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp2).
 /*
 % NuRV -quiet -int -i disjoint.ord -source t.cmd disjoint.smv
 
@@ -110,6 +189,10 @@ open_nurv_session(orbit,SessionId) :- % open orbit NuRV session
 	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
 	assert( nurv_session(SessionId,int,ToStream,FromStream) ).
 */
+quit_nurv_session :- % assumes only one active session
+	nurv_session(SessionId,_,_,_),
+	quit_nurv_session(SessionId).
+
 quit_nurv_session(SessionId) :- % send quit command, then close
 	nurv_session_cmd(SessionId,quit),
 	close_nurv_session(SessionId).
@@ -148,54 +231,6 @@ struct_trace(XMLstruct,Trace) :-
 		 findall(Var=VAL, (xpath(S,//(value),element(value,[variable=Var],[VAL]))), Vars)
 		),
 		States).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-% Monitor Server Interactions
-%
-%   These functions are relayed here by rmv_mf_mep for
-%   events received from monitor sensors to be sent to
-%   monitor servers
-%
-
-% start a NuRV server instance with instance id derived form monitor id
-start_monitor(Mid,Status) :-
-	start_monitor_server(Mid),
-	Status = [monitor_started],
-	!.
-start_monitor(_Mid,[monitor_failure]) :-
-	true.
-
-% stop the NuRV server intance corresponding to monitor id
-stop_monitor(Mid,Status) :-
-	stop_monitor_server(Mid),
-	Status = [monitor_stopping],
-	!.
-stop_monitor(_,[monitor_failure]).
-
-% pass the T atoms to the monitor server for a verdict
-% send reportables to subscribers
-heartbeat(Mid,AtomIds,Verdict) :-
-	heartbeat_monitor_server(Mid,AtomIds,_Reset,Verdict),
-	!.
-heartbeat(_,_,_).
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-%  Communicate with appropriate monitor server instance
-%
-
-start_monitor_server(Mid) :-
-	monitor(Mid,_,_,_,_,_,_),
-	atom_concat('NuRV/Monitor/',Mid,_FullMid).
-
-stop_monitor_server(Mid) :-
-	monitor(Mid,_,_,_,_,_,_),
-	atom_concat('NuRV/Monitor/',Mid,_FullMid).
-
-heartbeat_monitor_server(Mid,_,_,_) :-
-	monitor(Mid,_,_,_,_,_,_),
-	atom_concat('NuRV/Monitor/',Mid,_FullMid).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -269,7 +304,7 @@ run_trace_do(Mon,State,NewMon,Sid) :-
 	State = state(_, Vars),
 	memberchk(V='TRUE',Vars),
 	format(atom(Cmd),'heartbeat -n 0 -c "~w"',[V]),
-	nurv_session_cmd_resp(Sid,Cmd),
+	nurv_session_cmd_resp(Sid,Cmd,_Resp),
 	%writeln(Cmd),
 	NewMon = Mon.
 

@@ -1,0 +1,32 @@
+{
+  "monitor_id":"monid_00002",
+  "shared_var_decls": [
+    {"name":"n", "type":"integer"},
+    {"name":"o", "type":"integer"},
+    {"name":"p", "type":"boolean"},
+    {"name":"q", "type":"boolean"},
+    {"name":"r", "type":"float"},
+    {"name":"s", "type":"float"}
+  ],
+  "observable_vars": ["n", "o", "p", "q", "r", "s" ],
+  "model_vars": ["n", "p", "q", "s" ],
+  "property_vars": ["n", "p", "q" ],
+  "reportable_vars": ["n", "o", "s", "p", "q"],
+  "trigger_vars": ["q", "s" ],
+  "monitor_atoms": [
+    {"aid":"p", "aex":"p"},
+    {"aid":"a1", "aex":"eq(n,2)"},
+    {"aid":"a2", "aex":"lt(n,2)"},
+    {"aid":"a3", "aex":"eq(p,q)"},
+    {"aid":"q", "aex":"q"}
+  ],
+  "monitor_atom_eval":"ms_eval",
+  "shared_var_inits": [
+    {"name":"n", "value":1},
+    {"name":"o", "value":2},
+    {"name":"p", "value":"true"},
+    {"name":"q", "value":"false"},
+    {"name":"r", "value":"undefined"},
+    {"name":"s", "value":1}
+  ]
+}

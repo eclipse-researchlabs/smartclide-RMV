@@ -73,10 +73,8 @@ execapi_e2e(Request) :-
 	    writeln(success)
 	).
 
-e2e_api(test1) :- !, writeln('e2e_api local test'), flush_output,
-	e2e(local). % called from command_rmv
 e2e_api(Mode) :- % mode can be int, local, remote, orbit
-	writeln(e2e_api),
+	format('e2e_api ~w test\n',Mode), flush_output,
 	e2e(Mode).
 
 %-------------------------------------------------------
@@ -109,7 +107,7 @@ e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local ; RemOrLoc == orbit ),
 	% deploy and execute the service and monitor
 
 	trc(T), truncate_trace( T, trace(_,States)),
-	ServiceCreationContext = [trace=States],
+	ServiceCreationContext = [trace=States, ssid=ssid_001],
 	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the trace
 	ext_service_spec2service(ServiceSpec,Service), % now service has the trace
 	rmv_mc:service_spec2monitor(ServiceSpec,Monitor),
@@ -119,7 +117,7 @@ e2e(RemOrLoc) :- ( RemOrLoc == remote ; RemOrLoc == local ; RemOrLoc == orbit ),
 e2e(test2) :- !,
 	ext_execute_service(test2,_),
 	!.
-e2e(_) :- writeln('specify remote, local or testn').
+e2e(_) :- writeln('specify remote, local or testN').
 
 
 % EXEC SIM SERVER entry point and stop server
@@ -157,7 +155,8 @@ periodic_goals :-
 ext_get_service_spec(ServiceCreationContext, ServiceSpec) :-
 	AddedItems = [],
 	append(ServiceCreationContext,AddedItems,B),
-	is_service_spec(ServiceSpec, ssid_001, Sbody ),
+	memberchk(ssid=SSid, ServiceCreationContext),
+	is_service_spec(ServiceSpec, SSid, Sbody ),
 	is_service_spec_body( Sbody, B ).
 
 
@@ -176,16 +175,15 @@ ext_create_service(SS) :- % not called currently
 ext_service_spec2service(ServiceSpec, Service) :-
 	is_service_spec(ServiceSpec, SSid, SSb),
 	is_service_spec_body(SSb,Bitems),
-	(   memberchk(trace=States,Bitems)
-	->  T = States
-	;   T = []
-	),
+	intersection(Bitems, [trace=_,assigns=_], Behavior),
+	memberchk(atom_eval_mode=Aeval,Bitems),
+	memberchk(monitor_sensor_lang=MSlang,Bitems),
 	atom_concat(ssid_,N,SSid), atom_concat(servid_,N,ServId),
-	is_service(Service,ServId,_,_,_,_,_,T).
+	is_service(Service,ServId,_,_,_,Aeval,MSlang,Behavior).
 
 % end SERVICE CREATION SIMULATION
 create_monitor(ServSpec,Monitor) :- % bypass HTTP API
-	rmv_mcapi:create_monitor_aux(ServSpec).
+	rmv_mcapi:create_monitor_aux(ServSpec,Monitor).
 %-------------------------------------------------------
 
 
@@ -195,9 +193,13 @@ create_monitor(ServSpec,Monitor) :- % bypass HTTP API
 %
 
 ext_deploy_service_with_monitor(Service, Monitor, Deployment) :-
-%	is_service(Service), is_monitor(Monitor),
-	is_deployment(Deployment,Service,Monitor),
+	is_service(Service), is_monitor(Monitor),
+	new_deployment_id(Did),
+	cons_deployment(Deployment,Did,Service,Monitor),
 	true.
+
+new_deployment_id(Did) :-
+	uuid(U), atom_concat('deploy_',U,Did).
 
 % end SERVICE DEPLOYMENT SIMULATION
 %-------------------------------------------------------
@@ -216,28 +218,65 @@ ext_deploy_service_with_monitor(Service, Monitor, Deployment) :-
 % monitor event processing. The sim_app module provides application
 % simulation in Prolog (see execute_service(remote, ...)).
 
-ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
-	is_deployment(Deployment, Service, Monitor),
-	is_service(Service,_,_,_,_,_,_,States),
+ext_execute_service( ms_pl, Deployment ) :- !,
+	is_deployment(Deployment, _, Service, Monitor),
+	is_service(Service,_,_,_,_,_,_,Behavior),
 	is_monitor(Monitor,_MonitorId,_,_,_,_,_,_),
+	memberchk( assigns=Assigns, Behavior ),
+	execute_service(ms_pl,Service,Deployment,_SessionId,Assigns),
+	true.
+
+ext_execute_service( ms_c, _Deployment ) :- !.
+
+ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
+	is_deployment(Deployment, _, Service, Monitor),
+	is_service(Service,_,_,_,_,_,_,Behavior),
+	is_monitor(Monitor,_MonitorId,_,_,_,_,_,_),
+	memberchk( trace=States, Behavior ),
 	initiate_monitor(Monitor,SessionId),
 	execute_service(RemOrLoc,Service,Deployment,SessionId,States),
 	terminate_monitor(SessionId).
+
 ext_execute_service(orbit,Deployment) :- !,
-	is_deployment(Deployment, Service, Monitor),
+	is_deployment(Deployment, _, Service, Monitor),
 	is_service(Service,_,_,_,_,_,_,States),
 	is_monitor(Monitor,MonitorId,_,_,_,_,_,_),
 	initiate_monitor(Monitor,SessionId),
 	execute_service(orbit,Service,Deployment,SessionId,States),
 	param:local_nameserver_IOR(IOR),
 	atomic_list_concat(['monitor_server -N ',IOR,' -i ',MonitorId],ServerCmd),
-	nurv_session_cmd_resp(SessionId,ServerCmd),
+	nurv_session_cmd_resp(SessionId,ServerCmd,_Resp),
 	% terminate_monitor
 	true.
 
 % end EXECUTION CONTROL SIMULATION
 %-------------------------------------------------------
 
+%-------------------------------------------------------
+% EXECUTE THE SERVICE
+%
+execute_service(ms_pl,Service,Deployment,SessionId,Assigns) :- !, is_service(Service),
+    % act as the executing (Prolog-implemented) service
+    % using the assigns from the behavior argument
+    rmv_ms:ms_startup,
+	 rmv_ms:ms_recovery( recoveryp ), % defined below
+    sim_exec_steps(Deployment, SessionId, Assigns), % calls sv_setter
+	 rmv_ms:ms_shutdown.
+
+execute_service(local,Service,Deployment,SessionId,States) :- !, is_service(Service),
+	sim_exec_steps(Deployment, SessionId, States).
+
+% remote service simulation is run in a separate process
+execute_service(remote,Service,Deployment,SessionId,States) :- !, is_service(Service),
+   % execute the sim_app with sim_sensor
+	sim_app:app,
+	sim_exec_steps(Deployment, SessionId, States),
+	true.
+
+execute_service(orbit,_Service,_Deployment,_SessionId,_States) :-
+	true.
+
+recoveryp(R) :- format('Service recovery callback invoked with ~q~n',R).
 
 %-------------------------------------------------------
 % STEP - simulated stepping of the service
@@ -247,58 +286,26 @@ sim_exec_steps(Deployment, Sid, [Step|Steps]) :-
 	sim_exec_step(Deployment, Sid, Step),
 	sim_exec_steps(Deployment, Sid, Steps).
 
-sim_exec_step(_Deployment, Sid, Step) :-
-	Step = state(_StateNo, Assignments),
-	% Step = state(StateNo, Assignments)
-	% e.g. Step = state('1',[p='TRUE',q='FALSE']),
-	% Step the service and step the monitor
+% Step = state(StateNo, Assignments)
+% e.g. Step = state('1',[p='TRUE',q='FALSE']),
+% Step the service and step the monitor
+
+sim_exec_step(_Deployment, Sid, state(_StateNo, Assignments)) :- !,
 	step_monitor(Assignments,Sid).
+
+sim_exec_step(_Deployment, _, Var=Val) :- !,
+   rmv_ms:sv_setter(Var,Val).
 
 % end STEP SIMULATION
 %-------------------------------------------------------
 
-
-%-------------------------------------------------------
-% INITIATE THE SERVICE
-%
-execute_service(local,Service,Deployment,SessionId,States) :- !, is_service(Service),
-	sim_exec_steps(Deployment, SessionId, States).
-
-% remote service simulation is run in a separate process
-execute_service(remote,Service,Deployment,SessionId,States) :- !, is_service(Service),
-        % execute the sim_app with sim_sensor
-	sim_app:app,
-	sim_exec_steps(Deployment, SessionId, States),
-	true.
-
-execute_service(orbit,_Service,_Deployment,_SessionId,_States) :-
-	true.
-%-------------------------------------------------------
-% INITIATE THE MONITOR SESSION
-%
-initiate_monitor(M,SessId) :- is_monitor(M,MonitorId,ModelId,_,_,_,_,_),
-        open_nurv_session(int,SessId),
-	format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
-	nurv_session_get_resp(SessId),
-	param:monitor_directory_name(MD),
-	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
-	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
-	nurv_monitor_init(SMVmodelFile,SMVordFile,SessId),
-	true.
-
-initiate_monitor2(M,SessId) :- is_monitor(M,_MonitorId,_ModelId,_,_,_,_,_),
-        open_nurv_session(orbit,SessId),
-	param:local_nameservier_IOR(IOR),
-	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
-	nurv_session_cmd_resp(SessId,ServerCmd),
-	true.
 %-------------------------------------------------------
 % monitor controls
 %
 step_monitor(Assignments,SessId) :-
 	assignments2argatom(Assignments,Argatom),
 	format(atom(Cmd),'heartbeat -n 0 ~w',[Argatom]),
-	nurv_session_cmd_resp(SessId,Cmd).
+	nurv_session_cmd_resp(SessId,Cmd,_Resp).
 
 
 assignments2argatom([], '') :- !.
@@ -320,6 +327,27 @@ terminate_monitor(SessId) :-
 	quit_nurv_session(SessId),
 	writeln('session ended').
 
+%-------------------------------------------------------
+% INITIATE THE MONITOR SESSION
+%
+/* moved to rmv_mf_mep
+initiate_monitor(M,SessId) :- is_monitor(M,MonitorId,ModelId,_,_,_,_,_),
+    open_nurv_session(int,SessId),
+	format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
+	nurv_session_get_resp(SessId,_Resp),
+	param:monitor_directory_name(MD),
+	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
+	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
+	nurv_monitor_init(SMVmodelFile,SMVordFile,SessId),
+	true.
+
+initiate_monitor2(M,SessId) :- is_monitor(M,_MonitorId,_ModelId,_,_,_,_,_),
+    open_nurv_session(orbit,SessId),
+	param:local_nameservier_IOR(IOR),
+	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
+	nurv_session_cmd_resp(SessId,ServerCmd,_Resp),
+	true.
+*/
 % ------------------------------------------------------------------------
 % SERVICE / MONITOR EXECUTION SIMULATION
 %
@@ -396,7 +424,7 @@ cv_change(VarsVals) :- is_list(VarsVals), !,
 	param:epp_token(Etoken),
 	gen_exec_change_notification(VarsVals,NotifyURL,Etoken).
 
-%
+% TODO - get rid of this?
 % utilities
 
 api_unimpl(_) :-

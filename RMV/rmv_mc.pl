@@ -49,14 +49,17 @@ service_spec2script(SSpecId, NuRVcmds) :-
         NuRVcmds = [].
 
 service_spec2monitor(SS, Monitor) :-
-        is_service_spec(SS,SSid,_SSbody),
+        is_service_spec(SS,SSid,SSbody),
+        is_service_spec_body(SSbody,Bitems),
+        memberchk(atom_eval_mode=Aeval,Bitems),
+        memberchk(monitor_sensor_lang=MSlang,Bitems),
         rmv_ml:load_service_specification(SS,SSid),
         service_spec2model(SSid,SMVmodel),
         service_spec2properties(SSid,LTLproperties),
         service_spec2script(SSid,Ncmds), % HERE generate preamble commands
         create_monitor(SMVmodel,/*ModelVars,SharedVars,*/LTLproperties,Ncmds,MonitorId),
-        rmv_ml:monitor(MonitorId,A,B,C,D,E,F),
-        is_monitor(Monitor,MonitorId,A,B,C,D,E,F).
+        %rmv_ml:monitor(MonitorId,ModelId,B,C,D,E,F),
+        is_monitor(Monitor,MonitorId,_ModelId,_,_,_,Aeval,MSlang).
 
 %
 % create_monitor(+Model,+ModelVars,+SharedVars,+Properties,+Commands,-Monitor)
@@ -69,10 +72,12 @@ create_monitor(Model,/*ModelVars,SharedVars,*/Properties,Cmds,MonitorId) :-
         is_model(Model,ModelId),
         forall( member(P,Properties), is_property(P) ),
         forall( member(C,Cmds), is_cmd(C) ),
-        modid_monid(ModelId,MonitorId),
-
+        modid2monid(ModelId,MonitorId),
+        % TODO - proper magic here (call NuRV)
+        % MUST TODO create proper monitor sensor config for man and target lang
+        rmv_ml:ex_cv(2,CV),
         % install the new monitor in the library
-        is_monitor(Monitor,MonitorId,ModelId,_,_,_,_,_),
+        cons_monitor(Monitor,MonitorId,ModelId,CV,_,_,_,_),
         load_monitor(Monitor),
         true.
 

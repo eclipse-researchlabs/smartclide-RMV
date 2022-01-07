@@ -32,7 +32,7 @@ exec_sim(Port) :-
 % simulation
 
 execute_service( local, Deployment ) :- !,
-	is_deployment(Deployment, Service, Monitor),
+	is_deployment(Deployment, _, Service, Monitor),
 	is_service(Service,_,_,_,_,_,_,States),
 	initiate_service(local,Service),
 	initiate_monitor(Monitor,SessionId),
@@ -40,7 +40,7 @@ execute_service( local, Deployment ) :- !,
 	terminate_monitor(SessionId).
 
 execute_service( remote, Deployment ) :- !,
-	is_deployment(Deployment, Service, Monitor),
+	is_deployment(Deployment, _, Service, Monitor),
 	is_service(Service,_,_,_,_,_,_,States),
 	initiate_service(remote,Service),
 	initiate_monitor(Monitor,SessionId),
@@ -67,7 +67,7 @@ initiate_service(remote,S) :- !, is_service(S),
 
 initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),
         open_nurv_session(int,SessId), % format('NuRV session ~a~n',Sid),
-	nurv_session_get_resp(SessId),
+	nurv_session_get_resp(SessId,_Resp),
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
 	nurv_monitor_init(SMVmodelFile,'MONITORS/default.ord',SessId),
@@ -76,7 +76,7 @@ initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),
 step_monitor(Assignments,SessId) :-
 	assignments2argatom(Assignments,Argatom),
 	format(atom(Cmd),'heartbeat -n 0 ~w',[Argatom]),
-	nurv_session_cmd_resp(SessId,Cmd).
+	nurv_session_cmd_resp(SessId,Cmd,_Resp).
 
 terminate_monitor(SessId) :-
 	quit_nurv_session(SessId),
