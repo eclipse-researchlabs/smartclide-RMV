@@ -12,7 +12,7 @@
 % MONITOR SENSOR functions exposed to the SUS
 %
 % ms_startup is called by the SUS when it begins execution
-ms_startup :- init.
+ms_startup :- init_ms.
 
 % ms_shutdown is called by the SUS when it is shutting down
 ms_shutdown :- shutdown.
@@ -149,8 +149,8 @@ get_cv(CV,Mid) :- atom(Mid), !,
 
 % internal startup / shutdown functions
 %
-init :- ms_initialized(true), !. % already initialized
-init :-
+init_ms :- ms_initialized(true), !. % already initialized
+init_ms :-
         initialize_ms_configuration,
 	% initiate Monitor M the monitor server for this service
         monitor_id(Mid),
@@ -163,7 +163,8 @@ init :-
         (   memberchk(session(Sid),Mstatus)
         ->  retractall(monitor_session(_)),
             assert(monitor_session(Sid))
-        ;   writeln('mep_start_monitor did not return a session id')
+        ;   writeln('mep_start_monitor did not return a session id'),
+            fail
         ),
         retractall(ms_initialized(_)), assert(ms_initialized(true)),
         % return with success to indicate MS initialized and ready,

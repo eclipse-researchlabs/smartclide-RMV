@@ -259,9 +259,9 @@ execute_service(ms_pl,Service,Deployment,SessionId,Assigns) :- !, is_service(Ser
     % act as the executing (Prolog-implemented) service
     % using the assigns from the behavior argument
     rmv_ms:ms_startup,
-	 rmv_ms:ms_recovery( recoveryp ), % defined below
+	rmv_ms:ms_recovery( recoveryp ), % defined below
     sim_exec_steps(Deployment, SessionId, Assigns), % calls sv_setter
-	 rmv_ms:ms_shutdown.
+	rmv_ms:ms_shutdown.
 
 execute_service(local,Service,Deployment,SessionId,States) :- !, is_service(Service),
 	sim_exec_steps(Deployment, SessionId, States).
