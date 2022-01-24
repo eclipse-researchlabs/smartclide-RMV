@@ -30,7 +30,7 @@ void dump_sv_decls(char *label){
 void dump_sv_inits(char *label){
     printf("%s:\n", label);
     for(sh_var_name_value *ip = sh_var_name_values; ip < next_sh_var_name_value; ip++)
-        printf("  %s=%s\n",ip->name,ip->value);
+        printf("  %s=%s\n",ip->vnv_name,ip->vnv_value);
     fflush(stdout);
 }
 
@@ -38,7 +38,59 @@ void dump_matoms(char *label){
     monitor_atom **p;
     printf("%s:\n", label);
     for( monitor_atom *p = monitor_atoms; p < next_monitor_atom; p++)
-        printf("  %s:%s\n", p->aid, p->aex);
+        printf("  %s:%s\n", p->ma_aid, p->ma_aex);
+    fflush(stdout);
+}
+
+void interpret_arg_val(){
+    // HERE HERE
+}
+
+void dump_compiled_atoms(){
+    monitor_interface_t *mi = &monitor_interface;
+    monitor_atom *at = monitor_atoms;
+    sh_var_val svv; char *sign; ext_atom_op eop;
+
+    printf("compiled_atoms (ma_):\n");
+    for( int i=0; i < mi->mi_cv.n_monitor_atoms; i++, at++ ){
+        eop = at->ma_ext_op;
+        if( (int)eop < 0 ){sign="-"; eop = -eop; }else{ sign=""; }
+        //printf("eop=%d\n",eop);fflush(stdout);
+        //continue;
+        printf("  aid=%s, aex=%s, op=%s, ext_op=%s%s,",
+            at->ma_aid, at->ma_aex,
+            (at->ma_op==0 ? "var" : atom_op_names[at->ma_op]),
+            sign, ext_atom_op_names[ eop ]
+        );
+        printf(" arg1_knd=%s arg1_typ=%s, arg1_val=%lu,",
+            akind_names[ at->ma_arg1_knd ],
+            sv_type_names[at->ma_arg1_typ],
+            //sh_var_val2str(svv, at->ma_arg1_knd, at->ma_arg1_typ)
+            (unsigned long)at->ma_arg1_val.sv_addrval
+        );
+        printf(" arg2_knd=%s arg2_typ=%s, arg2_val=%lu\n",
+            akind_names[ at->ma_arg2_knd ],
+            sv_type_names[at->ma_arg2_typ],
+            //sh_var_val2str(svv, at->ma_arg2_knd, at->ma_arg2_typ)
+            (unsigned long)at->ma_arg2_val.sv_addrval
+        );
+        fflush(stdout);
+    }
+    fflush(stdout);
+}
+
+void dump_parse(char *aex){
+    char *op, *a1, *a2; atom_op aop;
+    a_arg_kind arg1_k, arg2_k;
+    sh_var_type arg1_t, arg2_t;
+
+    parse_atom(aex, &op, &a1, &a2, &aop, &arg1_k, &arg1_t, &arg2_k, &arg2_t);
+    printf("parsed \"%s\":   \"%s\" \"%s\" \"%s\"  ===>  %s%s %s:%s %s:%s\n",
+        aex, op, a1, a2,
+        (aop==0 ? "var:" : ""),
+        (aop <= le) ? atom_op_names[ aop ] : "badop",
+        akind_names[arg1_k], sv_type_names[arg1_t],
+        akind_names[arg2_k], sv_type_names[arg2_t] );
     fflush(stdout);
 }
 
@@ -57,7 +109,7 @@ void dump_ms_cv(ms_configuration_vector *cv){
     fflush(stdout);
 }
 
-extern void dump_strings(char *what, char *s[]);
+//extern void dump_strings(char *what, char *s[]);
 
 void dump_one_shared_var_attributes(shared_var_attr_t *sva){
     int i = sva - shared_var_attrs; 
@@ -72,13 +124,15 @@ void dump_one_shared_var_attributes(shared_var_attr_t *sva){
     fflush(stdout);
 }
 
-void dump_shared_var_attributes(shared_var_attr_t *sva, int nvars){
+void dump_shared_var_attributes(void *sva, int nvars){
+    shared_var_attr_t *sv = (shared_var_attr_t *) sva;
 	printf(" dumping %d shared variable attributes:\n",nvars);
-	for(int i=0; i<nvars; i++, sva++)
-        dump_one_shared_var_attributes(sva);
+	for(int i=0; i<nvars; i++, sv++)
+        dump_one_shared_var_attributes(sv);
 }
 
-void dump_monitor_interface(monitor_interface_t *mip){
+void dump_monitor_interface(){
+    monitor_interface_t *mip = &monitor_interface;
     printf("dump monitor interface:\n");
     printf(" mstatus=%s\n",mstatus_string(mip->mi_mstatus));
     printf(" JSON configuration vector:\n%s\n",mip->mi_JSON_cv);
@@ -125,4 +179,3 @@ void dump_sh_vars(){ // HERE
         }
     }
 }
-

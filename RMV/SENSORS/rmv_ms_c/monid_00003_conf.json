@@ -16,13 +16,17 @@
   "monitor_atoms": [
     {"aid":"p", "aex":"p"},
     {"aid":"a1", "aex":"eq(n,2)"},
-    {"aid":"a2", "aex":"lt(s,2.4)"},
+    {"aid":"a2a", "aex":"lt(s,2.4)"},
+    {"aid":"a2b", "aex":"le(n,o)"},
+    {"aid":"a2c", "aex":"ge(n,o)"},
     {"aid":"a3", "aex":"eq(p,q)"},
     {"aid":"q", "aex":"q"},
+    {"aid":"notp", "aex":"not(p)"},
+    {"aid":"uv1", "aex":"z"},
+    {"aid":"uv2", "aex":"eq(z,3)"},
     {"aid":"a4", "aex":false},
     {"aid":"a5", "aex":true},
-    {"aid":"a6", "aex":"eq(p,true)"},
-    {"aid":"notp", "aex":"not(p)"}
+    {"aid":"a6", "aex":"eq(p,true)"}
   ],
   "monitor_atom_eval":"ms_eval",
   "shared_var_inits": [

@@ -340,6 +340,12 @@ send_ms_heartbeat(Mid,Sid,ATl,ORl,Resp) :-
         rmv_mf_mep:mep_heartbeat(Mid,Sid,ATl,ORl,Resp),
         true.
 
+% :- json_object ms_heartbeat(monitor:integer, session:string,
+% atoms:string, vars:string).
+% TODO
+% construct_ms_heartbeat_JSON(Mid,Sid,Atl,ORl,HB_JSON) :- true.
+
+
 % functions to set/get SUS variable values
 %
 % TODO - expand use of var_oldval_newval to all property vars always?

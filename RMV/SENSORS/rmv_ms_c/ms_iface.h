@@ -1,6 +1,10 @@
 /*
- * external functions */
+ * external function declarations */
 
+void mep_start_monitor(char*, char**, mstatus*);
+void mep_stop_monitor(char*, char*, mstatus*);
+
+/* definition stubs */
 void mep_start_monitor(char *Mid, char **Msessid, mstatus *Mstatus){
     *Msessid = "11111";
     *Mstatus = monitor_started;
@@ -22,8 +26,11 @@ init_ms(monitor_interface_t *mip){
     if( initialize_ms_configuration(&mip->mi_cv) == 0 ){
         return NULL;
     };
-VERBOSE_MSG(3,"complete initialization of cv\n");
-dump_shared_var_attributes(shared_var_attrs,N_SHARED_VARS);
+    
+    compile_monitor_atoms();
+
+    VERBOSE_MSG(3,"complete initialization of cv\n");
+    VERBOSE(3)dump_shared_var_attributes(shared_var_attrs,N_SHARED_VARS);
 
     mip->mi_JSON_cv = JSON_STRING;
     // following would be better to get directly from shared_var_decls
@@ -31,12 +38,12 @@ dump_shared_var_attributes(shared_var_attrs,N_SHARED_VARS);
     mip->mi_num_shared_vars = N_SHARED_VARS;
     mip->mi_shared_vars = build_sh_var_attributes(&mip->mi_cv);
     mip->mi_mstatus = monitor_initialized;
-//dump_defined_vars();
 
     declare_sus_vars(mip->mi_cv.shared_var_decls);
     set_ms_sus_vars(mip->mi_cv.shared_var_inits);
+    VERBOSE(3)dump_sv_inits("sus var initializations (symbolic)");
 
-    return(mip); // should return NULL on failure
+    return(mip); // should return NULL on failure TODO check conditions
 }
 
 void
@@ -65,15 +72,19 @@ void responder(){
     monitor_atom *mas = monitor_atoms;
     char **ATl;
     char *ORl;
+    int hb_response = 0;
+
     VERBOSE_MSG(1,"responder()\n");
 
-    ATl = aT_list_constructor(mas);
+    ATl = aT_list_constructor();
     dump_strings("true atoms", ATl); fflush(stdout);
 
-    ORl = or_list_constructor(mi->mi_cv.reportable_vars);
-    printf("reports: %s\n",ORl); fflush(stdout);
+    ORl = or_list_constructor();
+    printf("reports (string): %s\n",ORl); fflush(stdout);
 
-    ms_heartbeat(mid,sid,ATl,ORl);
+    ms_heartbeat(mid,sid,ATl,ORl,&hb_response);
+    or_list_free();
+    // activate recovery response based on hb_response
 }
 
 int ms_startup(char *filename){
@@ -102,6 +113,8 @@ int ms_startup(char *filename){
         VERBOSE_MSG(1,"init_ms returned failure\n");
         return(EXIT_FAILURE);
     }
+
+    // TODO - this is the last point at which monitor atoms could be compiled
 
     mep_start_monitor(mip->mi_cv.monitor_id, &mip->mi_sessid, &mip->mi_mstatus);
     if( mip->mi_mstatus != monitor_started ) return(EXIT_FAILURE);

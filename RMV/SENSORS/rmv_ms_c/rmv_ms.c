@@ -4,10 +4,22 @@
 
 void service_logic(){
     VERBOSE_MSG(1,"service logic starting\n");
+
+    dump_shared_var_attributes(monitor_interface.mi_shared_vars,monitor_interface.mi_num_shared_vars);
+
+    for(monitor_atom *a=monitor_atoms;a<next_monitor_atom;a++){
+        dump_parse(a->ma_aex);
+    }
+    dump_parse("");
+\
+    dump_compiled_atoms();
+    dump_defined_vars();
+    printf("%d\n",af_evaluate(&monitor_atoms[4]));
+
     // ... assignments using setters
     responder();
     responder(); // do twice expect same result
-    test_var_getr_setr();
+    //VERBOSE(3)test_var_getr_setr();
 
     VERBOSE_MSG(1,"service logic ended\n");
 }

@@ -1,57 +1,12 @@
 /*
- * JSON representation of configuration vector
+ * Import JSON representation of configuration vector
  */
-
-static char *cv_element_names[] = { // TODO check
-  "monitor_id",
-  "shared_var_decls",
-  "observable_vars",
-  "model_vars",
-  "property_vars",
-  "reportable_vars",
-  "trigger_vars",
-  "monitor_atoms",
-  "monitor_atom_eval",
-  "shared_var_inits",
-  "name",
-  "type",
-  "value",
-  "aid",
-  "aex"
-};
-
-// used for declarations appering in JSON configuration vector
-typedef struct {
-    char *name; char *type;
-} sh_var_decl;
-
-// used for monitor atoms as appearing in JSON configuration vector
-typedef struct {
-    char *aid; char *aex;
-} monitor_atom;
-
-// used for sh var initialization specified in JSON
-// and to construct variable value reports for MS heartbeat messages
-typedef struct {
-    char *name;
-    char *value;
-} sh_var_name_value;
 
 // storage of converted config data from JSON
 char chars[CHARS_SZ]; // character storage
 char *nextchar = chars; // next character to be allocated
 char *strings[STRINGS_SZ]; // null-terminated string storage
 char **nextstring = strings; // next string pointer to be allocated
-
-sh_var_decl sh_var_decls[SH_VAR_SZ];
-sh_var_decl *next_sh_var_decl = sh_var_decls;
-sh_var_name_value sh_var_name_values[SH_VAR_SZ];
-sh_var_name_value *next_sh_var_name_value = sh_var_name_values;
-monitor_atom monitor_atoms[MON_ATOM_SZ];
-monitor_atom *next_monitor_atom = monitor_atoms;
-
-// JSON string to be read in from file, stream or other argument
-static char JSON_STRING[JSON_STRING_SIZE] = "";
 
 // compare a string s to a token tok appearing in json string
 static int
@@ -65,8 +20,8 @@ jsoneq(const char *json, jsmntok_t *tok, const char *s) {
 // test whether token corresponds to one of the defined cv element keys
 int
 lookup_cv_element(jsmntok_t *t) {
-    printf("lookup_cv_element sizeof(cv_element_names)=%lu\n",sizeof(cv_element_names));
-  for(int k=0; k<sizeof(cv_element_names); k++)
+    printf("lookup_cv_element %lu entries\n",sizeof(cv_element_names)/sizeof(char*));
+  for(int k=0; k<sizeof(cv_element_names)/sizeof(char*); k++)
     if( jsoneq(JSON_STRING, t, cv_element_names[k]) == 0 ) 
       return k;
   return -1;
@@ -235,18 +190,7 @@ get_str_attr(char *attr, jsmntok_t t[], int i, char *js){
         return sto_chars( tap->start, tap->end, js );
     else return "";
 }
-/*
-char **
-sto_array_of_str(jsmntok_t *tp){
-    char **sa=nextstring;
-    for(int i=1;i<=tp->size;i++){
-        jsmntok_t *elt=tp+i;
-        sto_string(sto_chars(elt->start,elt->end,JSON_STRING));
-    }
-    sto_string(NULL);
-    return sa;
-}
-*/
+
 char **
 get_arr_of_str_attr(char *attr, jsmntok_t t[], int i, char *js){
     int key_tok_idx;
@@ -277,19 +221,22 @@ void
 sto_init( jsmntok_t *tp, char *js ){
     char *key, *val;
     get_key_val_pair(tp+1,&key,&val,js);
-    next_sh_var_name_value->name = val;
+    next_sh_var_name_value->vnv_name = val;
     get_key_val_pair(tp+3,&key,&val,js);
-    next_sh_var_name_value->value = val;
+    next_sh_var_name_value->vnv_value = val;
     ++next_sh_var_name_value;
 }
+
+void compile_monitor_atom(monitor_atom*); // defined in conf.h
 
 void
 sto_ma( jsmntok_t *tp, char *js ){
     char *key, *val;
     get_key_val_pair(tp+1,&key,&val,js);
-    next_monitor_atom->aid = val;
+    next_monitor_atom->ma_aid = val;
     get_key_val_pair(tp+3,&key,&val,js);
-    next_monitor_atom->aex = val;
+    next_monitor_atom->ma_aex = val;
+    //compile_monitor_atom(next_monitor_atom);
     ++next_monitor_atom;
 }
 
@@ -313,14 +260,14 @@ sto_array_of_init( jsmntok_t t[], int i, char *js ){
     return sh_var_name_values;
 }
 
-monitor_atom *
+int
 sto_array_of_ma( jsmntok_t t[], int i, char *js ){
     int sz = 0; jsmntok_t *tp = &t[i];
     for(int j=1; j<=tp->size; j++){
         sto_ma(tp+sz+1, js);
         sz += tok_cnt(t, i+sz+1);
     }
-    return monitor_atoms;
+    return tp->size;
 }
 
 sh_var_decl *
@@ -343,12 +290,14 @@ get_arr_of_init_attr(char *attr, jsmntok_t t[], int i, char *js){
     return sh_var_name_values;
 }
 
-monitor_atom *
+int
 get_arr_of_ma_attr(char *attr, jsmntok_t t[], int i, char *js){
+    int natoms;
     // each monitor atom is an object, aid: aex:
     next_monitor_atom = monitor_atoms; // reset
     int key_tok_idx;
     if( (key_tok_idx = find_key_tok(attr, t, i, js)) != -1)
-        sto_array_of_ma( t, key_tok_idx+1, js );
-    return monitor_atoms;
+        natoms = sto_array_of_ma( t, key_tok_idx+1, js );
+    
+    return natoms;
 }
