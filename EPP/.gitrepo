@@ -6,7 +6,7 @@
 [subrepo]
 	remote = ../EPP
 	branch = master
-	commit = 9823f279cc56531aa159951f57aabe4a745378bb
+	commit = bc0cfd9d598ceb545d9c2d268712c7060b7ea84f
 	parent = 5c8573c31af2c1b0ee3d79e76267449f8b260679
 	method = merge
 	cmdver = 0.4.3
