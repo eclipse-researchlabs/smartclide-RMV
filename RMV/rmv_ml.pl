@@ -1,12 +1,16 @@
 % RMV - Monitor Library
 % Work in Progress
 
-:- module(rmv_ml,[app/7, model/2, monitor/7, property/2, service/7, service_spec/2, trc/1,
-                  is_service_spec/1, is_service_spec/3, is_service_spec_body/1, is_service_spec_body/2,
-                  is_cmd/1, is_model/1, is_model/2,
+:- module(rmv_ml,[app/7, model/2, trc/1,
+                  service/2, service/7, cons_service/8, is_service/1, is_service/8,
+                  service_spec/2, is_service_spec/1, is_service_spec/3,
+                  is_service_spec_body/1, is_service_spec_body/2,
+                  is_cmd/1,
                   cons_deployment/4, is_deployment/1, is_deployment/3, is_deployment/4,
-                  cons_monitor/8, is_monitor/1, is_monitor/8,
-                  is_property/1, is_property/3,
+                  monitor/2, monitor/8, cons_monitor/9, is_monitor/1, monitor_atoms_eval/3,
+                  model/2, model/4, cons_model/5, is_model/1,
+                  ms_cv/14, cons_ms_cv/15,
+                  property/2, is_property/1, is_property/3,
                   is_app/1, is_app/8, is_service/1, is_service/8, is_trace/1, is_trace/3,
                   is_service_creation_context/1,
                   ssid2modid/2, ssid2propid/2, ssid2scripid/2, modid2monid/2,
@@ -20,6 +24,8 @@
 
 :- use_module('COM/param').
 :- use_module([rmv_ml_mt,rmv_ml_pst]).
+:- use_module(library('http/json')).
+:- use_module(library('http/json_convert')).
 
 :- use_module(library(test_wizard)).
 :- set_prolog_flag(log_query_file, 'queries.pl').
@@ -37,7 +43,9 @@
 target_lang('C', 'rmv_ms.c', mep_eval).
 target_lang('Prolog', 'rmv_ms.pl', ms_eval).
 
-:- dynamic atom_eval_mode/1, monitor_sensor_lang/1.
+% now in param as rmv_atom_eval_mode and rmv_monitor_sensor_lang
+% atom_eval_mode, if defined, overrides monitor_atom_eval in the configuration vector
+%:- dynamic atom_eval_mode/1, monitor_sensor_lang/1.
 % atom_eval_mode(_) is either ms_eval or mep_eval
 % monitor_sensor_lang(_) is either ms_pl or ms_c
 	
@@ -49,27 +57,9 @@ target_lang('Prolog', 'rmv_ms.pl', ms_eval).
 
 % structures stored in the monitor library
 %
-:- dynamic app/7, model/2, monitor/7, ms_cv/10,
+:- dynamic app/7, model/4, monitor/8, ms_cv/14,
         property/2, service/7, deployment/3,
         service_spec/2, trc/1.
-/*
-% app(_,_,_._._._._)
-% model(_,_)
-% monitor(MonId,ModId,MScv,_,_,Aeval,MSlang)
-%   MonId - unique monitor ID (suffix should be unique over all runs)
-%   ModId - unique model ID (same suffix as MonId)
-%   MScv - mv_cv/10 initialization vector for monitor sensor (see ex_cv below)
-%
-%   Aeval - where atoms evaluated: ms_eval or mep_eval
-%   MSlang - implementation language of the (service) monitor ms_c or ms_pl
-% ms_cv(MonId,SVdecl,Ov,Mv,Pv,Rv,Tv,MA,Mae,SVi) + Lang
-% property(PropId,Formula,Atoms,Variables)
-% service(_,_,_,_,Aeval,MSlang,Behavior)
-% deployment(_,_,_)
-% service_spec(_,_)
-% trc(_)
-*/
-
 %-------------------------------------------
 
 
@@ -78,6 +68,7 @@ target_lang('Prolog', 'rmv_ms.pl', ms_eval).
 % CHECKERS / CONSTRUCTORS
 %
 
+% APPLICATION
 % is_app(App,AppId,AppVars,AppTS,AppInputVars,AppOutputVars,AppCurrentInput,AppCurrentOutput).
 is_app(App) :- is_app(App,_,_,_,_,_,_,_).
 is_app(App,_,_,_,_,_,_,_) :-
@@ -85,10 +76,11 @@ is_app(App,_,_,_,_,_,_,_) :-
 
 is_cmd(_C) :- true.
 
+% DEPLOYMENT
+
 cons_deployment(D,Did,S,M) :- atom(Did), is_service(S), is_monitor(M),
         D = deployment(Did,S,M).
 
-is_deployment(D) :- is_deployment(D,_), !.
 is_deployment(D) :- is_deployment(D,_,_), !.
 is_deployment(D,Did,S) :- is_service(S),
         D = deployment(Did,S).
@@ -96,42 +88,75 @@ is_deployment(D,Did,S,M) :-
         D = deployment(Did,S,M),
         is_service(S), is_monitor(M).
 
-is_model(M) :- is_model(M,_).
-is_model(Model,Name) :- Model = model(Name),
-        atom(Name),
+% MODEL
+
+is_smv_struct(SMVstruct) :-
+        SMVstruct = smv(_, SMVtext, SMVord, SMVvars),
+        SMVvars = vars(Vdecls, Vo, Vm, Vp, Vr, Vt),
+        atom(SMVtext), atom(SMVord),
+        is_list(Vdecls), % check that decls are well formed v:t
+        is_list(Vo), is_list(Vm),
+        is_list(Vp), is_list(Vr), is_list(Vt).
+
+model( ModelId, Model ) :-
+        model(ModelId,SMVstruct,SMVmodelFile,SMVordFile),
+        Model = model(ModelId,SMVstruct,SMVmodelFile,SMVordFile).
+
+cons_model(ModelId,SMVstruct,SMVmodelFile,SMVordFile, Model) :-
+        Model = model(ModelId,SMVstruct,SMVmodelFile,SMVordFile).
+
+is_model(Model) :-
+        Model = model(ModelId,SMVstruct,SMVmodelFile,SMVordFile),
+        atom(ModelId), is_smv_struct(SMVstruct), atom(SMVmodelFile), atom(SMVordFile),
         %param:monitor_directory_name(MD),
         %atomic_list_concat([MD,'/',Name,'.smv'],SMVmodelFile),
         %exists_file(SMVmodelFile),
         true.
 
-% FOLLOWING COMMENTS MUST BE UPDATED - TODO
-% is_monitor(Monitor,MonId,MonState,MonTS,MonObservables,MonOut,MonCurrentInput,MonCurrentOutput) :-
-%   1 MonId - monitor unique ID
-%   2 ModId - model unique ID
-%   3 MonObservables -
-%   4 MonReportables -
-%   5 MonAtoms -
-%   6 MonAtomEval - ms | mep - where are atoms evaluated?
-%   7 MonSensor -
+% MONITOR
 
-cons_monitor(Monitor,MonId,ModId,_,_,_,Aeval,MSlang) :- atom(MonId), atom(ModId),
-        Monitor = monitor(MonId,ModId,_,_,_,Aeval,MSlang).
+monitor( MonId, Monitor ) :- % lookup stored monitor by id
+        monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile ),
+        Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile ).
 
-is_monitor(Monitor) :- is_monitor(Monitor,_,_,_,_,_,_,_).
-is_monitor(Monitor,MonId,ModId,_,_,_,Aeval,MSlang) :-
-        Monitor = monitor(MonId,ModId,_,_,_,Aeval,MSlang),
-        (   atom(MonId)
-        ->  monitor(MonId,ModId,_,_,_,Aeval,MSlang) % exists in DB
-        ;   true).
+cons_monitor(MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile, Monitor) :- % construct/deconstruct
+        Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile ).
+
+is_monitor(Monitor) :- % is a well-formed monitor
+        Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile ),
+        atom(MonId), atom(SSpecId), atom(ModId), atom(MSfile),
+        Properties = properties( PropVars, PropAtoms, PropFormulas ),
+        is_list(PropVars), is_list(PropAtoms), is_list(PropFormulas),
+        (MSlang == ms_c; MSlang == ms_pl), atom(MSid), is_ms_cv(MScv),
+        % further conditions on the arguments
+        true.
+
+monitor_atoms_eval( MonId, Atoms, AEval ) :-
+        ms_cv(MonId,MScv),
+        MScv = ms_cv(MonId,_Vdecl,_Vo,_Vm,_Vp,_Vr,_Vt,Atoms,AEval,_Vinit,_Beh,_Timer,_Host,_Port),
+        true.
+
+% PROPERTY
 
 is_property(P) :- is_property(P,_,_).
 is_property(P,Pname,Pformula) :-
         P = property(Pname,Pformula).
 
+% SERVICE
+
+service( Sid, Service ) :-
+        service(Sid,B,C,D,E,F,G),
+        Service = service( Sid, B, C, D, E, F, G ).
+
+cons_service( Sid, B, C, D, E, F, G, Service ) :-
+        Service = service( Sid, B, C, D, E, F, G ).
+
 is_service(S) :- is_service(S,_,_,_,_,_,_,_).
 is_service(S,A,B,C,D,E,F,G) :-
         S = service(A,B,C,D,E,F,G),
-        true. %service(A,B,C,D,E,F,G).
+        true.
+
+% SERVICE SPECIFICATION
 
 is_service_spec( SS ) :- is_service_spec(SS,_,_).
 is_service_spec( ServiceSpec, Id, Sbody ) :-
@@ -141,11 +166,35 @@ is_service_spec( ServiceSpec, Id, Sbody ) :-
 is_service_spec_body( SsB ) :- is_service_spec_body(SsB,_).
 is_service_spec_body( ss_body(B), B ).
 
+% TRACE
+
 is_trace(T) :- is_trace(T,_,_).
 is_trace(Trace, TraceId, States) :-
         Trace = trace(TraceId, States).
 
+% SERVICE CREATION CONTEXT
+
 is_service_creation_context(SCC) :- is_list(SCC).
+
+% MONITOR SENSOR CONFIGURATION VECTOR
+
+% ms_cv/2 retrieves an ms_cv/14 record by monitor Id
+ms_cv( MonId, MScv ) :- % lookup stored monitor by id
+        monitor( MonId, _SSpecId, _ModId, _Properties, _MSlang, _MSid, MScv, _MSfile ).
+
+% construct/deconstruct
+cons_ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port, MScv) :-
+        MScv = ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port).
+
+% is a well-formed cv
+is_ms_cv(MScv) :-
+        MScv = ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port),
+        atom(MonId), atom(AEval),
+        is_list(Vdecl), is_list(Vo), is_list(Vm), is_list(Vp), is_list(Vr), is_list(Vt),
+        is_list(Atoms), (AEval == ms_eval; AEval == mep_eval), is_list(Vinit), is_list(Beh),
+        number(Timer), atom(Host), number(Port),
+        % further conditions on the arguments
+        true.
 
 
 %-------------------------------------------
@@ -201,13 +250,13 @@ unpack_sspec(_Sbody).
 
 % Monitors
 load_monitor(Mon) :-
-        Mon = monitor(MonId,_,_,_,_,_,_),
-        retractall(monitor(MonId,_,_,_,_,_,_)),
+        Mon = monitor(MonitorId,_,_,_,_,_,_,_),
+        retractall(monitor(MonitorId,_,_,_,_,_,_,_)),
         assert(Mon),
         true.
 
 unload_monitor(MonId) :-
-        retractall(monitor(MonId,_,_,_,_,_,_)).
+        retractall(monitor(MonId,_,_,_,_,_,_,_,_,_,_,_,_,_)).
 
 
 %-------------------------------------------
@@ -236,15 +285,39 @@ un_init :-
 
 app(appid_00001,a,b,c,d,e,f).
 
-model(modid_00001,mmm).
+% monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv )
+%   MonitorId - unique monitor ID (suffix should be unique over all runs)
+%   ModelId - unique model ID (same suffix as MonId)
+%   MScv - mv_cv/14 initialization vector for monitor sensor (see below)
+%   NuRVinfo - info for NuRV interaction for *this* monitor
+%   MSlang - implementation language of the service & monitor sensor: ms_c, ms_pl, ...
+%
+% Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile ),
+monitor(monid_00002, ssid_00002, modid_00002, [], ms_c, msid_00027,
+        ms_cv( monid_00002, [m:integer, n:integer, o:integer, p:boolean, q:boolean, r:float, s:float],
+                [m, n, o, p, q, r, s], [n, p, q, s], [m, n, o, p, q, r, s], [m, n, o, p, q, r, s], [q, s],
+                [p:p, a1:eq(n,2), a2:lt(r,2.4), a3:eq(p,q), a4:false, a5:true, a6:eq(p,true),
+                a7:ne(n,s), a7a:ne(s,n), a8:lt(o,2.4), a8a:ge(2.4,o), q:q, notp:not(p)],
+                ms_eval, ms_pl, [], 0, '127.0.0.1', 8005),
+        'rmv_ms.h' ).
 
-monitor(monid_00001,a,b,c,d,e,f).
+monitor(monid_00004, ssid_00004, modid_00004,
+        ms_cv( monid_00004, [n:integer, o:integer, p:boolean, q:boolean, r:float, s:float],
+                [n, o, p, q, r, s], [n, p, q, s], [n, p, q], [n, o, s, p, q], [q, s],
+                [p:p, a1:eq(n,2), a2:lt(s,2.4), a3:eq(p,q), a4:false, a5:true, a6:eq(p,true),
+                a7:ne(n,s), a7a:ne(s,n), a8:lt(o,2.4), a8a:ge(2.4,o), q:q, notp:not(p)],
+                ms_eval, ms_pl, [], 0, '127.0.0.1', 8005),
+        nurv(x), ms_pl ).
+
+monitor(monid_00003, modid_00003, [n, o, p, q, r, s], [n, o, s, p, q],
+        [p:p, a1:eq(n,2), a2:lt(n,2), a3:eq(p,q), q:q],
+        ms_eval, ms_c).
 
 property(propid_00001,true).
 
 service(servid_00001,b,c,d,e,f,_T).
 
-service_spec(ssid_00001, ss_body(x)).
+service_spec(ssid_00002, ss_body(x)).
 
 trc( trace('counter-example',
       [state('1',[p='TRUE',q='FALSE']),state('2',[p='TRUE',q='FALSE']),state('3',[p='TRUE',q='FALSE']),
@@ -259,12 +332,11 @@ truncate_trace(trace(N,[A,B,C,D,E,F|_]),trace(N,[A,B,C,D,E,F])) :- !. % truncate
 truncate_trace(T,T).
 
 % monitor sensor configuration vector
-% ms_cv/10 is the repository of configuration vectors
-% ms_cv/4 was for an abbreviated test
+% ms_cv/14 is the repository of configuration vectors
 %
-% CV = ms_cv(Mid,Sv,Ma,Mv,Mo,Mp,Mr,Mt,Mae,Svi)
+% ms_cv( MonId, Vdecls, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port )
 %
-:- dynamic ms_cv/4, ms_cv/10.
+:- dynamic ms_cv/4, ms_cv/14.
 
 ex_cv(1, ms_cv( % old format
              /* monitor_id */         'mid_00001',
@@ -290,7 +362,7 @@ ex_cv(1, ms_cv( % old format
 
 ex_cv(2, ms_cv( % new format
              /* monitor_id */         'monid_00002',
-             /* shared_var_decls */   [n:integer,
+             /* shared_var_decl */    [n:integer,
                                        o:integer,
                                        p:boolean,
                                        q:boolean,
@@ -303,89 +375,86 @@ ex_cv(2, ms_cv( % new format
              /* trigger_vars */       [q, s],
              /* monitor_atoms */      [p:p,a1:eq(n,2),a2:lt(n,2),a3:eq(p,q),q:q],
              /* monitor_atom_eval */  ms_eval,
-             /* shared_var_inits */   [n=1,
+             /* shared_var_init */    [n=1,
                                        o=2,
                                        p=true,
                                        q=false,
                                        r=undefined,
                                        s=1
-                                      ]
-         )
-        ).
+                                      ],
+             /* behavior */           [],
+             /* timer */              0,
+             /* rmvhost */            '127.0.0.1',
+             /* rmvport */            8005
+        )
+).
 
 % JSON conversions for MS configuration vectors
 %
 
-:- use_module(library('http/json')).
-:- use_module(library('http/json_convert')).
-
-% ms_cv/2 retrieves an ms_cv/10 record by monitor Id
-ms_cv(Mid, ms_cv(Mid,Sv,Ma,Mv,Mo,Mp,Mr,Mt,Mae,Svi)) :-
-        ms_cv(Mid,Sv,Ma,Mv,Mo,Mp,Mr,Mt,Mae,Svi), !.
+assigns_to_pjson(A,JA) :- findall( json([name=Svn,value=Svv]), member(Svn=Svv, A), JA).
 
 ms_cv_to_pjson(CV,PJCV) :-
-        CV =  ms_cv(Mid,Svd,Ov,Mv,Pv,Rv,Tv,Ma,Mae,Svi),
-%        findall(json([struct=atm,aid=Ai,aex=Eaf]),
-        findall(json([aid=Ai,aex=Eaf]),
-                ( member(Ai:Af,Ma), encode_as_atoms(Af,Eaf)),
-                JMa),
-%        findall(json([struct=sus_var,name=Svn,value=Svv]),
-        findall(json([name=Svn,value=Svv]),
-                ( member(Svn=Svv,Svi) ),
-                JSvi),
+        CV =  ms_cv(Mid,Svd,Vo,Vm,Vp,Vr,Vt,Atoms,Mae,Vinit,Beh,Timer,Host,Port),
         PJCV = json([
-                   monitor_id=Mid,
-                   shared_var_decls=Svd,
-                   observable_vars=Ov,
-                   model_vars=Mv,
-                   property_vars=Pv,
-                   reportable_vars=Rv,
-                   trigger_vars=Tv,
-                   monitor_atoms=JMa,
-                   monitor_atom_eval=Mae,
-                   shared_var_inits=JSvi
-               ]).
+                monitor_id=Mid,
+                shared_var_decl=Svd,
+                observable_vars=Vo,
+                model_vars=Vm,
+                property_vars=Vp,
+                reportable_vars=Vr,
+                trigger_vars=Vt,
+                monitor_atoms=JAtoms,
+                monitor_atom_eval=Mae,
+                shared_var_init=JSvi,
+                behavior=JBeh,
+                timer=Timer,
+                rmvhost=Host,
+                rmvport=Port
+        ]),
+        findall(json([aid=Ai,aex=Eaf]),
+                ( member(Ai:Af,Atoms), encode_as_atoms(Af,Eaf)),
+                JAtoms),
+        assigns_to_pjson(Vinit,JSvi),
+        assigns_to_pjson(Beh,JBeh).
+
+pjson_to_assigns(JA,A) :- findall( Svn=Svv, member( json([name=Svn,value=Svv]), JA), A ).
 
 pjson_to_ms_cv(PJCV,CV) :-
         PJCV = json([
-                   monitor_id=Mid,
-                   shared_var_decls=JSvd,
-                   observable_vars=Ov,
-                   model_vars=Mv,
-                   property_vars=Pv,
-                   reportable_vars=Rv,
-                   trigger_vars=Tv,
-                   monitor_atoms=JMa,
-                   monitor_atom_eval=Mae,
-                   shared_var_inits=JSvi
-               ]),
+                monitor_id=Mid,
+                shared_var_decl=JSvd,
+                observable_vars=Ov,
+                model_vars=Mv,
+                property_vars=Pv,
+                reportable_vars=Rv,
+                trigger_vars=Tv,
+                monitor_atoms=JAtoms,
+                monitor_atom_eval=Mae,
+                shared_var_init=JSvi,
+                behavior=JBeh,
+                timer=Timer,
+                rmvhost=Host,
+                rmvport=Port
+        ]),
+        CV =  ms_cv(Mid,Svd,Ov,Mv,Pv,Rv,Tv,Atoms,Mae,Svi,Beh,Timer,Host,Port),
         findall(Svn:Svt,
                 ( member(json([name=Svn,type=Svt]), JSvd) ),
-                Svd
-        ),
+                Svd ),
         findall(Ai:Af,
-                ( member(json([aid=Ai,aex=Eaf]), JMa),
+                ( member(json([aid=Ai,aex=Eaf]), JAtoms),
                   reconstitute_atoms(Eaf,Af) ),
-                Ma
-        ),
-        findall(Svn=Svv,
-                ( member(json([name=Svn,value=Svv]), JSvi) ),
-                Svi
-        ),
-        CV =  ms_cv(Mid,Svd,Ov,Mv,Pv,Rv,Tv,Ma,Mae,Svi).
+                Atoms ),
+        pjson_to_assigns(JSvi,Svi),
+        pjson_to_assigns(JBeh,Beh).
 
-% ms_cv/4 example:
-/*
-ms_cv(
-    monitor_id('mid_00001'),
-    shared_variables([a,b,c]),
-    monitor_atoms([
-        atm(a1,eq(x,2)),
-        atm(a2,lt(x,2))
-    ]),
-    sus_variable_init([])
-).
-*/
+ms_hb_to_pjson(HB,PJHB) :-
+        HB = (x),
+        PJHB = json([]).
+
+pjson_to_ms_hb(PJHB,HB) :-
+        PJHB = json([]),
+        HB = (x).
 
 % ms_cv/2 retrieves an ms_cv/4 record by monitor Id
 xms_cv(Mid,ms_cv(MonId,SV,MA,SVI)) :-
@@ -489,11 +558,15 @@ reconstitute_atoms(A,R) :- atom(A), !,
         read_term_from_atom(A,T,[var_prefix(true)]), ground(T),
         (   T == A ->  R = A ; reconstitute_atoms(T,R) ).
 reconstitute_atoms(A,A) :- number(A), !.
-reconstitute_atoms(A,R) :- compound(A), !,
+reconstitute_atoms(A,R) :- %compound(A), !,
         compound_name_arguments(A,N,Args),
-        reconstitute_atoms(N,RN),
-        maplist(reconstitute_atoms,Args,RArgs),
-        compound_name_arguments(R,RN,RArgs).
+        (       ( N == '@', (Args==[true] ; Args==[false]) )
+        ->      Args = [R]
+        ;       reconstitute_atoms(N,RN),
+                maplist(reconstitute_atoms,Args,RArgs),
+                compound_name_arguments(R,RN,RArgs)
+        )
+        ,true.
 
 % LIBRARY DISPLAY OPS
 %
@@ -501,7 +574,7 @@ reconstitute_atoms(A,R) :- compound(A), !,
 display_cv(CV) :-
         CV = ms_cv(Monid,SVD,Ov,Mv,Pv,Rv,Tv,Ma,Mae,SVi),
         format('monitor_id: ~q~n', Monid),
-        write('shared_var_decls: '), writeq(SVD), nl,
+        write('shared_var_decl: '), writeq(SVD), nl,
         write('observable_vars: '), writeq(Ov), nl,
         write('model_vars: '), writeq(Mv), nl,
         write('property_vars: '), writeq(Pv), nl,
@@ -509,7 +582,11 @@ display_cv(CV) :-
         write('trigger_vars: '), writeq(Tv), nl,
         write('monitor_atoms: '), writeq(Ma), nl,
         format('monitor_atom_eval: ~q~n', Mae),
-        format('shared_var_inits: ~q~n', [SVi]),
+        format('shared_var_init: ~q~n', [SVi]),
+        format('behavior: ~n'),
+        format('timer: ~n'),
+        format('host: ~n'),
+        format('port: ~n'),
         true.
 
 display_monitor(M) :-

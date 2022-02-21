@@ -218,13 +218,13 @@ sto_decl( jsmntok_t *tp, char *js ){
 }
 
 void
-sto_init( jsmntok_t *tp, char *js ){
-    char *key, *val;
-    get_key_val_pair(tp+1,&key,&val,js);
-    next_sh_var_name_value->vnv_name = val;
-    get_key_val_pair(tp+3,&key,&val,js);
-    next_sh_var_name_value->vnv_value = val;
-    ++next_sh_var_name_value;
+sto_assign( sh_var_name_value **where, jsmntok_t *tp, char *js ){
+    char *jkey, *jval;
+    get_key_val_pair(tp+1,&jkey,&jval,js);
+    (*where)->vnv_name = jval;
+    get_key_val_pair(tp+3,&jkey,&jval,js);
+    (*where)->vnv_value = jval;
+    ++(*where);
 }
 
 void compile_monitor_atom(monitor_atom*); // defined in conf.h
@@ -251,10 +251,10 @@ sto_array_of_decl( jsmntok_t t[], int i, char *js ){
 }
 
 sh_var_name_value *
-sto_array_of_init( jsmntok_t t[], int i, char *js ){
+sto_array_of_assign( sh_var_name_value **where, jsmntok_t t[], int i, char *js ){
     int sz = 0; jsmntok_t *tp = &t[i];
     for(int j=1; j<=tp->size; j++){
-        sto_init(tp+sz+1, js);
+        sto_assign(where, tp+sz+1, js);
         sz += tok_cnt(t, i+sz+1);
     }
     return sh_var_name_values;
@@ -281,12 +281,12 @@ get_arr_of_decl_attr(char *attr, jsmntok_t t[], int i, char *js){
 }
 
 sh_var_name_value *
-get_arr_of_init_attr(char *attr, jsmntok_t t[], int i, char *js){
+get_arr_of_assign_attr(char *attr, jsmntok_t t[], int i, char *js){
     // each init is an object, name: value:
     next_sh_var_name_value = sh_var_name_values; // reset
     int key_tok_idx;
     if( (key_tok_idx = find_key_tok(attr, t, i, js)) != -1)
-        sto_array_of_init( t, key_tok_idx+1, js );
+        sto_array_of_assign( &next_sh_var_name_value, t, key_tok_idx+1, js );
     return sh_var_name_values;
 }
 
@@ -298,6 +298,26 @@ get_arr_of_ma_attr(char *attr, jsmntok_t t[], int i, char *js){
     int key_tok_idx;
     if( (key_tok_idx = find_key_tok(attr, t, i, js)) != -1)
         natoms = sto_array_of_ma( t, key_tok_idx+1, js );
-    
     return natoms;
+}
+
+sh_var_name_value*
+get_behavior_attr(char *attr, jsmntok_t t[], int i, char *js){
+    next_behavior_op = behavior_seq;
+    int key_tok_idx;
+    if( (key_tok_idx = find_key_tok(attr, t, i, js)) != -1){
+        sto_array_of_assign( &next_behavior_op, t, key_tok_idx+1, js );
+    }
+    return behavior_seq;
+}
+
+float
+get_float_attr(char *attr, jsmntok_t t[], int i, char *js){
+    char *end; float f;
+    int key_tok_idx;
+    if( (key_tok_idx = find_key_tok(attr, t, i, js)) == -1 ) return 0;
+    jsmntok_t *tap = &t[key_tok_idx+1];
+    if( tap->type==JSMN_PRIMITIVE ) return strtof( &js[tap->start], &end );
+                                        /* should be: end == &js[tap->end] */
+    else return 0;
 }

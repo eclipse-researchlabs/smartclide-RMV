@@ -2,17 +2,17 @@
 
 :- module(rmv, [rmv/0,rmv/1,rmv/4,rmv_server/0]).
 :- use_module([
-       %rmv_server,
+       rmv_server,
        'AUDIT/audit','AUDIT/auditapi',
-       rmv_lnapi,rmv_mrapi,rmv_mcapi,
+	   rmv_mepapi,rmv_lnapi,rmv_mrapi,rmv_mcapi,
        rmv_aa,rmv_la,rmv_na,
        rmv_ml,       % rmv_ml_mt,rmv_ml_pst,
        rmv_mc,       % rmv_mc_cm,rmv_mc_cps,
        rmv_mf,       % rmv_mf_epp,
        'COM/param','COM/command','COM/test','COM/procs'
-	   %,'EPP/epp'
-       %'EPP/erl',
-	   %,'EPP/epp_cpa','EPP/epp_era','EPP/eppapi'
+	   ,'EPP/epp'
+       ,'EPP/erl'
+	   ,'EPP/epp_cpa','EPP/epp_era','EPP/eppapi'
    ]).
 :- use_module('SIM/ext_svcs').
 :- use_module(library(http/http_client)).
@@ -156,6 +156,8 @@ initialize_rmv :-
 	% ui:notify(initialize,all),
 	initialize_once,
 	audit:init(full), % basic or full
+	% OTHER SUBSYSTEM INITIALIZATIONS
+	% ...
 	% following should properly be conditional on param:rmv_status
 	% and how the server and rmv are started
 	% ...

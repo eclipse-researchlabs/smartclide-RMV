@@ -2,3 +2,6 @@
 *~
 *#
 queries.pl
+RUNTIME/LOG/rmv_audit*
+RUNTIME/LOG/epp_log*
+

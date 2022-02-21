@@ -53,7 +53,7 @@ float float_getter(int var_idx);
 int int_setter(int var_idx, int newval){
     int *var = shared_var_attrs[var_idx].va_addr;
     int oldval = *var;
-    if( *var != newval || report_all ){
+    if( *var != newval || ms_global_report_all ){
         *var = newval;
         ms_step_idx(var_idx, (void*)&oldval, (void*)&newval);
     }
@@ -63,7 +63,7 @@ int int_setter(int var_idx, int newval){
 bool bool_setter(int var_idx, bool newval){
     bool *var = shared_var_attrs[var_idx].va_addr;
     bool oldval = *var;
-    if( *var != newval || report_all ){
+    if( *var != newval || ms_global_report_all ){
         *var = newval;
         ms_step_idx(var_idx, (void*)&oldval, (void*)&newval);
     }
@@ -73,7 +73,7 @@ bool bool_setter(int var_idx, bool newval){
 float float_setter(int var_idx, float newval){
     float *var = shared_var_attrs[var_idx].va_addr;
     float oldval = *var;
-    if( *var != newval || report_all ){
+    if( *var != newval || ms_global_report_all ){
         *var = newval;
         ms_step_idx(var_idx, (void*)&oldval, (void*)&newval);
     }
@@ -224,7 +224,7 @@ char *sh_var_val2str(sh_var_val v, a_arg_kind k, sh_var_type t){
 		case svt_Float:
 			F = v.sv_floatval; break;
 		case svt_Address:
-			A = v.sv_addrval;
+			A = v.sv_addrval; // FIX THIS IF UNCOMMENTING
 			break;
 		default: break;
 	}
@@ -253,46 +253,84 @@ assign_sh_var_val(char *str, sh_var_type type, sh_var_val *val){
 	}
 }
 
-void assign_Boolean(char *val, /*sh_var_val*/ bool *addr){
-	if( strcmp(val,"undefined") == 0 ){
-		*addr = false;
-	}else{
-		*addr = str2Boolean(val);
-	}
+// assign to variable by address
+// assign with or without triggering responder
+void assign_Boolean(char *val, bool *addr, bool trigger_var){
+	bool value;
+	if( strcmp(val,"undefined") == 0 ) value = false;
+	else value = str2Boolean(val);
+	if( trigger_var ) bool_setter_by_addr(addr, value);
+	else *addr = value;
 }
 
-void assign_Integer(char *val, int *addr){
-	if( strcmp(val,"undefined") == 0 ){
-		*addr = INT_MAX;
-	}else{
-		*addr = str2Integer(val);
-	}
+void assign_Integer(char *val, int *addr, bool trigger_var){
+	int value;
+	if( strcmp(val,"undefined") == 0 ) value = INT_MIN;
+	else value = str2Integer(val);
+	if( trigger_var ) int_setter_by_addr(addr, value);
+	else *addr = value;
 }
 
-void assign_Float(char *val, float *addr){
-	if( strcmp(val,"undefined") == 0 ){
-		*addr = FLT_MAX;
-	}else{
-		*addr = str2Float(val);
-	}
+void assign_Float(char *val, float *addr, bool trigger_var){
+	float value;
+	if( strcmp(val,"undefined") == 0 ) value = NAN;
+	else value = str2Float(val);
+	if( trigger_var ) float_setter_by_addr(addr, value);
+	else *addr = value;
 }		
+
+//------------------
+// as above but receiving attr pointer instead of addr
+void assigna_Boolean( char *val, shared_var_attr_t *sva ){
+	bool new;
+	if( strcmp(val,"undefined") == 0 ) new = false;
+	else new = str2Boolean(val);
+	bool old = *(bool*)sva->va_addr;
+	*(bool*)sva->va_addr = new;
+	if( sva->va_trigger && ms_global_trigger_enable )
+		ms_step_addr(sva->va_addr,svt_Boolean,&old,&new);
+}
+
+void assigna_Integer(char *val, shared_var_attr_t *sva ){
+	int new;
+	if( strcmp(val,"undefined") == 0 ) new = INT_MIN;
+	else new = str2Integer(val);
+	int old = *(int*)sva->va_addr;
+	*(int*)sva->va_addr = new;
+	if( sva->va_trigger && ms_global_trigger_enable )
+		ms_step_addr(sva->va_addr,svt_Integer,&old,&new);
+}
+
+void assigna_Float(char *val, shared_var_attr_t *sva ){
+	float new;
+	if( strcmp(val,"undefined") == 0 ) new = NAN;
+	else new = str2Float(val);
+	float old = *(float*)sva->va_addr;
+	*(float*)sva->va_addr = new;
+	if( sva->va_trigger && ms_global_trigger_enable )
+		ms_step_addr(sva->va_addr,svt_Float,&old,&new);
+}
+//------------------
 
 // string returned MUST be freed by caller
 // unless it's Boolean
 char *value_str(sh_var_type type, void *addr){
-	static char val_str[STRINGS_SZ]; char *sp;
+	//static char val_str[STRINGS_SZ];
+	char *sp;
 	switch(type){
 		case svt_Byte: break;
 		case svt_String: break;
 		case svt_Boolean:
 			return Boolean2str(*(bool*)addr);
 		case svt_Integer:
-			sp=Integer2str(*(int*)addr);
+			if( *(int*)addr == INT_MIN ) sp = "undefined";
+			else sp=Integer2str(*(int*)addr);
 			return sp;
 			// strcpy(val_str,sp); free(sp);
 			// return val_str;
 		case svt_Float:
-			sp=Float2str(*(float*)addr);
+			if( isnan( *(float*)addr ) ) sp = "undefined";
+			else sp=Float2str(*(float*)addr);
 			return sp;
 			// strcpy(val_str,sp); free(sp);
 			// return val_str;
@@ -327,26 +365,25 @@ sv_addr_by_name(char *name){
     else return NULL;
 }
 
-/* for reference:
-int int_setter(int var_idx, int newval){
-    int *var = shared_var_attrs[var_idx].va_addr;
-    int oldval = *var;
-    if( *var != newval || report_all ){
-        *var = newval;
-        ms_step(var_idx, (void*)&oldval, (void*)&newval);
-    }
-    return oldval;
-}
-*/
-
 // Integer setters
+//   int/bool/float_setter_by addr called directly by set_<var> defined in xxxxx_varx.h
+//
 void int_step_by_addr(void *addr, int old, int new){
     ms_step_addr(addr,svt_Integer,(void*)&old,(void*)&new);
 }
 
+int int_asetter( shared_var_attr_t *sva, int new ){
+    int old = *(int*)sva->va_addr;
+    if(old != new || ms_global_report_all){
+        *(int*)sva->va_addr = new;
+        int_step_by_addr(sva->va_addr,old,new);
+    }
+    return old;
+}
+
 int int_setter_by_addr(int *addr, int new){
     int old = *addr;
-    if(old != new || report_all){
+    if(old != new || ms_global_report_all){
         *addr = new;
         int_step_by_addr(addr,old,new);
     }
@@ -366,9 +403,18 @@ void bool_step_by_addr(void *addr, bool old, bool new){
     ms_step_addr(addr,svt_Boolean,(void*)&old,(void*)&new);
 }
 
+bool bool_asetter( shared_var_attr_t *sva, bool new ){
+    bool old = *(bool*)sva->va_addr;
+    if(old != new || ms_global_report_all){
+        *(bool*)sva->va_addr = new;
+        bool_step_by_addr(sva->va_addr,old,new);
+    }
+    return old;
+}
+
 bool bool_setter_by_addr(bool *addr, bool new){
     bool old = *addr;
-    if(old != new || report_all){
+    if(old != new || ms_global_report_all){
         *addr = new;
         bool_step_by_addr(addr,old,new);
     }
@@ -388,9 +434,18 @@ void float_step_by_addr(void *addr, float  old, float  new){
     ms_step_addr(addr,svt_Float,(void*)&old,(void*)&new);
 }
 
+float float_asetter( shared_var_attr_t *sva, float new ){
+    float old = *(float*)sva->va_addr;
+    if(old != new || ms_global_report_all){
+        *(float*)sva->va_addr = new;
+        float_step_by_addr(sva->va_addr,old,new);
+    }
+    return old;
+}
+
 float  float_setter_by_addr(float  *addr, float  new){
     float  old = *addr;
-    if(old != new || report_all){
+    if(old != new || ms_global_report_all){
         *addr = new;
         float_step_by_addr(addr,old,new);
     }

@@ -33,7 +33,8 @@
                   context_port/1, exec_sim_port/1, warrant_port/1,
                   rmv_port/1, rmv_mcapi_port/1, rmv_mfapi_port/1, rmv_eppapi_port/1,
                   rmv_auditapi_port/1, rmv_lnapi_port/1, rmv_start_nameserver_on_init/1,
-                  rmv_run_with_http_server/1, rmv_monitor_id_prefix/1, rmv_model_id_prefix/1
+                  rmv_run_with_http_server/1, rmv_monitor_id_prefix/1, rmv_model_id_prefix/1,
+                  rmv_atom_eval_mode/1, rmv_monitor_server_lang/1
 		 ]).
 
 % Versioning of various things
@@ -122,7 +123,7 @@ name_string(epp,'Event Processing Point - TOG').
         epp_logging/1, epp_stream/1, null_stream/1, sleep_after_server_start/1,
         jsonresp_epp/1, jsonresp_server/1, jsonresp/1,
 	serverhost_ip/1, context_url/1, context_sim/1, local_nameserver_IOR/1,
-        rmv_run_with_http_server/1.
+        rmv_run_with_http_server/1, rmv_atom_eval_mode/1, rmv_monitor_server_lang/1.
 
 settable_params([debug,self_test,statusprt,guitracer,guiserver,initialize,initialized,regression_test,verbose,
 		 user_level, current_policy, pqapi_port, paapi_port, gpqapi_port, admin_token, prompt_string,
@@ -132,7 +133,8 @@ settable_params([debug,self_test,statusprt,guitracer,guiserver,initialize,initia
                  conditions_file, context_file, eppapi_port, epp_token, rmv_token, rmv_epp_token,
                  epp_logging, epp_stream, null_stream, sleep_after_server_start,
                  jsonresp_epp, jsonresp_server, jsonresp, serverhost_ip, context_url, context_sim,
-                 local_nameserver_IOR, rmv_run_with_http_server/1
+                 local_nameserver_IOR, rmv_run_with_http_server,
+                 rmv_atom_eval_mode, rmv_monitor_server_lang
                 ]).
 
 setparam(Param,Value) :- atom(Param), ground(Value),
@@ -152,9 +154,10 @@ initialize(on). % off/on
 initialized(false).
 verbose(off). % off/on
 user_level(developer). % default command user mode: basic/advanced/developer
-%  no_sleep(off). % off/on - don't sleep after starting server from ngac
+% no_sleep(off).
+% off/on - don't sleep after starting server from ngac/rmv
 % tool command loop
-sleep_after_server_start(on).
+sleep_after_server_start(off).
 
 current_policy('none').
 current_gpolicy('none').
@@ -261,7 +264,7 @@ default_policy_file('policy_tmp').
 graph_tmp_file('graph_tmp').
 
 conditions_file('NGAC/conditions.pl').
-context_file('NGAC/context.pl').
+context_file('context.pl').
 
 % Misc values
 %
@@ -288,4 +291,5 @@ rmv_start_nameserver_on_init(false).
 rmv_run_with_http_server(true). % 'false' is used for testing (set to false by test harness)
 rmv_monitor_id_prefix('monid_').
 rmv_model_id_prefix('modid_').
-
+rmv_atom_eval_mode(ms_cv). % override ms_cv: ms_cv, ms_eval or mep_eval
+rmv_monitor_server_lang(ms_cv). % override ms_cv: ms_c, ms_pl or ms_cv 

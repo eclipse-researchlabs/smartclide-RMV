@@ -11,6 +11,7 @@
 :- use_module('RMV/rmv_ml').
 :- use_module('RMV/rmv_mc').
 :- use_module('RMV/rmv_mc_nui').
+:- use_module('RMV/rmv_mf').
 :- use_module('SIM/sim_app').
 
 :- use_module(library(http/http_client)).
@@ -175,11 +176,11 @@ ext_create_service(SS) :- % not called currently
 ext_service_spec2service(ServiceSpec, Service) :-
 	is_service_spec(ServiceSpec, SSid, SSb),
 	is_service_spec_body(SSb,Bitems),
-	intersection(Bitems, [trace=_,assigns=_], Behavior),
+	intersection(Bitems, [trace=_,behavior=_], Behavior),
 	memberchk(atom_eval_mode=Aeval,Bitems),
 	memberchk(monitor_sensor_lang=MSlang,Bitems),
 	atom_concat(ssid_,N,SSid), atom_concat(servid_,N,ServId),
-	is_service(Service,ServId,_,_,_,Aeval,MSlang,Behavior).
+	cons_service(ServId,_,_,_,Aeval,MSlang,Behavior,Service).
 
 % end SERVICE CREATION SIMULATION
 create_monitor(ServSpec,Monitor) :- % bypass HTTP API
@@ -221,9 +222,9 @@ new_deployment_id(Did) :-
 ext_execute_service( ms_pl, Deployment ) :- !,
 	is_deployment(Deployment, _, Service, Monitor),
 	is_service(Service,_,_,_,_,_,_,Behavior),
-	is_monitor(Monitor,_MonitorId,_,_,_,_,_,_),
-	memberchk( assigns=Assigns, Behavior ),
-	execute_service(ms_pl,Service,Deployment,_SessionId,Assigns),
+	is_monitor(Monitor),
+	memberchk( behavior=Assigns, Behavior ),
+	execute_service(ms_pl,Service,Deployment,/*_SessionId,*/Assigns), % TODO - get correct sessid
 	true.
 
 ext_execute_service( ms_c, _Deployment ) :- !.
@@ -231,7 +232,7 @@ ext_execute_service( ms_c, _Deployment ) :- !.
 ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	is_deployment(Deployment, _, Service, Monitor),
 	is_service(Service,_,_,_,_,_,_,Behavior),
-	is_monitor(Monitor,_MonitorId,_,_,_,_,_,_),
+	is_monitor(Monitor),
 	memberchk( trace=States, Behavior ),
 	initiate_monitor(Monitor,SessionId),
 	execute_service(RemOrLoc,Service,Deployment,SessionId,States),
@@ -240,7 +241,7 @@ ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc =
 ext_execute_service(orbit,Deployment) :- !,
 	is_deployment(Deployment, _, Service, Monitor),
 	is_service(Service,_,_,_,_,_,_,States),
-	is_monitor(Monitor,MonitorId,_,_,_,_,_,_),
+	cons_monitor(MonitorId,_,_,_,_,_,_,Monitor),
 	initiate_monitor(Monitor,SessionId),
 	execute_service(orbit,Service,Deployment,SessionId,States),
 	param:local_nameserver_IOR(IOR),
@@ -255,11 +256,12 @@ ext_execute_service(orbit,Deployment) :- !,
 %-------------------------------------------------------
 % EXECUTE THE SERVICE
 %
-execute_service(ms_pl,Service,Deployment,SessionId,Assigns) :- !, is_service(Service),
+execute_service(ms_pl,Service,Deployment, /*SessionId,*/ Assigns) :- !, is_service(Service),
     % act as the executing (Prolog-implemented) service
     % using the assigns from the behavior argument
     rmv_ms:ms_startup,
 	rmv_ms:ms_recovery( recoveryp ), % defined below
+	rmv_ms:monitor_session(SessionId),
     sim_exec_steps(Deployment, SessionId, Assigns), % calls sv_setter
 	rmv_ms:ms_shutdown.
 
@@ -309,8 +311,8 @@ step_monitor(Assignments,SessId) :-
 
 
 assignments2argatom([], '') :- !.
-assignments2argatom(Assignments, Argatom) :-
-	(   memberchk(Var='TRUE',Assignments)
+assignments2argatom(Assignments, Argatom) :- % TODO do all true assigns
+	(   memberchk(Var='TRUE',Assignments) % TODO check others: true . . .
 	->  format(atom(Argatom),'-c "~w"',[Var])
 	;   Argatom = ''
 	).
@@ -327,27 +329,6 @@ terminate_monitor(SessId) :-
 	quit_nurv_session(SessId),
 	writeln('session ended').
 
-%-------------------------------------------------------
-% INITIATE THE MONITOR SESSION
-%
-/* moved to rmv_mf_mep
-initiate_monitor(M,SessId) :- is_monitor(M,MonitorId,ModelId,_,_,_,_,_),
-    open_nurv_session(int,SessId),
-	format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
-	nurv_session_get_resp(SessId,_Resp),
-	param:monitor_directory_name(MD),
-	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
-	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
-	nurv_monitor_init(SMVmodelFile,SMVordFile,SessId),
-	true.
-
-initiate_monitor2(M,SessId) :- is_monitor(M,_MonitorId,_ModelId,_,_,_,_,_),
-    open_nurv_session(orbit,SessId),
-	param:local_nameservier_IOR(IOR),
-	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
-	nurv_session_cmd_resp(SessId,ServerCmd,_Resp),
-	true.
-*/
 % ------------------------------------------------------------------------
 % SERVICE / MONITOR EXECUTION SIMULATION
 %

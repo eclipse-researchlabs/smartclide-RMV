@@ -4,12 +4,16 @@
 // shared variable list in the MS configuration vector generated
 // by Monitor Creation.
 // This file is included by ms_vars.h
+int m;
 int n;
 int o;
 bool p;
 bool q;
 float r;
 float s;
+
+void get_m(void*ip){ *(int*)ip = m; }
+void set_m(void*newp, void*oldp){*(int*)oldp = int_setter_by_addr(&m,*(int*)newp);}
 
 void get_n(void*ip){ *(int*)ip = n; }
 void set_n(void*newp, void*oldp){*(int*)oldp = int_setter_by_addr(&n,*(int*)newp);}
@@ -31,6 +35,7 @@ void set_s(void*newp, void*oldp){*(float*)oldp = float_setter_by_addr(&s,*(float
 
 shared_var_attr_t shared_var_attrs[] = {
 //  va_name	va_type		va_addr va_trig va_rep va_prop va_getter va_setter
+    {"m",	svt_Integer,	&m,	false,  false, false,  &get_m,   &set_m },
     {"n",	svt_Integer,	&n,	false,  false, false,  &get_n,   &set_n },
     {"o",	svt_Integer,	&o,	false,  false, false,  &get_o,   &set_o },
     {"p",	svt_Boolean,	&p,	false,  false, false,  &get_p,   &set_p },
@@ -41,10 +46,9 @@ shared_var_attr_t shared_var_attrs[] = {
 
 #define N_SHARED_VARS sizeof(shared_var_attrs)/sizeof(shared_var_attr_t)
 
-int report_all = 1; // report all triggers, even if no val change
-
 void dump_defined_vars(){
     printf("defined vars DIRECT access:\n"); fflush(stdout);
+	printf("  m=%d\n",m);
 	printf("  n=%d\n",n);
 	printf("  o=%d\n",o);
 	printf("  p=%s\n",p?"true":"false");
@@ -53,3 +57,8 @@ void dump_defined_vars(){
 	printf("  s=%f\n",s);
 	fflush(stdout);
 }
+
+static const char global_monitor_id[] = "monid_00002";
+
+#define RMV_HOST "127.0.0.1"
+#define RMV_PORT 8005

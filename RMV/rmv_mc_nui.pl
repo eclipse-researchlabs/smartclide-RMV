@@ -148,6 +148,7 @@ nurv_monitor_init(Infile,Ordfile,Sid) :-
 
 % NuRV session tracking
 :- dynamic nurv_session/4, nurv_session_log/2.
+nurv_session('11111', int, x, x). % keep for testing
 
 nurv_session(sid,stype,to_stream,from_stream). % sid is pid as an atom
 nurv_session_log(sid,response).

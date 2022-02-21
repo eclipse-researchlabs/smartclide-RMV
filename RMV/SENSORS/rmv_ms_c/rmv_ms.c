@@ -5,22 +5,28 @@
 void service_logic(){
     VERBOSE_MSG(1,"service logic starting\n");
 
+    VERBOSE(2){
+    dump_ms_cv( &monitor_interface.mi_cv );
     dump_shared_var_attributes(monitor_interface.mi_shared_vars,monitor_interface.mi_num_shared_vars);
-
-    for(monitor_atom *a=monitor_atoms;a<next_monitor_atom;a++){
-        dump_parse(a->ma_aex);
-    }
-    dump_parse("");
-\
+    //for(monitor_atom *a=monitor_atoms;a<next_monitor_atom;a++) dump_parse(a->ma_aex);
     dump_compiled_atoms();
     dump_defined_vars();
-    printf("%d\n",af_evaluate(&monitor_atoms[4]));
+    }
 
-    // ... assignments using setters
-    responder();
-    responder(); // do twice expect same result
-    //VERBOSE(3)test_var_getr_setr();
+    ms_responder();
 
+/*     char *MEP_Reply;
+    send_event("test_event", &MEP_Reply);
+    //VERBOSE(1){printf("reply from send_event:\n%s\n",MEP_Reply); fflush(stdout);}
+    sleep(1);
+    send_event("test_event", &MEP_Reply);
+    //VERBOSE(1){printf("reply from send_event:\n%s\n",MEP_Reply); fflush(stdout);}
+
+ */
+    ms_responder();
+//    ms_run_behavior();
+    //dump_defined_vars();
+     
     VERBOSE_MSG(1,"service logic ended\n");
 }
 
@@ -29,9 +35,9 @@ int main(int argc, char *argv[]){
  
     VERBOSE_MSG(0,"MS test\n");
 
-    if( argc>1 ) filename = argv[1]; else filename = "monid_00002_conf.json";
+    if( argc>1 ) strcpy(ms_configuration_file, argv[1]);
 
-    if( ms_startup(filename) == EXIT_FAILURE ) return(EXIT_FAILURE);
+    if( ms_startup() == EXIT_FAILURE ) return(EXIT_FAILURE);
 
     service_logic();
 

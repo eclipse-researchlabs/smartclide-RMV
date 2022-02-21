@@ -1,6 +1,7 @@
 {
   "monitor_id":"monid_00002",
-  "shared_var_decls": [
+  "shared_var_decl": [
+    {"name":"m", "type":"integer"},
     {"name":"n", "type":"integer"},
     {"name":"o", "type":"integer"},
     {"name":"p", "type":"boolean"},
@@ -8,29 +9,46 @@
     {"name":"r", "type":"float"},
     {"name":"s", "type":"float"}
   ],
-  "observable_vars": ["n", "o", "p", "q", "r", "s" ],
+  "observable_vars": ["m", "n", "o", "p", "q", "r", "s" ],
   "model_vars": ["n", "p", "q", "s" ],
-  "property_vars": ["n", "p", "q" ],
-  "reportable_vars": ["n", "o", "s", "p", "q"],
+  "property_vars": ["m", "n", "o", "p", "q", "r", "s" ],
+  "reportable_vars": ["m", "n", "o", "p", "q", "r", "s" ],
   "trigger_vars": ["q", "s" ],
   "monitor_atoms": [
     {"aid":"p", "aex":"p"},
     {"aid":"a1", "aex":"eq(n,2)"},
-    {"aid":"a2", "aex":"lt(s,2.4)"},
+    {"aid":"a2", "aex":"lt(r,2.4)"},
     {"aid":"a3", "aex":"eq(p,q)"},
-    {"aid":"q", "aex":"q"},
     {"aid":"a4", "aex":false},
     {"aid":"a5", "aex":true},
     {"aid":"a6", "aex":"eq(p,true)"},
+    {"aid":"a7", "aex":"ne(n,s)"},
+    {"aid":"a7a", "aex":"ne(s,n)"},
+    {"aid":"a8", "aex":"lt(o,2.4)"},
+    {"aid":"a8a", "aex":"ge(2.4,o)"},
+    {"aid":"a8b", "aex":"ge(r,2.4)"},
+    {"aid":"a8c", "aex":"lt(m,o)"},
+    {"aid":"q", "aex":"q"},
     {"aid":"notp", "aex":"not(p)"}
   ],
   "monitor_atom_eval":"ms_eval",
-  "shared_var_inits": [
+  "shared_var_init": [
+    {"name":"m", "value":"undefined"},
     {"name":"n", "value":1},
     {"name":"o", "value":2},
     {"name":"p", "value":"true"},
     {"name":"q", "value":"false"},
     {"name":"r", "value":"undefined"},
     {"name":"s", "value":1.5}
-  ]
+  ],
+  "behavior": [
+    {"name":"n", "value":5},
+    {"name":"p", "value":"false"},
+    {"name":"o", "value":7},
+    {"name":"r", "value":3.14159},
+    {"name":"q", "value":"true"}
+  ],
+  "timer":0,
+  "rmvhost":"127.0.0.1",
+  "rmvport":8005
 }

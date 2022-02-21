@@ -1,7 +1,7 @@
 % RMV - Monitor Creation - Create Property Specification
 % Work in Progress
 
-:- module(rmv_mc_cps,[
+:- module(rmv_mc_cps,[create_ltl_properties/2
 	       ]).
 
 :- use_module(['COM/param',rmv_ml]).
@@ -11,12 +11,21 @@
 % in rmv_mc: service_spec2nurv(ServiceSpec, NuRVscript).
 
 
-create_ltl_properties(SSpecId,SSpecBody,LTLprops) :- % TODO make proper magic
-    service_spec(SSpecId, SSpecBody),
+create_ltl_properties(SS,Properties) :-
+    is_service_spec(SS, SSpecId, _SSpecBody),
+    % magic with SSpecBody goes here
+
     atom_concat(ssid,N,SSpecId), atom_concat(ltlid,N,LTLid),
-    % magic normally goes here
+    PropAtoms = [p:p, q:q],
+    PropVars = [p, q],
+    PropFormulas = [property(LTLid, 'p U q')],
+
+    Properties = properties( PropVars, PropAtoms, PropFormulas ),
+
     param:monitor_directory_name(MD),
-    atomic_list_concat([MD,'/',LTLid,'.smv'],_SMVltlFile),
-    LTLprops = [property(prop001,'p U q')],
-    true.
+    atomic_list_concat([MD,'/',LTLid,'.smv'],SMVltlFile),
+    open(SMVltlFile,write,Str,[create([default])]),
+    write(Str,Properties),
+    close(Str).
+
 

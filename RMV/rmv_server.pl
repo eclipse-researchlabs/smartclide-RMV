@@ -1,8 +1,9 @@
 % RMV server process
 
-:- module(rmv_server, [rmv_server/1,rmv_server/2,rmv_server/3,rmv_server_with_args/1]).
+:- module(rmv_server, [rmv_server_cmd/0,rmv_server_cmd/1,
+	rmv_server_cmd/2,rmv_server_cmd/3,rmv_server_with_args/1]).
 
-:- use_module('AUDIT/audit',[audit_gen/2]).
+:- use_module('AUDIT/audit',[audit_gen/3]).
 :- use_module('COM/param').
 :- use_module('RMV/rmv').
 %:- use_module('COM/jsonresp').
@@ -51,40 +52,43 @@ rmv_server_options([]).
 %
 % should check if server is already running
 %
-rmv_server :-
+rmv_server_cmd :-
 	param:rmv_port(Port), % use same port for all rmv APIs
-	rmv_server(Port).
+	rmv_server_cmd(Port).
 
-rmv_server(Port) :-
-	param:build_version(rmv,Vnum), format('rmv-server version ~a starting~n',Vnum),
-	create_server_audit_log,
+rmv_server_cmd(Port) :-
+	%param:build_version(rmv,Vnum), format('rmv-server version ~a starting~n',Vnum),
+	%create_server_audit_log,
 	(   param:guiserver(on)
 	->  trace
 	;   true
 	),
 	(   param:rmv_run_with_http_server(true)
-	->  run_http_rmv_server(Port)
+	->  param:rmv_token(Rtoken),
+		param:setparam(epp_status,rmv_server),
+		rmv_server_with_opts([portnumber(Port),jsonresp(true),token(Rtoken)])
+%	->  run_http_rmv_server(Port)
 	;   true
 	).
 
 run_http_rmv_server(Port) :-
 	http_server(http_dispatch, [port(Port)]),
 	format('rmv-server listening on port ~d~n',[Port]),
-	audit_gen(rmv_start, success),
+	audit_gen(rmv, rmv_start, success),
 	param:setparam(epp_status,rmv_server),
-	epp:epp_with_server,
+	epp:epp_with_rmv,
 	(   param:sleep_after_server_start(on)
 	->  param:server_sleeptime(S), go_to_sleep(S)
 	;   true
 	).
 
-rmv_server(Port,RToken) :-
+rmv_server_cmd(Port,RToken) :-
 	param:setparam(rmv_token,RToken),
-	rmv_server(Port).
+	rmv_server_cmd(Port).
 
-rmv_server(Port,RToken,EToken) :-
+rmv_server_cmd(Port,RToken,EToken) :-
 	param:setparam(rmv_epp_token,EToken),
-	rmv_server(Port,RToken).
+	rmv_server_cmd(Port,RToken).
 
 rmv_server_with_args(Argv) :-
 	% process the arguments
@@ -100,6 +104,7 @@ rmv_server_with_args(Argv) :-
 	rmv_server_with_opts(Opts).
 
 rmv_server_with_opts(Opts) :-
+	param:build_version(rmv,Vnum), format('rmv-server version ~a starting~n',Vnum),
 	format('Options=~q~n',[Opts]),
 	(   memberchk(portnumber(RPort),Opts); true ),
 	(   var(RPort)
@@ -126,7 +131,7 @@ rmv_server_with_opts(Opts) :-
 	),
 
 	(   memberchk(epp(true),Opts)
-	->  param:setparam(epp_status,policy_server) % activate EPP as part of rmv server
+	->  param:setparam(epp_status,rmv_server) % activate EPP as part of rmv server
 	;   true
 	),
 
@@ -141,21 +146,22 @@ rmv_server_with_opts(Opts) :-
 	;   true
 	),
 
-	param:build_version(rmv,Vnum), format('rmv-server version ~a starting~n',Vnum),
 	create_server_audit_log,
-	http_server(http_dispatch, [port(QPort)]),
-	format('rmv-server listening on port ~d~n',[QPort]),
-	audit_gen(rmv_start, success),
+	http_server(http_dispatch, [port(RPort)]),
+	format('rmv-server listening on port ~d~n',[RPort]),
+	audit_gen(rmv, rmv_start, success),
 
 	% run self-test here if turned on in param or command line
 
-        (   param:epp_status(rmv_server)
-	->  epp:epp_with_server
+    (   param:epp_status(rmv_server)
+	->  epp:epp_with_rmv
 	;   true
 	),
 
-	param:server_sleeptime(S), go_to_sleep(S),
-	true.
+	(   param:sleep_after_server_start(on)
+	->  param:server_sleeptime(S), go_to_sleep(S)
+	;   true
+	).
 
 go_to_sleep(S) :-
 	sleep(S),
@@ -169,10 +175,8 @@ periodic_goals :-
 create_server_audit_log :- param:audit_logging(file), !,
 	audit:gen_time_stamp(TS),
 	param:log_directory_name(LogD),
-	atomic_list_concat([LogD,'/audit_log','_',TS],LogFile),
+	atomic_list_concat([LogD,'/rmv_audit_log','_',TS],LogFile),
 	format('Audit log file: ~w~n',LogFile),
 	open(LogFile,append,AudStream),
 	param:setparam(audit_stream,AudStream).
 create_server_audit_log.
-
-

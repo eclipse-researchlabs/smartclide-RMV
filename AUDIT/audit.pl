@@ -1,5 +1,5 @@
 % Audit manager
-:- module(audit, [audit_control/1, audit_gen/2,audit_gen/3,
+:- module(audit, [audit_control/1, audit_gen/2, audit_gen/3,
                   audit_auditable_set/1, audit_selection_set/1,
                   audit_select/1, audit_deselect/1]).
 
@@ -41,7 +41,7 @@ audit_event_group(event_processing,[ep_load,ep_unload,ep_event]).
 
 :- dynamic auditable_events/1.
 
-auditable_events([ngac_start, ngac_shutdown, epp_start, epp_shutdown,
+auditable_events([ngac_start, ngac_shutdown, epp_start, epp_shutdown, rmv_start, rmv_shutdown,
                   pq_grant, pq_deny, % these not currently used
                   pq_objinfo,
                   pa_add, pa_delete, pa_combine, pa_getpol, pa_setpol, pa_load, pa_loadi, pa_unload,
@@ -109,7 +109,13 @@ init(full) :- !,
 
 audit_control(_).
 
-audit_gen(Event, Data) :- audit_gen(ngac,Event,Data). % backward compatible
+audit_gen(Event, Data) :-
+    param:epp_status(Status),
+    (   Status == rmv_server
+    ->  Source = rmv
+    ;   Source = ngac
+    ),
+    audit_gen(Source,Event,Data). % backward compatible
 
 audit_gen(Source, Event, Data) :-
     param:audit_selection(AS), auditable_events(Auditable),

@@ -3,14 +3,14 @@
  * used for visibiltiy during development
  */
 
-// print an array of strings (like an argv)
+// print an array of strings (like an argv) on separate lines
 void prt_array(char **array){ printf("\n");
     for(char **p=array; *p!=NULL; p++)
         printf("%s\n",*p);
     fflush(stdout);
 }
 
-// print array of strings with a label:
+// print array of strings on one line with a label:
 void dump_strings(char *what, char *s[]){
     printf("%s:\n", what);
     for( char **p=s; *p!=NULL; p++ ){
@@ -34,6 +34,13 @@ void dump_sv_inits(char *label){
     fflush(stdout);
 }
 
+void dump_assigns(char *label){
+    printf("%s:\n", label);
+    for(sh_var_name_value *op = behavior_seq; op < next_behavior_op; op++)
+        printf("  %s=%s\n",op->vnv_name,op->vnv_value);
+    fflush(stdout);
+}
+
 void dump_matoms(char *label){
     monitor_atom **p;
     printf("%s:\n", label);
@@ -46,6 +53,49 @@ void interpret_arg_val(){
     // HERE HERE
 }
 
+void
+dump_compiled_atom_arg(a_arg_kind a_k, sh_var_type a_t, sh_var_val *a_v){
+    printf("kind=%s, type=%s, value=", akind_names[a_k], sv_type_names[a_t]);
+    switch(a_k){
+        case akind_constant:
+            switch(a_t){
+                case svt_Boolean:
+                    printf("%s",a_v->sv_boolval? "true":"false");
+                    break;
+                case svt_UNDEFINED: printf("Undef"); break;
+                case svt_Integer:
+                    printf("%d",a_v->sv_intval); break;
+                case svt_Float:
+                    printf("%f",a_v->sv_floatval); break;
+                default: break;
+            } break;
+        case akind_variable:
+            //printf("(%lu)",(unsigned long)a_v->sv_addrval);
+            printf("(%lu)",(unsigned long)( (shared_var_attr_t*)(a_v->sv_addrval) )->va_addr );
+            break;
+        case akind_unused:
+            printf("%d",a_v->sv_intval);
+        default: break;
+    }
+}
+
+void dump_compiled_atom(int i, monitor_atom *at){
+    char *sign; ext_atom_op eop;
+        eop = at->ma_ext_op;
+        if( (int)eop < 0 ){sign="-"; eop = -eop; }else{ sign=""; }
+        printf("  %02d  aid=%s, aex=%s, op=%s, ext_op=%s%s,",
+            i, at->ma_aid, at->ma_aex,
+            (at->ma_op==0 ? "var" : atom_op_names[at->ma_op]),
+            sign, ext_atom_op_names[ eop ]
+        );
+        printf("  arg1: [");
+        dump_compiled_atom_arg(at->ma_arg1_knd,at->ma_arg1_typ,&at->ma_arg1_val);
+        printf("]  arg2: [");
+        dump_compiled_atom_arg(at->ma_arg2_knd,at->ma_arg2_typ,&at->ma_arg2_val);
+        printf("]\n"); 
+        fflush(stdout);
+}
+
 void dump_compiled_atoms(){
     monitor_interface_t *mi = &monitor_interface;
     monitor_atom *at = monitor_atoms;
@@ -53,28 +103,24 @@ void dump_compiled_atoms(){
 
     printf("compiled_atoms (ma_):\n");
     for( int i=0; i < mi->mi_cv.n_monitor_atoms; i++, at++ ){
+        dump_compiled_atom(i,at);
+        /*
         eop = at->ma_ext_op;
         if( (int)eop < 0 ){sign="-"; eop = -eop; }else{ sign=""; }
         //printf("eop=%d\n",eop);fflush(stdout);
         //continue;
-        printf("  aid=%s, aex=%s, op=%s, ext_op=%s%s,",
-            at->ma_aid, at->ma_aex,
+        printf("  %02d  aid=%s, aex=%s, op=%s, ext_op=%s%s,",
+            i, at->ma_aid, at->ma_aex,
             (at->ma_op==0 ? "var" : atom_op_names[at->ma_op]),
             sign, ext_atom_op_names[ eop ]
         );
-        printf(" arg1_knd=%s arg1_typ=%s, arg1_val=%lu,",
-            akind_names[ at->ma_arg1_knd ],
-            sv_type_names[at->ma_arg1_typ],
-            //sh_var_val2str(svv, at->ma_arg1_knd, at->ma_arg1_typ)
-            (unsigned long)at->ma_arg1_val.sv_addrval
-        );
-        printf(" arg2_knd=%s arg2_typ=%s, arg2_val=%lu\n",
-            akind_names[ at->ma_arg2_knd ],
-            sv_type_names[at->ma_arg2_typ],
-            //sh_var_val2str(svv, at->ma_arg2_knd, at->ma_arg2_typ)
-            (unsigned long)at->ma_arg2_val.sv_addrval
-        );
+        printf("  arg1: [");
+        dump_compiled_atom_arg(at->ma_arg1_knd,at->ma_arg1_typ,&at->ma_arg1_val);
+        printf("]  arg2: [");
+        dump_compiled_atom_arg(at->ma_arg2_knd,at->ma_arg2_typ,&at->ma_arg2_val);
+        printf("]\n"); 
         fflush(stdout);
+        */
     }
     fflush(stdout);
 }
@@ -87,7 +133,7 @@ void dump_parse(char *aex){
     parse_atom(aex, &op, &a1, &a2, &aop, &arg1_k, &arg1_t, &arg2_k, &arg2_t);
     printf("parsed \"%s\":   \"%s\" \"%s\" \"%s\"  ===>  %s%s %s:%s %s:%s\n",
         aex, op, a1, a2,
-        (aop==0 ? "var:" : ""),
+        (aop==var ? "var:" : ""),
         (aop <= le) ? atom_op_names[ aop ] : "badop",
         akind_names[arg1_k], sv_type_names[arg1_t],
         akind_names[arg2_k], sv_type_names[arg2_t] );
@@ -97,7 +143,7 @@ void dump_parse(char *aex){
 void dump_ms_cv(ms_configuration_vector *cv){
     printf("dump ms cv:\n");
     printf(" monitor_id: %s\n", cv->monitor_id);
-    dump_sv_decls(" sh_var_decls");
+    dump_sv_decls(" sh_var_decl");
     dump_strings(" observable_vars", cv->observable_vars );
     dump_strings(" model_vars", cv->model_vars );
     dump_strings(" property_vars", cv->property_vars );
@@ -105,7 +151,11 @@ void dump_ms_cv(ms_configuration_vector *cv){
     dump_strings(" trigger_vars", cv->trigger_vars );
     dump_matoms(" monitor_atoms");
     printf(" monitor_atom_eval: %s\n", cv->monitor_atom_eval);
-    dump_sv_inits(" sh_var_inits");
+    dump_sv_inits(" sh_var_init");
+    if( cv->op_seq != NULL ) dump_assigns(" op_seq");
+    printf(" timer: %f\n", cv->timer);
+    printf(" rmvhost: %s\n", cv->rmvhost);
+    printf(" rmvport: %d\n", cv->rmvport);
     fflush(stdout);
 }
 

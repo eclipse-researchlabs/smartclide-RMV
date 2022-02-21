@@ -1,5 +1,5 @@
 //#define MS_TEST
-#define VERBOSITY 0
+#define VERBOSITY 1
 #define VERBOSE(L) if(VERBOSITY >= L)
 #define VERBOSE_MSG(L,M) if(VERBOSITY >= L){printf(M);fflush(stdout);}
 #include <stdio.h>
@@ -9,19 +9,30 @@
 #include <float.h>
 #include <limits.h>
 #include <ctype.h>
+#include <unistd.h>
+#include <math.h>
+#include <sys/time.h>
 
 #define JSMN_PARENT_LINKS
 #include "jsmn.h"
 
 // TODO - check these limits (only) during configuration initialization
-#define JSON_STRING_SIZE 2048
-#define JSMN_TOKEN_ARRAY_SIZE 1024
+#define JSON_STRING_SZ 2048
+#define JSMN_TOKEN_ARRAY_SZ 1024
+#define CONFIG_FILENAME_SZ 100
+#define CONFIG_FILENAME_SUFFIX "_conf.json"
 #define CHARS_SZ 4096
 #define STRINGS_SZ 1024
+#define RESPONSE_BUF_SZ 2048
 #define SH_VAR_SZ 20
 #define MON_ATOM_SZ 20
+#define BEHAVIOR_SEQ_SZ 50 // max length of a behavior sequence
 #define ATOM_OP_MAX_LEN 20
 #define ATOM_ARG_MAX_LEN 50
+#define SIMULATED_MEP false   // set false to use real MEP
+#define EPP_TOKEN "epp_token"
+#define MEP_TOKEN "mep_token"
+#define RMV_TOKEN "rmv_token"
 
 typedef enum mstatus {
     monitor_uninitialized,
@@ -51,20 +62,20 @@ typedef union {
 } sh_var_val;
 
 typedef enum sh_var_type {
-	svt_Byte,       // unused
-	svt_String,     // unused
+	svt_UNDEFINED,
+	svt_VAR,
 	svt_Boolean,
 	svt_Integer,
 	svt_Float,
-	svt_Char,       // unused
-	svt_Symbol,     // unused
 	svt_Address,
-	svt_VAR,
-	svt_UNDEFINED
+	svt_Byte,       // unused
+	svt_String,     // unused
+	svt_Char,       // unused
+	svt_Symbol      // unused
 } sh_var_type;
 
-static char* sv_type_names[] = {"Byte","String","Boolean","Integer",
-				"Float","Char","Symbol","Address","VAR","UNDEFINED"};
+static char* sv_type_names[] = {"UNDEFINED","VAR","Boolean","Integer",
+				"Float","Address","Byte","String","Char","Symbol"};
 
 // sh_var_name_value struct is
 // used to stage sh var initializations specified in the JSON
@@ -95,7 +106,7 @@ typedef struct {
 } sh_var_decl;
 
 typedef enum atom_op {
-    var, not, bcon_f, bcon_t, eq, ne, gt, lt, ge, le, badop
+    var, not, bool_f, bool_t, eq, ne, gt, lt, ge, le, badop
 } atom_op;
 
 static char *atom_op_names[] = {
@@ -104,30 +115,32 @@ static char *atom_op_names[] = {
 };
 
 static atom_op atom_op_map[] = {
-    var, not, bcon_f, bcon_t,
+    var, not, bool_f, bool_t,
     eq, ne, gt, lt, ge, le, /* ne, ge, le,*/ badop
 };
 
-typedef enum ext_atom_op {
+typedef enum ext_atom_op { inval_op,
     eq_B_B, eq_I_I, eq_F_F, eq_I_F,
     ne_B_B, ne_I_I, ne_F_F, ne_I_F,
-    lt_I_I, lt_F_F, lt_I_F, lt_F_I,
-    le_I_I, le_F_F, le_I_F, le_F_I,
+            lt_I_I, lt_F_F, lt_I_F,
+                            gt_I_F,
+            le_I_I, le_F_F, le_I_F,
+                            ge_I_F,
     var_B, var_I,
     not_B, not_I,
-    Bfalse, Btrue,
-    inval_op
-} ext_atom_op;
+    Bfalse, Btrue
+ } ext_atom_op;
 
-static char *ext_atom_op_names[] = {
+static char *ext_atom_op_names[] = { "inval_op",
     "eq_B_B", "eq_I_I", "eq_F_F", "eq_I_F",
     "ne_B_B", "ne_I_I", "ne_F_F", "ne_I_F",
-    "lt_I_I", "lt_F_F", "lt_I_F", "lt_F_I",
-    "le_I_I", "le_F_F", "le_I_F", "le_F_I",
+              "lt_I_I", "lt_F_F", "lt_I_F",
+                                  "gt_I_F",
+              "le_I_I", "le_F_F", "le_I_F",
+                                  "ge_I_F",
     "var_B", "var_I",
     "not_B", "not_I",
-    "Bfalse", "Btrue",
-    "inval_op"
+    "Bfalse", "Btrue"
 };
 
 typedef enum a_arg_kind {
@@ -155,17 +168,6 @@ typedef struct monitor_atom { // NEW
     sh_var_type ma_arg2_typ;    // svt_Integer
     sh_var_val  ma_arg2_val;    // (sv_intval)
 } monitor_atom;
-/* OLD
-typedef struct monitor_atom {
-    char        *ma_aid;
-    char        *ma_aex;       // e.g.: "eq(n,2)" ==>
-    atom_op     ma_op;          // eq
-    sh_var_type ma_arg1_typ;    // svt_Address
-    sh_var_val  ma_arg1_val;    // (sv_addrval)
-    sh_var_type ma_arg2_typ;    // svt_Integer
-    sh_var_val  ma_arg2_val;    // (sv_intval)
-} monitor_atom;
-*/
 
 /*
 % MS CONFIGURATION STRUCTURE
@@ -195,11 +197,15 @@ typedef struct ms_configuration_vector { // TODO - compare w/ms_pl
     int n_monitor_atoms;
     char *monitor_atom_eval;
     sh_var_name_value *shared_var_inits;
+    sh_var_name_value *op_seq;
+    float timer;
+    char *rmvhost;
+    int rmvport;
 } ms_configuration_vector;
 
 static char *cv_element_names[] = {
   "monitor_id",
-  "shared_var_decls",
+  "shared_var_decl",
   "observable_vars",
   "model_vars",
   "property_vars",
@@ -208,7 +214,7 @@ static char *cv_element_names[] = {
   "monitor_atoms",
   "n_monitor_atoms",
   "monitor_atom_eval",
-  "shared_var_inits",
+  "shared_var_init",
   "name",
   "type",
   "value",
@@ -230,6 +236,9 @@ typedef struct {
     char *mi_sessid;
 } monitor_interface_t;
 
+////////////////////////////////////////////////////
+// GLOBAL VARIABLES
+
 // allocate and minimally initialize the global monitor_interface instance
 monitor_interface_t monitor_interface = {
     /* mi_mstatus */            monitor_uninitialized,
@@ -245,9 +254,11 @@ monitor_interface_t monitor_interface = {
         /* reportable_vars */   NULL,
         /* trigger_vars */      NULL,
         /* monitor_atoms */     NULL,
-        /* n_monitor_atoms */  0,
+        /* n_monitor_atoms */   0,
         /* monitor_atom_eval */ "unset_eval",
-        /* shared_var_inits */  NULL
+        /* shared_var_inits */  NULL,
+        /* op_seq */            NULL,
+        /* timer */             0
     },
     /* mi_sessid */             ""
 };
@@ -256,21 +267,38 @@ sh_var_decl sh_var_decls[SH_VAR_SZ];
 sh_var_decl *next_sh_var_decl = sh_var_decls;
 sh_var_name_value sh_var_name_values[SH_VAR_SZ];
 sh_var_name_value *next_sh_var_name_value = sh_var_name_values;
+sh_var_name_value behavior_seq[BEHAVIOR_SEQ_SZ];
+sh_var_name_value *next_behavior_op = behavior_seq;
 // TODO - dynamically allocate just what's needed using the count
 // field in the parsed JSON structure; assign ptr in ms_cv;
 // iterate over monitor_atom structs using n_monitor_atoms,
 monitor_atom monitor_atoms[MON_ATOM_SZ];
 monitor_atom *next_monitor_atom = monitor_atoms;
+bool ms_global_trigger_enable = false;
+int ms_global_report_all = 1; // report all trigger var assigns, even if no val change
+char ms_configuration_file[CONFIG_FILENAME_SZ] = "";
 
 // JSON string to be read in from file, stream or other argument
-static char JSON_STRING[JSON_STRING_SIZE] = "";
+static char JSON_STRING[JSON_STRING_SZ] = "";
+
+// MS to MEP communications
+bool ms_mep_comm_is_open = false;
+int ms_mep_comm_sock = -1;
+int ms_mep_session_num;
+char ms_mep_session_id[10]; // session identifier as a string
+
+// SUS can register a callback function to handle MEP recovery indicator
+void (*sus_recovery_callback)();
 
 // forward declaration of dump functions
 void dump_sh_vars();
+void dump_one_shared_var_attributes(shared_var_attr_t *);
 void dump_shared_var_attributes(void *, int);
 void dump_sv_inits(char *);
+void dump_assigns(char *);
 void dump_matoms(char *);
 void dump_strings(char*, char**);
+void dump_compiled_atom(int, monitor_atom*);
 void dump_compiled_atoms();
 void dump_parse(char*);
 
@@ -287,7 +315,7 @@ float float_setter_by_addr(float*, float);
 float float_setter_by_idx(int, float);
 float float_setter_by_name(char*, float);
 
-/////////////////////////////
+//////////////////////////////////////////////////////////
 // This include file provides service/monitor-specific
 // declarations generated by monitor creation. The file
 // will be changed to a generic name once this file is
@@ -296,8 +324,267 @@ float float_setter_by_name(char*, float);
 
 #include "monid_00002_vars.h"
 
-/////////////////////////////
+//
+//////////////////////////////////////////////////////////
 
+//////////////////////////////////////////////////////////
+// BEGIN INTERFACE SHIMS
+//   These items represent the interface layer
+//   They provide either a connection to the MEP interface of the RMV server
+//   or stubs that allow the MS to be tested standalone.
+//   A preprocessor symbol SIMULATED_MEP should be defined true or false
+//
+// Contents:
+//   URL encoddf for HTTP requests to MEP
+//   communication with the MEP
+//   stubs for simulation of the MEP
+//   
+
+// URL encoder (modified by RJD from a snippet on stack overflow)
+// use:
+//   url_encoder_rfc_tables_init();
+//   url_encode( rfc3986, url, url_encoded);
+
+char rfc3986[256] = {0};
+char html5[256] = {0};
+
+void url_encoder_rfc_tables_init(){
+    for (int i = 0; i < 256; i++){
+        rfc3986[i] = isalnum(i) || i == '~' || i == '-' || i == '.' || i == '_' ? i : 0;
+        html5[i] = isalnum(i) || i == '*' || i == '-' || i == '.' || i == '_' ? i : (i == ' ') ? '+' : 0;
+    }
+}
+
+char *url_encode( char *table, char *s, char *enc){
+    int c;
+    if( enc == NULL ) return enc;
+    *enc = '\0';
+    for (int sz=0; *s; s++){
+        c = (int)*s;
+        if (table[c]) *enc++ = table[c];
+        else{ sz = sprintf( enc, "%%%02X", c); enc += sz; }
+    }
+    return enc;
+}
+// end URL encode
+
+// MEP communication
+
+#include <unistd.h>
+#include <fcntl.h>
+#include <netinet/tcp.h>
+#include <sys/socket.h>
+#include <sys/types.h>
+#include <netinet/in.h>
+#include <netdb.h>
+extern int h_errno;
+
+#include <arpa/inet.h>
+
+void open_MEP_comm(){
+    struct hostent *hp;
+    struct sockaddr_in addr; int on = 1;
+    char *host = RMV_HOST; in_port_t port = RMV_PORT;
+
+/*     if( (hp = gethostbyname(host)) == NULL ){
+        printf("error: gethostbyname\n"); return;
+    }
+
+    bcopy(hp->h_addr, &addr.sin_addr, hp->h_length);
+ */
+    addr.sin_addr.s_addr = inet_addr(host);
+	addr.sin_port = htons(port);
+	addr.sin_family = AF_INET;
+	ms_mep_comm_sock = socket(PF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if( ms_mep_comm_sock == -1 ){
+        printf("error: create socket for RMV server comm\n");
+        return;
+    }
+
+    setsockopt(ms_mep_comm_sock, IPPROTO_TCP, TCP_NODELAY, (const char *)&on, sizeof(int));
+    //if(sock == -1){ printf("error: setsockopt\n"); return; }
+    if(connect(ms_mep_comm_sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0){
+        printf("error: connect/n"); return;
+    }
+    ms_mep_comm_is_open = true;
+    VERBOSE_MSG(2,"MEP communication open\n");
+}
+
+void close_MEP_comm(){
+    if( ms_mep_comm_is_open == false ) return;
+    shutdown(ms_mep_comm_sock, SHUT_RDWR);
+    close(ms_mep_comm_sock);
+    ms_mep_comm_is_open = false;
+    ms_mep_comm_sock = -1;
+    VERBOSE_MSG(2,"MEP communication closed\n");
+}
+
+int make_report_event_request(char req_buf[], char encode_buf[]){
+    // GET /epp/report_event?token=rmv_token&event=ms_event(<url encoded payload>)
+    char *req_pieces[] =
+        {"GET ","/epp/report_event","?token=",RMV_TOKEN,"&event=ms_event(",encode_buf,")\r\n\r\n",0};
+
+    char *rb = req_buf; *rb = '\0';
+    for( char** p=req_pieces; *p; p++ ){
+        for( char* ps=*p; (*rb = *ps); rb++, ps++) ;
+    }
+    return rb - req_buf;
+}
+
+int make_monitor_heartbeat_request(char req_buf[], char encode_buf[], char* sid){
+    // GET /mep/monitor_heartbeat?token=rmv_token&heartbeat=<url encoded ms message>
+    char *req_pieces[] =
+        {"GET ","/mep/monitor_heartbeat","?token=",RMV_TOKEN,"&session_id=",sid,
+        "&heartbeat=",encode_buf,"\r\n\r\n",0};
+
+    char *rb = req_buf; *rb = '\0';
+    for( char** p=req_pieces; *p; p++ ){
+        for( char* ps=*p; (*rb = *ps); rb++, ps++) ;
+    }
+    return rb - req_buf;
+}
+
+void send_MEP_comm(char *request_ep, char *mid, char *sid, char *payload, char **Response){
+    char req_buf[STRINGS_SZ]; char encode_buf[CHARS_SZ];
+    static char resp_buf[RESPONSE_BUF_SZ];
+
+    url_encode(rfc3986, payload, encode_buf);
+    //VERBOSE(2){printf("encoded payload:\n %s\n",encode_buf); fflush(stdout);}
+
+    // TODO - should request_ep parameter be used?
+    //int sz=make_report_event_request(req_buf, encode_buf);
+    int sz=make_monitor_heartbeat_request(req_buf, encode_buf, sid);
+
+    open_MEP_comm();
+    VERBOSE(2){printf("Request:\n %s\n",req_buf); fflush(stdout);}
+
+    write(ms_mep_comm_sock, req_buf, sz);
+
+    VERBOSE(2){printf("Response: \n"); fflush(stdout);}
+    bzero( resp_buf, RESPONSE_BUF_SZ );
+    if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
+        VERBOSE(2){printf("%s",resp_buf); fflush(stdout);}
+        //bzero( resp_buf, STRINGS_SZ );
+    }
+    close_MEP_comm();
+
+    if( Response != NULL ){
+            *Response = resp_buf; // only valid until next send_MEP_comm
+    }
+}
+
+/* MEP shims */
+void mep_start_monitor(char *Mid, char **Msessid, mstatus *Mstatus){
+    char *Response;
+    if( SIMULATED_MEP ){
+        ms_mep_session_num = 11111;
+    }else{
+        //send_MEP_comm('/mep/start_monitor',Mid,Msessid,NULL,&Response);
+        // extract ms_mep_session_num from Response
+        ms_mep_session_num = 11111;
+    }
+
+    sprintf(ms_mep_session_id,"%5d",ms_mep_session_num);
+    *Msessid = ms_mep_session_id;
+    *Mstatus = monitor_started;
+
+    VERBOSE(1){printf("Monitor session id: %s starting\n", *Msessid); fflush(stdout); }
+};
+
+void mep_stop_monitor(char *Mid, char *Msessid, mstatus *Mstatus){
+    char *Response;
+    if( SIMULATED_MEP ){
+    }else{
+        //send_MEP_comm('/mep/stop_monitor',Mid,Msessid,NULL,&Response);
+    }
+
+    *Mstatus = monitor_stopping;
+
+    VERBOSE(1){printf("Monitor session id: %s stopping\n", Msessid); fflush(stdout); }
+};
+
+void mep_heartbeat(char *HB_json, int *Response){
+    // synchronously send heartbeat to rmv_mf_mep and wait for response
+    // The message is sent via the mepapi.
+    // For standalone test we call a mep_heartbeat stub
+    // build the HTTP call to MEP
+    char *MEP_Reply;
+
+    if( SIMULATED_MEP ){
+        VERBOSE_MSG(1,"Simulated MEP received heartbeat\n");
+        // must simulate some MEP behavior here
+        // ...
+        *Response = 1;
+        VERBOSE(1){printf("response from simulated mep_heartbeat=%d\n",*Response);fflush(stdout);}
+        return;
+    }
+
+    char* mid = monitor_interface.mi_cv.monitor_id;
+    send_MEP_comm("/mep/monitor_heartbeat", mid, ms_mep_session_id, HB_json, &MEP_Reply);
+    *Response = 1; // TODO - get this info out of MEP_Reply
+    //VERBOSE(1){printf("reply from mep_heartbeat:\n%s\n",MEP_Reply); fflush(stdout);}
+}
+
+void send_event(char *event, char **Response){
+    char req_buf[STRINGS_SZ]; char encode_buf[CHARS_SZ];
+    static char resp_buf[CHARS_SZ];
+    monitor_interface_t *mi = &monitor_interface;
+    char *MEP_Reply;
+    char *mid = mi->mi_cv.monitor_id;
+    char *sid = mi->mi_sessid;
+    int sz;
+    resp_buf[0] = '\0'; // bzero( resp_buf, RESPONSE_BUF_SZ );
+    if( Response != NULL ){
+            *Response = resp_buf; // upon return only valid until next send_MEP_comm
+    }
+
+    char *req_pieces[] =
+        {"GET ","/epp/report_event","?token=",RMV_TOKEN,"&event=",event,"\r\n",
+        "HTTP/1.1\r\n",
+    //    "Host: localhost\r\n",
+        "Connection: keep-alive\r\n",
+    //    "Content-type: application/x-www-form-urlencoded\r\n",
+    //    "Content-length: 0\r\n",
+        "\r\n",
+        0};
+
+    char *rb = req_buf; *rb = '\0';
+    for( char** p=req_pieces; *p; p++ ){
+        for( char* ps=*p; (*rb = *ps); rb++, ps++) ;
+    }
+    sz = rb - req_buf;
+
+    VERBOSE(2){printf("Request (size %d):\n %s\n",sz,req_buf); fflush(stdout);}
+    open_MEP_comm();
+
+    if( (n = write(ms_mep_comm_sock, req_buf, sz)) < 0 ){
+        VERBOSE_MSG(2,"socket write failed\n");
+        return;
+    }
+    VERBOSE(2){ printf("write sock sent %d bytes\n",n); fflush(stdout);}
+
+    VERBOSE(2){printf("Response: \n"); fflush(stdout);}
+    if( (n = recv(ms_mep_comm_sock, resp_buf, CHARS_SZ-1, 0)) > 0 ){
+        resp_buf[n] = 0;
+        VERBOSE(2){ fputs(resp_buf,stdout); fflush(stdout); }
+    }
+    VERBOSE(2){ printf("read sock returned %d bytes\n",n); fflush(stdout);}
+/*     while( (n=read(ms_mep_comm_sock, resp_buf, CHARS_SZ-1)) > 0 ){
+        resp_buf[n] = '\0';
+        //VERBOSE(2){printf("%s",resp_buf); fflush(stdout);} // try fputs(resp_buf,stdout)
+        VERBOSE(2){ fputs(resp_buf,stdout); fflush(stdout); }
+        //bzero( resp_buf, STRINGS_SZ );
+    }
+ */
+    close_MEP_comm();
+}
+
+//
+// END INTERFACE SHIMS
+//////////////////////////////////////////////////////////
+
+
+// bring in the other parts of the monitor sensor
 #include "ms_vars.h"
 #include "ms_json.h"
 #include "ms_conf.h"

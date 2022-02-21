@@ -3,6 +3,7 @@
 :- use_module('RMV/rmv').
 :- use_module('RMV/rmv_ml').
 :- use_module('SIM/ext_svcs').
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % definition of the RMV tool interactive commands syntax
 % syntax( Signature, CommandSet ).
@@ -75,15 +76,26 @@ do(rmv) :- !, user_mode(M), retractall(user_mode(_)), assert(user_mode(rmv)),
 	param:prompt_string(rmv,Prompt), param:setparam(prompt_string,Prompt),
 	rem_commands(M), add_commands(rmv), banner(rmv).
 do(rmv_server) :- !,
-	% rmv_server:rmv_server.
-	writeln('not yet configured to start rmv_server').
+	do(rmvt(init_ms_cv)),
+	rmv_server:rmv_server_cmd.
+	%writeln('not yet configured to start rmv_server').
 
 do(rmvt) :- !, rmvt(e2e). % abbrev-change to suit current need
 do(rmvt(ms_c)) :- !, rmvt(ms_c).
 do(rmvt(ms_pl)) :- !, rmvt(ms_pl).
 do(rmvt(e2e)) :- !, rmvt(e2e).
 do(rmvt(local)) :- !, ext_svcs:e2e_api(local).
-do(rmvt(T)) :- !, ext_svcs:e2e_api(T).
+/*
+do(rmvt(load_monitor)) :- !,
+	cons_monitor(monid, SSpecId, ModelId, Properties, MSlang, MSid, MScv, MSfile, Monitor),
+	% install the new monitor in the library
+	load_monitor(Monitor).
+*/
+do(rmvt(init_ms_cv)) :- !, rmv_ms:initialize_ms_configuration.
+do(rmvt(atom_eval)) :- !, rmvt(atom_eval).
+do(rmvt(reports)) :- !, rmvt(reports).
+do(rmvt(atom_eval,Mode)) :- !, rmvt(atom_eval,Mode).
+%do(rmvt(T)) :- !, ext_svcs:e2e_api(T).
 do(rmvt(T,Emode)) :- !, rmvt(T,Emode).
 do(rmvt(T,Emode,MSlang)) :- !, rmvt(T,Emode,MSlang).
 
@@ -100,7 +112,7 @@ do(stop_nameserver) :- !, rmv:stop_nameserver.
 % command procedures
 %
 
-assigns(1,[p=true,q=false,n=2,p=true,q=false,s=2,p=false,q=true,p=false,q=true]).
+behavior(1,[p=true,q=false,n=2,p=true,q=false,s=2,p=false,q=true,p=false,q=true]).
 ssid(ssid_00002).
 
 rmvt(e2e) :-
@@ -110,10 +122,10 @@ rmvt(e2e) :-
 	% must still make real ms heartbeat message and nurv heartbeat in orbit mode
 	% fake notifications are temporarily stubbed-out in MEP
 	% this test now subsumes rmvt(ms_pl)
-	assigns(1,Assigns), ssid(SSid),
-	ServiceCreationContext = [assigns=Assigns,ssid=SSid,atom_eval_mode=ms_eval,monitor_sensor_lang=ms_pl],
+	behavior(1,Assigns), ssid(SSid),
+	ServiceCreationContext = [behavior=Assigns,ssid=SSid,atom_eval_mode=ms_eval,monitor_sensor_lang=ms_pl],
 	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the assigns
-	ext_service_spec2service(ServiceSpec,Service), % now service has the assigns
+	ext_service_spec2service(ServiceSpec,Service),
 	rmv_mc:service_spec2monitor(ServiceSpec,Monitor),
 	ext_deploy_service_with_monitor(Service,Monitor,Deployment),
 	ext_execute_service(ms_pl,Deployment), % assigns, other args are passed in with deployed service/monitor
@@ -131,14 +143,39 @@ rmvt(ms_pl) :-
 rmvt(ms_c) :-
 	true.
 
+rmvt(atom_eval) :-
+	do(rmvt(init_ms_cv)),
+	rmv_ms:monitor_atoms(As),
+	param:rmv_atom_eval_mode(M),
+	(   ( M == ms_eval ; M == ms_cv )
+	->  rmv_ms:aT_list_constructor(As,ATl)
+	;   rmv_ms:or_list_constructor(ORl),
+		rmv_mf_mep:aT_list_constructor(As,ORl,ATl)
+	),
+	writeq(As), nl, write('   -> '), writeq(ATl), nl,
+	true.
+
+rmvt(reports) :-
+	rmv_ms:or_list_constructor(ORl),
+	writeq(ORl), nl,
+	true.
+
+rmvt(atom_eval,Mode) :-
+	param:rmv_atom_eval_mode(OldMode),
+	param:setparam(rmv_atom_eval_mode,Mode),
+	rmvt(atom_eval),
+	param:setparam(rmv_atom_eval_mode,OldMode).
+
 rmvt(Test,Emode) :-
 	% set the evaluation mode. ServiceCreationContext provides an alternative way.
-	retractall( rmv_ml:atom_eval_mode(_) ), assert( rmv_ml:atom_eval_mode(Emode) ),
+	param:setparam(rmv_atom_eval_mode,Emode),
 	rmvt(Test).
 
 rmvt(Test,Emode,MSlang) :-
 	% set the evaluation mode
-	retractall( rmv_ml:atom_eval_mode(_) ), assert( rmv_ml:atom_eval_mode(Emode) ),
+	param:setparam(rmv_atom_eval_mode,Emode),
+	%retractall( rmv_ml:atom_eval_mode(_) ), assert( rmv_ml:atom_eval_mode(Emode) ),
 	% set the monitor sensor language
-	retractall( rmv_ml:monitor_sensor_lang(_) ), assert( rmv_ml:monitor_sensor_lang(MSlang) ),
+	%retractall( rmv_ml:monitor_sensor_lang(_) ), assert( rmv_ml:monitor_sensor_lang(MSlang) ),
+	param:setparam(rmv_monitor_sensor_lang,MSlang),
 	rmvt(Test).

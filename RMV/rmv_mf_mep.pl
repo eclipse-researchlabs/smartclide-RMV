@@ -1,46 +1,123 @@
 % RMV - Monitoring Framework - Monitor Event Processing
 % Work in Progress
 
-:- module(rmv_mf_mep,[mep_start_monitor/2, mep_stop_monitor/3, mep_heartbeat/5
+:- module(rmv_mf_mep,[mep_start_monitor/2, mep_stop_monitor/3,
+    mep_heartbeat/2, mep_heartbeat/5, json_var_val/2
 	       ]).
 
+:- use_module(library('http/json')).
+:- use_module(library('http/json_convert')).
+    
 :- use_module('COM/param').
 :- use_module('RMV/rmv_ml').
 :- use_module('RMV/rmv_mc_nui').
-%:- use_module('EPP/epp').
+:- use_module('EPP/epp').
 %:- use_module('EPP/eppapi').
 
 % MONITOR EVENT PROCESSING
 %
+/* TODO - figure out how to get this multifile/discontig to work across modules
+% ------------------------------------------------------------------------
+% Isolated RMV changes to be moved to RMV-specific module rmv_mf_mep
+:- multifile(epp_era:report_event/2).
+:- discontiguous(epp_era:report_event/2).
+:- multifile(epp_era:report_event/3).
+:- discontiguous(epp_era:report_event/3).
+:- multifile(epp_era:event_name/1).
+:- discontiguous(epp_era:event_name/1).
+:- multifile(epp_era:name_event_map/2).
+:- discontiguous(epp_era:name_event_map/2).
+
+% :- multifile(report_event/2).
+% :- discontiguous(report_event/2).
+% :- multifile(report_event/3).
+% :- discontiguous(report_event/3).
+% :- multifile(event_name/1).
+% :- discontiguous(event_name/1).
+% :- multifile(name_event_map/2).
+% :- discontiguous(name_event_map/2).
+
+event_name(test_ms_event).
+
+ms_event(ms_event(_MSmessage)) :- !.
+
+name_event_map(test_ms_event,  ms_event('MS event data')).
+
+handle_ms_event(PT,Reply) :-
+    epp_log_gen(handle_ms_event,PT),
+
+    Reply = normal,
+    true.
+
+report_event(Event, Reply) :- ms_event(Event), !,
+    Event = ms_event(MSmessage), \+ var(MSmessage), !,
+    epp_log_gen(report_ms_event,Event),
+    term_to_atom(MSmessage,JTA),
+    atom_json_term(JTA,JT,[]),
+    handle_ms_event(JT,Reply),
+    true.
+
+% ------------------------------------------------------------------------
+*/
 
 mep_start_monitor(Mid,Status) :-
     %rmv_mc_nui:start_monitor(Mid,Status), % TODO - currently only returns a status
-    rmv_ml:is_monitor(Monitor,Mid,_,_,_,_,_,_),
-    initiate_monitor(Monitor,SessId), % TODO - need SessId
+    monitor(Mid,Monitor),
+    initiate_monitor(Monitor,SessId),
 	Status = [monitor_started,session(SessId)],
     true.
 
-mep_stop_monitor(Mid,SessId,Status) :-
+mep_stop_monitor(Mid,SessId,Status) :- atom(Mid),
     %rmv_mc_nui:stop_monitor(Mid,Status), % TODO - currently only returns a status
-    rmv_ml:is_monitor(_Monitor,Mid,_,_,_,_,_,_),
     terminate_monitor(SessId), % TODO - don't really need Monitor, just SessId
 	Status = [monitor_stopping],
     true.
 
-mep_heartbeat(Mid,Sid,AtomIds,Reportables,Response) :-
-    monitor(Mid,_Mod,_Obs,_Reps,Atoms,AtomEval,_Sensor),
+mep_heartbeat(HBterm,Status) :-
+    % unpack the HBterm
+    /* HBterm = ms_event(MSmessage),*/ \+ var(HBterm), !,
+    term_to_atom(HBterm,JA),
+    %writeq(JA),nl,flush_output, %!, fail,
+    atom_json_term(JA,JT,[]),
+    % handle the heartbeat in JT
+    JT = json([monid=Monid, sessid=Sessid, atoms=ATl, vars=JVAl]),
+    is_list(ATl), is_list(JVAl),
+    maplist(json_var_val, JVAl, VAl),
+    format(atom(A),"monid=~a, sessid=~a, atoms=~q, vars=~q~n", [Monid,Sessid,ATl,VAl]),
+    epp_log_gen('mep_heartbeat HBterm:',A),
+    mep_heartbeat(Monid,Sessid,ATl,VAl,Status),
+    true.
+
+json_var_val( json([Var='@'(true)]), Var=true ) :- !.
+json_var_val( json([Var='@'(false)]), Var=false ) :- !.
+json_var_val( json([Var=Val]), Var=Val ).
+
+% var_val_json(  ) :- !.
+% var_val_json(  ) :- !.
+% var_val_json(  ) :- !.
+
+mep_heartbeat(Mid,Sid,AtomIds,Reportables,Status) :-
+    %monitor(Mid,Monitor),
+    %Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile ),
+    %monitor(Mid,_Mod,_Obs,_Reps,Atoms,AtomEval,_SensorVers),
+    monitor_atoms_eval(Mid,Atoms,AtomEval),
     (   ( /* AtomIds == [], */ AtomEval == mep_eval ) % monitor specifies mep evaluation
         % for mep evaluation, property variables must be a subset of reportables
     ->  aT_list_constructor(Atoms,Reportables,TAtomIdList) % ignore AtomIds from MS
     ;   TAtomIdList = AtomIds
     ),
-    rmv_mc_nui:heartbeat(Mid,Sid,TAtomIdList,Verdict),
-    notifications(report,Mid,Sid,Reportables,Verdict),
+    epp_log_gen('mep_heartbeat/5, true atoms:',TAtomIdList),
+
+    % fake the NuRV call for testing
+    Verdict=unknown, %rmv_mc_nui:heartbeat(Mid,Sid,TAtomIdList,Verdict),
+
+    % basis(,) is temporarily included in the Status for round-trip check - TODO
     (   (Verdict == true ; Verdict == unknown)
-    ->  Response = [acknowledged,verdict(Verdict)]
+    ->  Status = [acknowledged,session(Mid:Sid),verdict(Verdict),basis(TAtomIdList,Reportables,fake_NuRV)]
     ;   (   Verdict == false
-        ->  Response = [acknowledged,verdict(Verdict),recovery(true)]
-        ;   Response = [exception(Verdict)],
+        ->  Status = [acknowledged,session(Mid:Sid),verdict(Verdict),basis(TAtomIdList,Reportables),recovery(true)],
+            notifications(report,Mid,Sid,Reportables,Verdict)
+        ;   Status = [session(Mid:Sid),exception(Verdict),basis(TAtomIdList,Reportables)],
             notifications(report,Mid,Sid,exception,Verdict)
         )
     ),
@@ -48,17 +125,19 @@ mep_heartbeat(Mid,Sid,AtomIds,Reportables,Response) :-
 
 % temporary stub for notifications:
 notifications(report,Mid,Sid,Reportables,Verdict) :-
-    format('monitor report ~q:~a verdict: ~q, vars: ~q~n',[Mid,Sid,Verdict,Reportables]),
+    format('notification: monitor report ~q:~a verdict: ~q, vars: ~q~n',
+        [Mid,Sid,Verdict,Reportables]),
     true.
 
 notifications(verdict,Mid,Sid,_,Verdict) :-
-    format('monitor report ~q:~a verdict: ~q~n',[Mid,Sid,Verdict]),
+    format('notification: monitor report ~q:~a verdict: ~q~n',[Mid,Sid,Verdict]),
     true.
 
 %-------------------------------------------------------
 % INITIATE/TERMINATE A RUNTIME MONITOR SESSION
 %
-initiate_monitor(M,SessId) :- is_monitor(M,MonitorId,ModelId,_,_,_,_,_),
+initiate_monitor(M,SessId) :-
+    cons_monitor(MonitorId,_SSpecId,ModelId,_,_,_,_,_,M),
     open_nurv_session(int,SessId),
 	format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
 	nurv_session_get_resp(SessId,''),
@@ -72,7 +151,8 @@ terminate_monitor(SessId) :-
 	quit_nurv_session(SessId),
 	writeln('session ended').
 
-initiate_monitor2(M,SessId) :- is_monitor(M,_MonitorId,_ModelId,_,_,_,_,_),
+initiate_monitor2(M,SessId) :-
+    cons_monitor(_MonitorId,SessId,_,_,_,_,_,_,M),
     open_nurv_session(orbit,SessId),
 	param:local_nameserver_IOR(IOR),
 	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
@@ -98,24 +178,46 @@ g(sus_var(N,V), (N=V)).
 %   Monitor configuration will have to make sure that all observables
 %   needed for atom evaluation are in the Reportables list
 %
+% The two implementations may be unifiabe so that there is one module
+% included in the MS and in the MEP.
+%
 aT_list_constructor(As,Vars,ATs) :- % Vars is list of name=value pairs
-    findall(Ai, (member(Ai:Ap,As), af_evaluator(Ap,Vars)), ATs).
+    epp_log_gen('entered aT_list_constructor/3',''),
+    %writeln('mep_eval aT_list_constructor'),
+    findall(Ai, (member(Ai:Ap,As), af_evaluate(Ai:Ap,Vars)), ATs).
 
-af_evaluator(Ap,Vars) :-
-    aformula_instantiate(Ap,Vars,IAp),
-    a_eval(IAp).
+af_evaluate(_Ai:Ap,Vars) :-
+    aformula_instantiate(Ap,Vars,IAp), % a_eval(IAp).
+%    format(' atom ~a:~q evaluated ',[Ai,IAp]),
+    a_eval(IAp,R),
+%    writeln(R),
+    (R \== true -> fail; true).
 
-aformula_instantiate(AF,Vars,IAF) :- atom(AF), memberchk(AF=IAF,Vars), !.
+varname(V) :- atom(V), V \== true, V \== false, V \== null, V \== undefined, !.  % could be more specific
+
+aformula_instantiate(true,_,true) :- !.
+aformula_instantiate(false,_,false) :- !.
+aformula_instantiate(null,_,null) :- !.
+aformula_instantiate(undefined,_,undefined) :- !.
+aformula_instantiate(AF,Vars,IAF) :-
+    varname(AF), !,
+    arg_instantiate(Vars,AF,IAF).
 aformula_instantiate(AF,Vars,IAF) :- compound(AF),
     compound_name_arguments(AF,F,Args),
     maplist(arg_instantiate(Vars),Args,IArgs),
     compound_name_arguments(IAF,F,IArgs).
+aformula_instantiate(AF,AF).
 
-arg_instantiate(ObsVals,A,IA) :- atom(A), memberchk(A=IA,ObsVals), !.
+arg_instantiate(VarVals,A,IA) :- varname(A), !,
+    (   memberchk(A=IA,VarVals)
+    ->  true
+    ;   IA = undefined
+    ).
 arg_instantiate(_,A,A).
 
 % basic set of atomic expressions
-a_eval(true) :- !.
+/* a_eval(true) :- !.
+a_eval(false) :- !, fail.
 a_eval(not(X)) :- atom(X), !, X \== true.
 a_eval(eq(X,Y)) :- number(X), number(Y), !, X=:=Y.
 a_eval(eq(X,Y)) :- atom(X), atom(Y), !, X==Y.
@@ -130,3 +232,20 @@ a_eval(leq(X,Y)) :- number(X), number(Y), !, X=<Y.
 a_eval(ge(X,Y)) :- number(X), number(Y), !, X>=Y.
 a_eval(le(X,Y)) :- number(X), number(Y), !, X=<Y.
 a_eval(_) :- !, fail.
+ */
+a_eval(true,    true) :- !.
+a_eval(false,   false) :- !.
+a_eval(not(X),  R) :- atom(X), !, (X \== true -> R=true;R=false).
+a_eval(eq(X,Y), R) :- number(X), number(Y), !, (X=:=Y -> R=true; R=false).
+a_eval(eq(X,Y), R) :- atom(X), atom(Y), !, (X==Y -> R=true; R=false).
+a_eval(ne(X,Y), R) :- number(X), number(Y), !, (X=\=Y -> R=true; R=false).
+a_eval(ne(X,Y), R) :- atom(X), atom(Y), !, (X\==Y -> R=true; R=false).
+a_eval(neq(X,Y), R) :- number(X), number(Y), !, (X=\=Y -> R=true; R=false).
+a_eval(neq(X,Y), R) :- atom(X), atom(Y), !, (X\==Y -> R=true; R=false).
+a_eval(gt(X,Y), R) :- number(X), number(Y), !, (X>Y -> R=true; R=false).
+a_eval(lt(X,Y), R) :- number(X), number(Y), !, (X<Y -> R=true; R=false).
+a_eval(geq(X,Y), R) :- number(X), number(Y), !, (X>=Y -> R=true; R=false).
+a_eval(leq(X,Y), R) :- number(X), number(Y), !, (X=<Y -> R=true; R=false).
+a_eval(ge(X,Y), R) :- number(X), number(Y), !, (X>=Y -> R=true; R=false).
+a_eval(le(X,Y), R) :- number(X), number(Y), !, (X=<Y -> R=true; R=false).
+a_eval(_, undefined) :- !.

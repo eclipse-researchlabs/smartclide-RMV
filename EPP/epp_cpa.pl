@@ -141,7 +141,7 @@ register_for_context_change_notification(Names,NOTIF_URL,Token) :- param:context
     % and call it
 
     param:context_url(CTX_URL),
-    term_to_atom(Names,NA),
+    term_to_atom(Names,NA), % TODO why is the CME call failing when list non-empty?
     atomic_list_concat([CTX_URL,'context_notification_registration','?context_variables=',NA,
                         '&epp_url=',NOTIF_URL,'&epp_token=',Token],Call),
     % for testing call the sim anyway after showing the call
@@ -166,16 +166,17 @@ context_change_notification :- % only for testing
     update_context_variables(VarsVals),
     report_event(context_change,VarsVals).
 
-context_change_notification_atom(VV) :- atom(VV), !,
-    true.
+% context_change_notification_atom(VV) :- atom(VV), !,
+%     true.
+% TODO - suspiciously short epp_log trace - not doing report_event?
 
-%context_change_notification(VarsVals) :- is_list(VarsVals), !,
-%    format('context_change_notification VarsVals: ~q~n',[VarsVals]),
-%    ui:notify(context_change_notification,'variable_list_follows:'),
-%    ui:display_listq(VarsVals),
-    %read_term_from_atom(VarsVals,VVterm,[]),
-    %format('VarsVals term: ~q~n',VVterm),
-%    true.
+context_change_notification(VarsVals) :- is_list(VarsVals), !,
+    format('context_change_notification VarsVals: ~q~n',[VarsVals]),
+    ui:notify(context_change_notification,'variable_list_follows:'),
+    ui:display_listq(VarsVals),
+    read_term_from_atom(VarsVals,VVterm,[]),
+    format('VarsVals term: ~q~n',VVterm),
+    true.
 
 context_change_notification(VarsVals) :- is_list(VarsVals), !,
     % format('context_change_notification VarsVals: ~q~n',[VarsVals]),
