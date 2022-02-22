@@ -48,6 +48,7 @@ auditable_events([ngac_start, ngac_shutdown, epp_start, epp_shutdown, rmv_start,
                   pa_init_session, pa_end_session,
                   ep_load, ep_unload, ep_activate, ep_deactivate, ep_event, ep_command,
                   policy_admin, policy_query, gpolicy_query, event_admin, event_processing,
+                  report_ms_event, handle_ms_event,
                   error  % do not remove general error
                  ]).
 
