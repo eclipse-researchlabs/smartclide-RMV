@@ -62,11 +62,14 @@ init :-
 
 epp(Port) :-
 	setparam(epp_status,standalone),
+	epp_with_opts([jsonresp(true),eppportnumber(Port)]).
+	/*
 	init, % create_epp_log,
 	http_server(http_dispatch, [port(Port)]),
 	format('EPP listening on port ~d~n',[Port]),
 	epp_log_gen(epp_start, success),
 	param:server_sleeptime(S), my_sleep(S).
+	*/
 
 epp(Port,Token) :-
 	param:setparam(epp_token,Token),
