@@ -164,7 +164,7 @@ context_change_notification :- % only for testing
     findall(CtxVar, (context_variables(Vars), member(CtxVar,Vars)), CtxVars),
     findall(Var:Val, (member(Var:_,CtxVars), retrieve_context_variable_sim(Var,Val)), VarsVals),
     update_context_variables(VarsVals),
-    report_event(context_change,VarsVals).
+    report_event(context_change,VarsVals,_Result).
 
 % context_change_notification_atom(VV) :- atom(VV), !,
 %     true.
@@ -182,12 +182,12 @@ context_change_notification(VarsVals) :- is_list(VarsVals), !,
     % format('context_change_notification VarsVals: ~q~n',[VarsVals]),
     epp_log_gen(epp_context_change, VarsVals),
     update_context_variables(VarsVals),
-    report_event(context_change,VarsVals). % WHAT IF report_event fails HERE?
+    report_event(context_change,VarsVals,_Result). % WHAT IF report_event fails HERE?
 context_change_notification(Var:Val) :- atom(Var), ground(Val), !,
     % format('context_change_notification VarVal: ~q:~q~n',[Var,Val]),
     update_context_cache(Var,Val),
     epp_log_gen(epp_context_change, Var:Val),
-    report_event(context_change,[Var:Val]).
+    report_event(context_change,[Var:Val],_Result).
 context_change_notification(_) :- !, fail.
 
 % update multiple variables in the context cache

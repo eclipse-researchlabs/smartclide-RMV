@@ -138,7 +138,7 @@ epp_with_opts(Opts) :-
 	    format('Epp server started~n'),
 	    epp_log_gen(epp_started, standalone)
 	;   format('EPP listening on port ~d~n',[EPort]),
-	    epp_log_gen(epp_started, EPP_status)
+		epp_log_gen(epp_started, EPP_status)
 	),
 
 	% run self-test here if turned on in param or command line

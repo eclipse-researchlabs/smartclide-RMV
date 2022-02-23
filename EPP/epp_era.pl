@@ -1,13 +1,17 @@
 % Event Response Actuator (ERA)
 
 :- module(epp_era, [activate_loaded_erp/1, deactivate_loaded_erp/1,
-                    activate_erp/2,deactivate_erp/1,report_event/2]).
+                    activate_erp/2,deactivate_erp/1,report_event/2,report_event/3]).
 
 :- use_module(erl).
 %:- use_module('NGAC/dpl').
 :- use_module(epp).
 %:- use_module('NGAC/pap').
+:- use_module('EPP/epp').
+:- use_module('EPP/erl').
+:- use_module(library(lists)).
 :- use_module(library(http/json)).
+:- use_module(library(http/json_convert)).
 
 % ------------------------------------------------------------------------
 % epp_era initialization - called by module epp
@@ -61,14 +65,6 @@ deactivate_erp(ERpackageName) :-
         true.
 
 % ------------------------------------------------------------------------
-% :- multifile(epp_era:report_event/2).
-% :- discontiguous(epp_era:report_event/2).
-% :- multifile(epp_era:report_event/3).
-% :- discontiguous(epp_era:report_event/3).
-% :- multifile(epp_era:event_name/1).
-% :- discontiguous(epp_era:event_name/1).
-% :- multifile(epp_era:name_event_map/2).
-% :- discontiguous(epp_era:name_event_map/2).
 :- multifile(report_event/2).
 :- discontiguous(report_event/2).
 :- multifile(report_event/3).
@@ -82,6 +78,9 @@ deactivate_erp(ERpackageName) :-
 % EVENT NAME DEFINITION
 %   TODO: must be reconciled with event definition below
 %
+:- multifile(epp_era:event_name/1).
+:- discontiguous(epp_era:event_name/1).
+
 event_name(server_startup).
 event_name(server_shutdown).
 event_name(epp_startup).
@@ -93,15 +92,18 @@ event_name(test_ms_event).
 event_name(ms_event).
 
 % pre-defined event names and corresponding event structure
+:- multifile(epp_era:name_event_map/2).
+:- discontiguous(epp_era:name_event_map/2).
+
 name_event_map(test_ms_event,  ms_event('MS event data')).
 name_event_map(Name,event(Name,x,x,x,x)) :- !, event_name(Name).
 
-%name_event_map(server_startup, event(x,x,x,x)).
-%name_event_map(server_shutdown,event(x,x,x,x)).
-%name_event_map(epp_startup,    event(x,x,x,x)).
-%name_event_map(epp_shutdown,   event(x,x,x,x)).
-%name_event_map(context_change, event(x,x,x,x)).
-%name_event_map(test_event,     event(x,x,x,x)).
+name_event_map(server_startup, event(x,x,x,x)).
+name_event_map(server_shutdown,event(x,x,x,x)).
+name_event_map(epp_startup,    event(x,x,x,x)).
+name_event_map(epp_shutdown,   event(x,x,x,x)).
+name_event_map(context_change, event(x,x,x,x)).
+name_event_map(test_event,     event(x,x,x,x)).
 % ...
 
 % ------------------------------------------------------------------------
@@ -132,6 +134,13 @@ ospec(object(ObjID)) :- !, atom(ObjID).
 :- dynamic event_data/1. % currently only context data
 event_data([]). % stash last context change list here for context-change event responses
 
+%:- multifile(epp_era:report_event/1).
+%:- discontiguous(epp_era:report_event/1).
+:- multifile(epp_era:report_event/2).
+:- discontiguous(epp_era:report_event/2).
+:- multifile(epp_era:report_event/3).
+:- discontiguous(epp_era:report_event/3).
+
 /*
 report_event(Event, EventData) :-
     % if this is used for more than context change events, will need mutex
@@ -140,7 +149,13 @@ report_event(Event, EventData) :-
     report_event(Event).
 */
 
-report_event(Event,Reply) :- event(Event), !,
+report_event(Event, EventData, Reply) :-
+    % if this is used for more than context change events, will need mutex
+    retractall(event_data(_)),
+    assert(event_data(EventData)),
+    report_event(Event,Reply).
+
+report_event(Event, Reply) :- event(Event), !,
     epp_log_gen(report_event,Event),
     search_event_pattern_cache(Event,Matches), % !,
     epp_log_gen('matched patterns in report_event',Matches),
@@ -155,6 +170,8 @@ report_event(Event, Reply) :- ms_event(Event), !,
     true.
 report_event(EventName,Reply) :- atom(EventName), name_event_map(EventName,Event), !,
     report_event(Event,Reply).
+
+:- discontiguous handle_ms_event/2.
 
 handle_ms_event(PT,Reply) :-
     epp_log_gen(handle_ms_event,PT),
@@ -190,6 +207,27 @@ handle_ms_event(PT,Reply) :-
 
 % ------------------------------------------------------------------------
 
+
+% ------------------------------------------------------------------------
+% Isolated RMV changes to be moved to RMV-specific module rmv_mf_mep
+
+event_name(test_ms_event).
+
+name_event_map(test_ms_event,  ms_event('MS event data')).
+
+handle_ms_event(PT,Reply) :-
+    epp_log_gen(handle_ms_event,PT),
+
+    Reply = normal,
+    true.
+
+report_event(Event, Reply) :- ms_event(Event), !,
+    Event = ms_event(MSmessage), \+ var(MSmessage), !,
+    epp_log_gen(report_ms_event,Event),
+    term_to_atom(MSmessage,JTA),
+    atom_json_term(JTA,JT,[]),
+    handle_ms_event(JT,Reply),
+    true.
 
 % ------------------------------------------------------------------------
 % CLEAR CACHES OF A SPECIFIC ER PACKAGE
