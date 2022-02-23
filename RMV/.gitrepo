@@ -6,7 +6,7 @@
 [subrepo]
 	remote = ../RMV
 	branch = master
-	commit = ddb7f21adcca6cafd674ea514a105c1944db4f54
-	parent = 5350777888edbf142ff46d5a65329874379064c8
+	commit = 2a36ac2db62580ce82bc19baccd8a9ce35b6610b
+	parent = b8b7cabf2954a3df8f1ee88d58ca9046877f71cf
 	method = merge
 	cmdver = 0.4.3
