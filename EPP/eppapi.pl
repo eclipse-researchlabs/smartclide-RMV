@@ -9,7 +9,7 @@
 :- use_module(library(http/http_parameters)).
 :- use_module(epp).
 :- use_module(epp_era).
-:- use_module(epp_cpa, [context_change_notification/1]).
+:- use_module(epp_cpa).
 :- use_module('AUDIT/audit').
 :- use_module('COM/apiresp').
 

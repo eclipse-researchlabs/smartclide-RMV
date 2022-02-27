@@ -7,7 +7,7 @@
 :- use_module('COM/param').
 :- use_module(erl).
 :- use_module(epp_era).
-%:- use_module(epp_cpa).
+:- use_module(epp_cpa).
 :- use_module(epp_pcc).
 
 :- use_module('AUDIT/audit',[audit_gen/2]).
@@ -76,7 +76,8 @@ epp(Port,Token) :-
 	epp(Port).
 
 epp_with_server :-
-	epp_with_opts([]).
+	param:pqapi_port(Port), %param:eppapi_port(Port),
+	epp_with_opts([jsonresp(true),eppportnumber(Port)]).
 
 epp_with_rmv :-
 	param:rmv_port(Rport), param:rmv_token(Rtoken),
@@ -102,8 +103,8 @@ epp_with_args(Argv) :-
 epp_with_opts(Opts) :-
 	(   memberchk(eppportnumber(EPort),Opts); true ),
 	(   var(EPort)
-	->  param:pqapi_port(EPort)
-	;   param:setparam(pqapi_port,EPort)
+	->  param:eppapi_port(EPort)
+	;   param:setparam(eppapi_port,EPort)
 	),
 
 	(   memberchk(context(CTX_URL),Opts); true ),
