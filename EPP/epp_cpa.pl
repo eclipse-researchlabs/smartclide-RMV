@@ -141,13 +141,14 @@ register_for_context_change_notification(Names,NOTIF_URL,Token) :- param:context
     % and call it
 
     param:context_url(CTX_URL),
-    term_to_atom(Names,NA), % TODO why is the CME call failing when list non-empty?
-    atomic_list_concat([CTX_URL,'context_notification_registration','?context_variables=',NA,
-                        '&epp_url=',NOTIF_URL,'&epp_token=',Token],Call),
+    term_to_atom(Names,NA),
+    uri_encoded(query_value,NA,ENA), uri_encoded(query_value,Token,EToken),
+    atomic_list_concat([CTX_URL,'context_notification_registration','?context_variables=',ENA,
+                        '&epp_url=',NOTIF_URL,'&epp_token=',EToken],Call),
     open('cme_call',write,FD), writeln(FD,Call), close(FD),
     format('Perform CME handshake: ~q~n',[Call]),
     http_get(Call,CallResult,[]), % call the CME
-    (   CallResult == 'success\n'
+    (   CallResult == 'OK\n'
     ->  format('CME handshake successful~n')
     ;   format('CME handshake unrecognized response~n')
     ),
