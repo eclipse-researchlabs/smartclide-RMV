@@ -41,10 +41,11 @@ notification_reg(Request) :-
 	->  writeln(failure)
 	;
 	    read_term_from_atom(VarsAtom,Vars,[]),
-	    %format('Context notification registration:~n  ~q ~q ~q~n',[Vars,EPP,Token]),
-	    %flush_output,
+        get_time(T),format_time(atom(FT),'%a, %d %b %Y %T PST',T,posix),
+	    format(user_error,'Context notification registration (~w):~n  ~q ~q ~q~n',[FT,Vars,EPP,Token]),
+	    flush_output(user_error),
 	    notification_reg_response(Vars,EPP,Token),
-	    writeln(success)
+	    write('OK'), flush_output)
 	).
 
 notification_reg_response(Vars,URL,Token) :-
