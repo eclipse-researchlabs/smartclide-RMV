@@ -4,7 +4,7 @@
 
 %:- use_module(library(http/http_client)).
 
-:- use_module('RMV/rmv_ms').
+:- use_module('RMV/SENSORS/rmv_ms_pl/rmv_ms').
 :- use_module('COM/param').
 
 app :-  param:rmv_port(P),
