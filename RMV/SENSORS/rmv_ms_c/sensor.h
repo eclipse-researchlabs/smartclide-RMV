@@ -215,7 +215,7 @@ static char *cv_element_names[] = {
   "n_monitor_atoms",
   "monitor_atom_eval",
   "shared_var_init",
-  "name",
+  "name", // TODO fix the following
   "type",
   "value",
   "aid",
@@ -258,7 +258,9 @@ monitor_interface_t monitor_interface = {
         /* monitor_atom_eval */ "unset_eval",
         /* shared_var_inits */  NULL,
         /* op_seq */            NULL,
-        /* timer */             0
+        /* timer */             0,
+        /* rmvhost */           NULL,
+        /* rmvport */           0
     },
     /* mi_sessid */             ""
 };

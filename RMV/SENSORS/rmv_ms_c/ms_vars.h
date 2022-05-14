@@ -17,7 +17,7 @@
  *   between the string names and the C variable names.
  * 
  *   The second method depends more heavily on an include file,
- *   such as the example "monid_00002_vars.h" included by this
+ *   such as the example "monitor_vars.h" included by this
  *   file, it contains declarations specific to the service
  *   and monitor and more of the information to link to the
  *   shared vars.
@@ -120,7 +120,7 @@ int len_narr(void* arr[]){
 }
 
 // supports dynamic allocation of shared variable objects
-// can be used in place of static allocation by monid_xxxxx_vars.h
+// can be used in place of static allocation by monitor_vars.h
 sh_var_val*
 alloc_sh_var(sh_var_type vartype){
 	switch(vartype){

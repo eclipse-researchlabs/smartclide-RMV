@@ -4,4 +4,6 @@
 queries.pl
 RUNTIME/LOG/rmv_audit*
 RUNTIME/LOG/epp_log*
+RMV/SENSORS/rmv_ms_c/.vscode
+RMV/SENSORS/rmv_ms_c/rmv_ms
 
