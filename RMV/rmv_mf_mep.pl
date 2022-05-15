@@ -83,7 +83,7 @@ mep_heartbeat(HBterm,Status) :-
     JT = json([monid=Monid, sessid=Sessid, atoms=ATl, vars=JVAl]),
     is_list(ATl), is_list(JVAl),
     maplist(json_var_val, JVAl, VAl),
-    format(atom(A),"monid=~a, sessid=~a, atoms=~q, vars=~q~n", [Monid,Sessid,ATl,VAl]),
+    format(atom(A),"monid=~a, sessid=~a, atoms=~q, vars=~q", [Monid,Sessid,ATl,VAl]),
     epp_log_gen('mep_heartbeat HBterm:',A),
     mep_heartbeat(Monid,Sessid,ATl,VAl,Status),
     true.
@@ -109,7 +109,8 @@ mep_heartbeat(Mid,Sid,AtomIds,Reportables,Status) :-
     epp_log_gen('mep_heartbeat/5, true atoms:',TAtomIdList),
 
     % fake the NuRV call for testing
-    Verdict=unknown, %rmv_mc_nui:heartbeat(Mid,Sid,TAtomIdList,Verdict),
+    %Verdict=unknown, % fake return
+    rmv_mc_nui:heartbeat(Mid,Sid,TAtomIdList,Verdict), % real call
 
     % basis(,) is temporarily included in the Status for round-trip check - TODO
     (   (Verdict == true ; Verdict == unknown)

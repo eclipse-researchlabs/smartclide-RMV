@@ -164,3 +164,6 @@ void service_timer(){
     // no need to re-arm timer as setitimer is set to repeat until cancelled
 }
 
+void ms_recovery( void (*recoveryp)() ){
+    sus_recovery_callback = recoveryp;
+}

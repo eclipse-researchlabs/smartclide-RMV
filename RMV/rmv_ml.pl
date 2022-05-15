@@ -256,7 +256,7 @@ load_monitor(Mon) :-
         true.
 
 unload_monitor(MonId) :-
-        retractall(monitor(MonId,_,_,_,_,_,_,_,_,_,_,_,_,_)).
+        retractall(monitor(MonId,_,_,_,_,_,_,_)).
 
 
 %-------------------------------------------

@@ -44,17 +44,18 @@ heartbeat(_,_,_,_).
 %
 %  Communicate with appropriate monitor server instance
 %
+%    the full monitor ID FullMid will be used with the nameserver
 
 start_monitor_server(Mid) :- % TODO
-	monitor(Mid,_,_,_,_,_,_),
+	monitor(Mid,_,_,_,_,_,_,_),
 	atom_concat('NuRV/Monitor/',Mid,_FullMid).
 
 stop_monitor_server(Mid) :-
-	monitor(Mid,_,_,_,_,_,_),
+	monitor(Mid,_,_,_,_,_,_,_),
 	atom_concat('NuRV/Monitor/',Mid,_FullMid).
 
 heartbeat_monitor_server(Mid,Sid,AtomIds,Reset,Verdict) :-
-	monitor(Mid,_,_,_,_,_,_),
+	monitor(Mid,_,_,_,_,_,_,_),
 	atom_concat('NuRV/Monitor/',Mid,_FullMid),
 	% send NuRV heartbeat to session Sid and return verdict
 	% dummy values for testing

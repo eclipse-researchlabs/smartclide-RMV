@@ -58,7 +58,7 @@ service_spec2monitor(SS, Monitor) :-
         %Monitor = monitor( MonId, SSpecId, ModId, LTLprops, MSlang, MSid, MScv, MSfile ),
         true.
 
-:- dynamic simulate_monitor_creation/0.
+:- dynamic simulated_monitor_creation/0.
 simulated_monitor_creation.
 default_atom_eval(mep_eval).
 monitor_sensor_file(ms_c,'rmv_ms.c').

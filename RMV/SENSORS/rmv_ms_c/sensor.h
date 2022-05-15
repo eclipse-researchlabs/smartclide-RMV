@@ -290,7 +290,7 @@ int ms_mep_session_num;
 char ms_mep_session_id[10]; // session identifier as a string
 
 // SUS can register a callback function to handle MEP recovery indicator
-void (*sus_recovery_callback)();
+void (*sus_recovery_callback)() = NULL;
 
 // forward declaration of dump functions
 void dump_sh_vars();
