@@ -166,7 +166,7 @@ init_ms :-
         initialize_ms_configuration,
 	% initiate Monitor M the monitor server for this service
         monitor_id(Mid),
-        mep_start_monitor(Mid,Mstatus), % TODO - call through mepapi
+        mep_monitor_start(Mid,Mstatus), % TODO - call through mepapi
         (   memberchk(monitor_started,Mstatus)
         ->  true
         ;   writeln('failed to initiate monitor'),
@@ -175,7 +175,7 @@ init_ms :-
         (   memberchk(session(Sid),Mstatus)
         ->  retractall(monitor_session(_)),
             assert(monitor_session(Sid))
-        ;   writeln('mep_start_monitor did not return a session id'),
+        ;   writeln('mep_monitor_start did not return a session id'),
             fail
         ),
         retractall(ms_initialized(_)), assert(ms_initialized(true)),
@@ -246,10 +246,10 @@ clear_ms_configuration :-
 shutdown :-
         monitor_id(Mid),
         monitor_session(Sid),
-        mep_stop_monitor(Mid,Sid,Mstatus), % TODO - call through mepapi
+        mep_monitor_stop(Mid,Sid,Mstatus), % TODO - call through mepapi
         (   memberchk(monitor_stopping,Mstatus)
         ->  true
-        ;   writeln('error from mep_stop_monitor'),
+        ;   writeln('error from mep_monitor_stop'),
             fail
         ),
         retractall(ms_initialized(_)), assert(ms_initialized(complete)),

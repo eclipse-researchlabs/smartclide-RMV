@@ -1,7 +1,7 @@
 % RMV - Monitoring Framework - Monitor Event Processing
 % Work in Progress
 
-:- module(rmv_mf_mep,[mep_start_monitor/2, mep_stop_monitor/3,
+:- module(rmv_mf_mep,[mep_monitor_start/2, mep_monitor_stop/3,
     mep_heartbeat/2, mep_heartbeat/5, json_var_val/2
 	       ]).
 
@@ -60,16 +60,22 @@ report_event(Event, Reply) :- ms_event(Event), !,
 % ------------------------------------------------------------------------
 */
 
-mep_start_monitor(Mid,Status) :-
+mep_monitor_start(Mid,Status) :-
     %rmv_mc_nui:start_monitor(Mid,Status), % TODO - currently only returns a status
-    monitor(Mid,Monitor),
+    monitor(Mid,Monitor), !,
     initiate_monitor(Monitor,SessId),
 	Status = [monitor_started,session(SessId)],
     true.
+mep_monitor_start(Mid,Status) :-
+    Status = [monitor_not_found(Mid)].
 
-mep_stop_monitor(Mid,SessId,Status) :- atom(Mid),
+mep_monitor_stop(Mid,SessId,Status) :- atom(Mid),
+    (   number(SessId)
+    ->  atom_number(SessIdA,SessId)
+    ;   SessIdA = SessId
+    ),
     %rmv_mc_nui:stop_monitor(Mid,Status), % TODO - currently only returns a status
-    terminate_monitor(SessId), % TODO - don't really need Monitor, just SessId
+    terminate_monitor(SessIdA), % TODO - don't really need MonitorId, just SessId
 	Status = [monitor_stopping],
     true.
 
@@ -83,7 +89,7 @@ mep_heartbeat(HBterm,Status) :-
     JT = json([monid=Monid, sessid=Sessid, atoms=ATl, vars=JVAl]),
     is_list(ATl), is_list(JVAl),
     maplist(json_var_val, JVAl, VAl),
-    format(atom(A),"monid=~a, sessid=~a, atoms=~q, vars=~q", [Monid,Sessid,ATl,VAl]),
+    format(atom(A),'monid=~a, sessid=~a, atoms=~q, vars=~q', [Monid,Sessid,ATl,VAl]),
     epp_log_gen('mep_heartbeat HBterm:',A),
     mep_heartbeat(Monid,Sessid,ATl,VAl,Status),
     true.
@@ -139,8 +145,8 @@ notifications(verdict,Mid,Sid,_,Verdict) :-
 %
 initiate_monitor(M,SessId) :-
     cons_monitor(MonitorId,_SSpecId,ModelId,_,_,_,_,_,M),
-    open_nurv_session(int,SessId),
-	format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
+    open_nurv_session(int,SessId,MonitorId),
+	%format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
 	nurv_session_get_resp(SessId,''),
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
@@ -153,8 +159,8 @@ terminate_monitor(SessId) :-
 	writeln('session ended').
 
 initiate_monitor2(M,SessId) :-
-    cons_monitor(_MonitorId,SessId,_,_,_,_,_,_,M),
-    open_nurv_session(orbit,SessId),
+    cons_monitor(MonitorId,SessId,_,_,_,_,_,_,M),
+    open_nurv_session(orbit,SessId,MonitorId),
 	param:local_nameserver_IOR(IOR),
 	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
 	nurv_session_cmd_resp(SessId,ServerCmd,_Resp),

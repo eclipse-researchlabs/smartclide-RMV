@@ -65,8 +65,8 @@ initiate_service(remote,S) :- !, is_service(S),
         % execute the sim_app with sim_sensor
 	true.
 
-initiate_monitor(M,SessId) :- is_monitor(M,_MonitorId,ModelId,_,_,_,_,_),
-        open_nurv_session(int,SessId), % format('NuRV session ~a~n',Sid),
+initiate_monitor(M,SessId) :- is_monitor(M,MonitorId,ModelId,_,_,_,_,_),
+        open_nurv_session(int,SessId,MonitorId), % format('NuRV session ~a~n',Sid),
 	nurv_session_get_resp(SessId,_Resp),
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),

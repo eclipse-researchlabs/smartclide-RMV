@@ -3,8 +3,8 @@
 
 :- module(rmv_mc_nui,[start_monitor/2, stop_monitor/2, heartbeat/4,
 		      nurv_monitor_init/3,
-		      open_nurv_session/2,quit_nurv_session/1,close_nurv_session/1,
-		      nurv_session_cmd/2,nurv_session_cmd_resp/3,nurv_session_get_resp/2
+		      open_nurv_session/3, quit_nurv_session/1, close_nurv_session/1,
+		      nurv_session_cmd/2, nurv_session_cmd_resp/3, nurv_session_get_resp/2
 		     ]).
 
 :- use_module(['COM/param','COM/ui','COM/sessions','RMV/rmv_na','RMV/rmv_ml',rmv_mc]).
@@ -23,7 +23,7 @@ start_monitor(Mid,Status) :- % TODO
 	start_monitor_server(Mid),
 	Status = [monitor_started],
 	!.
-start_monitor(_Mid,[monitor_failure]) :-
+start_monitor(_Mid,[monitor_start_failure]) :-
 	true.
 
 % stop the NuRV server intance corresponding to monitor id
@@ -76,7 +76,7 @@ heartbeat_monitor_server(Mid,Sid,AtomIds,Reset,Verdict) :-
 %
 % enter top level loop for live developer interaction with NuRV session
 nu_tl(Session) :-
-	nurv_session(Session,_.ToS,FrS),
+	nurv_session(Session,_,_,ToS,FrS),
 	nu_tl(Session,ToS,FrS).
 
 % nu_tl/3 ends either by typing quit or an end_of_file
@@ -104,21 +104,21 @@ read_nu_line(Slp,S,Lines,Len) :- % read a buffer of the stream from NuRV
 
 % send a NuRV command to a session
 nurv_session_cmd(Sid,Cmd) :-
-	nurv_session(Sid,_,ToS,_),
+	nurv_session(Sid,_,_,ToS,_),
 	writeln(ToS,Cmd), flush_output(ToS),
 %	writeln(Cmd), flush_output,
 	assertz( nurv_session_log(Sid,Cmd) ),
 	true.
 
 nurv_session_cmd_resp(Sid,Cmd,Resp) :-
-	nurv_session(Sid,_,ToS,_),
+	nurv_session(Sid,_,_,ToS,_),
 	writeln(ToS,Cmd), flush_output(ToS),
 %	writeln(Cmd), flush_output,
 	assertz( nurv_session_log(Sid,Cmd) ),
 	nurv_session_get_resp(Sid,Resp).
 
 nurv_session_get_resp(Sid,Resp) :-
-	nurv_session(Sid,_,_,FrS),
+	nurv_session(Sid,_,_,_,FrS),
 	param:raw_read_delay(Delay),
 	read_nu_line(Delay,FrS,NuL,LenL),
 %	write(NuL), flush_output,
@@ -148,25 +148,25 @@ nurv_monitor_init(Infile,Ordfile,Sid) :-
 	true.
 
 % NuRV session tracking
-:- dynamic nurv_session/4, nurv_session_log/2.
-nurv_session('11111', int, x, x). % keep for testing
+:- dynamic nurv_session/5, nurv_session_log/2.
+nurv_session('11111', int, monid_00001, x, x). % keep for testing
+nurv_session(sid,stype,mid,to_stream,from_stream). % sid is pid as an atom
 
-nurv_session(sid,stype,to_stream,from_stream). % sid is pid as an atom
 nurv_session_log(sid,response).
 
 display_session_log(Sid) :- writeln('NuRV Log:'),
 	forall(nurv_session_log(Sid,Msg), format('~q ~s~n',[Sid,Msg])).
 
-open_nurv_session(int,SessionId) :- % open interactive NuRV session
+open_nurv_session(int,SessionId,MonitorId) :- % open interactive NuRV session
 	param:local_NuRV(_,NuRV),
 	process_create(path(NuRV),['-quiet', '-int'],
 		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
 	atom_number(SessionId,NuRVpid),
 	init_session(SessionId, monitor_framework),
 	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
-	assert( nurv_session(SessionId,int,ToStream,FromStream) ).
+	assert( nurv_session(SessionId,int,MonitorId,ToStream,FromStream) ).
 
-open_nurv_session(orbit,SessionId) :- % open orbit NuRV session
+open_nurv_session(orbit,SessionId,MonitorId) :- % open orbit NuRV session
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
 	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
@@ -177,7 +177,7 @@ open_nurv_session(orbit,SessionId) :- % open orbit NuRV session
 	atom_number(SessionId,NuRVpid),
 	init_session(SessionId, monitor_framework),
 	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
-	assert( nurv_session(SessionId,orbit,ToStream,FromStream) ),
+	assert( nurv_session(SessionId,orbit,MonitorId,ToStream,FromStream) ),
 	nurv_session_cmd_resp(Sid,go,_Resp1),
 	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp2).
 /*
@@ -189,10 +189,10 @@ open_nurv_session(orbit,SessionId) :- % open orbit NuRV session
 	atom_number(SessionId,NuRVpid),
 	init_session(SessionId, monitor_framework),
 	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
-	assert( nurv_session(SessionId,int,ToStream,FromStream) ).
+	assert( nurv_session(SessionId,int,MonitorId,ToStream,FromStream) ).
 */
 quit_nurv_session :- % assumes only one active session
-	nurv_session(SessionId,_,_,_),
+	nurv_session(SessionId,_,_,_,_),
 	quit_nurv_session(SessionId).
 
 quit_nurv_session(SessionId) :- % send quit command, then close
@@ -200,10 +200,10 @@ quit_nurv_session(SessionId) :- % send quit command, then close
 	close_nurv_session(SessionId).
 
 close_nurv_session(SessionId) :- % only close the session
-	nurv_session(SessionId,_Stype,ToStream,FromStream),
+	nurv_session(SessionId,_Stype,_MonitorId,ToStream,FromStream),
 	close(ToStream), close(FromStream),
 	(   is_session(SessionId, monitor_framework) -> end_session(SessionId) ; true ),
-	retractall( nurv_session(SessionId,_,_,_) ),
+	retractall( nurv_session(SessionId,_,_,_,_) ),
 	atom_number(SessionId,NuRVpid),
 	process_wait(NuRVpid,Exit),
 	writeln(Exit).
@@ -323,10 +323,10 @@ run_trace_do(Mon,State,NewMon,Sid) :-
 %	  monitor and run trace sending each state to monitor, close
 %	  session
 %
-test :- open_nurv_session(int,Sid), format('NuRV session ~a~n',Sid),
+test :- open_nurv_session(int,Sid,none), format('NuRV session ~a~n',Sid),
 	nu_tl(Sid), close_nurv_session(Sid), writeln('session ended'), !.
 
-test2 :- open_nurv_session(int,Sid), format('NuRV session ~a~n',Sid),
+test2 :- open_nurv_session(int,Sid,none), format('NuRV session ~a~n',Sid),
 	quit_nurv_session(Sid), writeln('session ended'), !.
 
 test3 :- % test trace conversion and app_run stubs
@@ -340,7 +340,7 @@ test4 :- % test trace interactively with NuRV monitor
 	atomic_list_concat([MD,'/','disjoint_trace.xml'],TraceFile),
 	xml_trace(TraceFile,Trace),
 	truncate_trace(Trace,TTrace),
-	open_nurv_session(int,Sid), % format('NuRV session ~a~n',Sid),
+	open_nurv_session(int,Sid,none), % format('NuRV session ~a~n',Sid),
 	nurv_session_get_resp(Sid),
 	% need to initialize the session with the monitor
 	atomic_list_concat([MD,'/','disjoint.smv'],SMVFile),

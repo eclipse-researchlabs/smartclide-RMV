@@ -17,6 +17,8 @@ syntax(rmvt(test_id,eval_mode,target_lang),                      rmv).
 
 syntax(rmvtests,                                                 rmv).
 
+syntax(init_ms,                                                  rmv).
+
 syntax(nurv_session,                                             rmv).
 syntax(stop_nurv,                                                rmv).
 syntax(import_sspec(serv_spec_file,serv_spec_id),                rmv).
@@ -29,6 +31,9 @@ syntax(sspec_nurv(serv_spec_id,nurv_script),                     rmv).
 syntax(create_mon,                                               rmv).
 syntax(graph_mon,                                                rmv).
 syntax(export_mon,                                               rmv).
+
+syntax(monitor_start(monitor_id),                                rmv).
+syntax(monitor_stop(monitor_id,session_id),                      rmv).
 
 syntax(nu_add_prop,                                              rmv).
 syntax(nu_show_prop,                                             rmv).
@@ -47,6 +52,8 @@ syntax(stop_nameserver,                                          rmv).
 % distinct from syntax so syntax can be called separately
 %
 semantics(import_sspec(F,V)) :- !, atom(F), var(V).
+semantics(monitor_start(M)) :- !, atom(M).
+semantics(monitor_stop(M,S)) :- !, atom(M), ( atom(S) ; number(S) ).
 semantics(rmvt(T)) :- !, atom(T).
 semantics(rmvt(T,E)) :- !, atom(T), atom(E).
 semantics(rmvt(T,E,L)) :- !, atom(T), atom(E), atom(L).
@@ -65,18 +72,25 @@ help(rmvt,      'Arg1 (opt) is a test identifier.').
 help(rmvt,      'Arg2 (opt) is evaluation mode (ms_eval, mep_eval).').
 help(rmvt,      'Arg3 (opt) is monitor sensor language (ms_pl, ms_c).').
 
+help(init_ms,	'Initialize the Prolog Monitor Sensor configuration.').
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % do the command, should be one for every implemented valid command form
 % known broken or unimplemented commands should just "fail." straightaway
 %
 do(stop_nurv) :- !, rmv_mc_nui:quit_nurv_session.
 
+do(monitor_start(M)) :- !, rmv_mf_mep:mep_monitor_start(M,Status),writeln(Status).
+do(monitor_stop(M,S)) :- !, rmv_mf_mep:mep_monitor_stop(M,S,Status),writeln(Status).
+
 do(rmv) :- user_mode(rmv), !, writeln('Already in rmv mode').
 do(rmv) :- !, user_mode(M), retractall(user_mode(_)), assert(user_mode(rmv)),
 	param:prompt_string(rmv,Prompt), param:setparam(prompt_string,Prompt),
 	rem_commands(M), add_commands(rmv), banner(rmv).
+
+do(init_ms) :- !, do(rmvt(init_ms_cv)).
 do(rmv_server) :- !,
-	do(rmvt(init_ms_cv)),
+	%do(rmvt(init_ms_cv)),
 	rmv_server:rmv_server_cmd.
 	%writeln('not yet configured to start rmv_server').
 
@@ -84,6 +98,7 @@ do(rmvt) :- !, rmvt(e2e). % abbrev-change to suit current need
 do(rmvt(ms_c)) :- !, rmvt(ms_c).
 do(rmvt(ms_pl)) :- !, rmvt(ms_pl).
 do(rmvt(e2e)) :- !, rmvt(e2e).
+do(rmvt(e2e_c)) :- !, rmvt(e2e_c).
 do(rmvt(local)) :- !, ext_svcs:e2e_api(local).
 /*
 do(rmvt(load_monitor)) :- !,
@@ -113,6 +128,7 @@ do(stop_nameserver) :- !, rmv:stop_nameserver.
 %
 
 behavior(1,[p=true,q=false,n=2,p=true,q=false,s=2,p=false,q=true,p=false,q=true]).
+behavior(2,[n=5,p=false,o=7,r=3.14159,q=true]).
 ssid(ssid_00002).
 
 rmvt(e2e) :-
@@ -122,13 +138,24 @@ rmvt(e2e) :-
 	% must still make real ms heartbeat message and nurv heartbeat in orbit mode
 	% fake notifications are temporarily stubbed-out in MEP
 	% this test now subsumes rmvt(ms_pl)
-	behavior(1,Assigns), ssid(SSid),
-	ServiceCreationContext = [behavior=Assigns,ssid=SSid,atom_eval_mode=ms_eval,monitor_sensor_lang=ms_pl],
+  epp:epp_log_gen(monitor_event_processing, monitor_test(in_progress)),
+	behavior(1,Assigns), ssid(SSid), EvalMode=ms_eval, MSlang=ms_pl,
+	ServiceCreationContext = [behavior=Assigns,ssid=SSid,atom_eval_mode=EvalMode,monitor_sensor_lang=MSlang],
 	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the assigns
 	ext_service_spec2service(ServiceSpec,Service),
 	rmv_mc:service_spec2monitor(ServiceSpec,Monitor),
 	ext_deploy_service_with_monitor(Service,Monitor,Deployment),
+  epp:epp_log_gen(monitor_event_processing, monitor_test(ready_to_execute)),
 	ext_execute_service(ms_pl,Deployment), % assigns, other args are passed in with deployed service/monitor
+	true.
+
+rmvt(e2e_c) :-
+	behavior(1,Assigns), SSid=ssid_00004,
+	ServiceCreationContext = [behavior=Assigns,ssid=SSid,atom_eval_mode=ms_eval,monitor_sensor_lang=ms_c],
+	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the assigns
+	%ext_service_spec2service(ServiceSpec,Service),
+	rmv_mc:service_spec2monitor(ServiceSpec,Monitor),
+	format('Monitor=~q~n',[Monitor]),
 	true.
 
 rmvt(ms_pl) :-

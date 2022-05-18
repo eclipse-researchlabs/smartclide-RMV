@@ -70,11 +70,11 @@ int ms_startup(){
 
     url_encoder_rfc_tables_init();
 
-    //open_MEP_comm();
+    // open_MEP_comm();
 
     ms_global_trigger_enable = true;
-
-    mep_start_monitor(mip->mi_cv.monitor_id, &mip->mi_sessid, &mip->mi_mstatus);
+    VERBOSE_MSG(2,"calling mep_monitor_start\n");
+    mep_monitor_start(mip->mi_cv.monitor_id, &mip->mi_sessid, &mip->mi_mstatus);
     if( mip->mi_mstatus != monitor_started ) return(EXIT_FAILURE);
     VERBOSE_MSG(1,"MS startup successful\n");
     return(EXIT_SUCCESS);
@@ -86,9 +86,9 @@ void ms_shutdown(){
 
     ms_global_trigger_enable = false;
 
-    mep_stop_monitor(mip->mi_cv.monitor_id, mip->mi_sessid, &mip->mi_mstatus);
+    mep_monitor_stop(mip->mi_cv.monitor_id, mip->mi_sessid, &mip->mi_mstatus);
     if( mip->mi_mstatus != monitor_stopping ){
-        printf("error from mep_stop_monitor\n");
+        printf("error from mep_monitor_stop\n");
     }else printf("monitor stopped\n");
 
     //close_MEP_comm();

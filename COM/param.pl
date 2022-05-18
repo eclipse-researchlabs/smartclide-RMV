@@ -29,7 +29,7 @@
                   epp_logging/1, epp_stream/1, null_stream/1, sleep_after_server_start/1,
                   jsonresp_epp/1, jsonresp_server/1, jsonresp/1, epp_status/1,
                   deny_resp/1, grant_resp/1,
-                  localhost_ip/1, serverhost_ip/1, context_url/1, context_sim/1, epp_url/1,
+                  localhost_ip/1, serverhost_ip/1, context_url/1, context_sim/1, epp_url/1, rmv_url/2,
                   context_port/1, exec_sim_port/1, warrant_port/1,
                   rmv_port/1, rmv_mcapi_port/1, rmv_mfapi_port/1, rmv_eppapi_port/1,
                   rmv_auditapi_port/1, rmv_lnapi_port/1, rmv_start_nameserver_on_init/1,
@@ -210,6 +210,11 @@ audit_logging(file). % 'file' or 'on' or 'off'
 audit_stream(user_error). % default stream for audit log (standard error)
 audit_selection([]). % currently selected set of events for audit generation
 audit_record('audit_log(~w, ~q, ~q, ~q).~n'). % format of the audit record [TS,Source,Event,EventData]
+
+rmv_url(API,RMV_URL) :-
+    serverhost_ip(IP),
+    rmv_port(RP),
+    atomic_list_concat(['http://',IP,':',RP,'/',API,'/'], RMV_URL).
 
 epp_url(EPP_URL) :-
     serverhost_ip(IP),

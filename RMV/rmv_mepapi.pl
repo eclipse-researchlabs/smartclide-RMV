@@ -15,12 +15,14 @@
 :- use_module(library(http/http_parameters)).
 
 % Monitoring Framework monitor event processing API
+%   Monitor Sensors use this API
 %:- http_handler(root(.), use_valid_api, []).
 :- http_handler(root(mep), root_apis(mepapi), []).
 :- http_handler(root('mep/'), api_unimpl, [prefix]).
 :- http_handler(root(mep/monitor_start), mepapi_monitor_start, [prefix]).
 :- http_handler(root(mep/monitor_stop), mepapi_monitor_stop, [prefix]).
 :- http_handler(root(mep/monitor_heartbeat), mepapi_monitor_heartbeat, [prefix]).
+:- http_handler(root(mep/monitor_test), mepapi_monitor_test, [prefix]).
 
 mepapi([monitor_start,monitor_stop,monitor_heartbeat]). % MONITOR EVENT PROCESSING APIs
 
@@ -35,13 +37,26 @@ mepapi_monitor_start(Request) :-
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
 	(	authenticate_rmv(Token)
-	->	monitor_start_aux(Mid,_,_,_,_,_) %, !
+	->	monitor_start_aux(Mid) %, !
 	;	true
 	).
 mepapi_monitor_start(_) :- epp_log_gen(monitor_event, monitor_start(failure)).
 
-monitor_start_aux(_,_,_,_,_,_) :-
-	std_resp_MS(success,'monitor_start',yes),
+monitor_start_aux(Mid) :- !,
+	%Status = [monitor_started,session('11111')],
+	mep_monitor_start(Mid,Status),
+	(	(memberchk(monitor_started, Status), memberchk(session(Sid), Status))
+	->	std_resp_MS(success,'monitor_start',session(Sid))
+	;	std_resp_MS(failure,'monitor_start',Status)
+	),
+	true.
+
+monitor_start_aux(Mid) :-
+	mep_monitor_start(Mid,Status),
+	(	(memberchk(monitor_started, Status), memberchk(session(Sid), Status))
+	->	std_resp_MS(success,'monitor_start',Sid)
+	;	std_resp_MS(failure,'monitor_start',Status)
+	),
 	true.
 
 % monitor_stop
@@ -61,8 +76,9 @@ mepapi_monitor_stop(Request) :-
 	).
 mepapi_monitor_stop(_) :- epp_log_gen(monitor_event, monitor_stop(failure)).
 
-monitor_stop_aux(_,_,_,_,_,_) :-
-	std_resp_MS(success,'monitor_stop',yes),
+monitor_stop_aux(Mid,Sid,_,_,_,_) :-
+	mep_monitor_stop(Mid,Sid,Status),
+	std_resp_MS(success,'monitor_stop',Status),
 	true.
 
 % monitor_heartbeat
@@ -98,8 +114,37 @@ monitor_heartbeat_aux(Sid,HBatom) :-
 	    epp_log_gen(monitor_event_processing, heartbeat(failure))
 	).
 
+mepapi_monitor_test(Request) :-
+	std_resp_prefix,
+	catch(
+	     http_parameters(Request,[
+				token(Token,[atom]),
+				session_id(Sid,[atom,optional(true)])
+				]),
+	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
+	), !,
+	(	( authenticate_rmv(Token))
+	->	monitor_test_aux(Sid), !
+	;	true
+	).
+mepapi_monitor_test(_) :- epp_log_gen(monitor_event, monitor_test(failure)).
+
+monitor_test_aux(Sid) :- var(Sid), !,
+	epp_log_gen(monitor_event_processing, monitor_test(starting)),
+	command:rmvt(e2e),
+	epp_log_gen(monitor_event_processing, monitor_test(complete)),
+	std_resp_MS(success,'monitor_test',yes).
+monitor_test_aux(Sid) :- atom(Sid),
+	epp_log_gen(monitor_event_processing, monitor_test(session_id)),
+	rmv_mc_nui:nurv_session(Sid,A,B,C,D), !,
+	std_resp_MS(success,'monitor_test',nurv_session(Sid,A,B,C,D)).
+monitor_test_aux(_) :- !,
+	epp_log_gen(monitor_event_processing, monitor_test(invalid_argument)),
+	std_resp_MS(failure,'monitor_test',no).
+
+
 authenticate_mep(Session) :-
-	(   rmv_mc_nui:nurv_session(Session,_,_,_)
+	(   rmv_mc_nui:nurv_session(Session,_,_,_,_)
 	->  true
 	;   std_resp_M(failure,'session authentication error',''),
 		audit_gen(mep,'session authentication error'),

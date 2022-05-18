@@ -101,7 +101,7 @@ mcapi_create_monitor(Request) :-
 	!.
 mcapi_create_monitor(_) :- audit_gen(monitor_creation, create_monitor(failure)).
 
-create_monitor_aux(_,_).
+create_monitor_aux(_,_). % use rmv_mc:service_spec2monitor(SS,Monitor)
 
 % graph_monitor
 mcapi_graph_monitor(Request) :-

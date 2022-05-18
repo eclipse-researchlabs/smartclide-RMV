@@ -13,9 +13,7 @@ void service_logic(){
     dump_defined_vars();
     }
 
-    ms_responder();
-
-/*     char *MEP_Reply;
+ /*     char *MEP_Reply;
     send_event("test_event", &MEP_Reply);
     //VERBOSE(1){printf("reply from send_event:\n%s\n",MEP_Reply); fflush(stdout);}
     sleep(1);
@@ -24,7 +22,7 @@ void service_logic(){
 
  */
     ms_responder();
-//    ms_run_behavior();
+    ms_run_behavior();
     //dump_defined_vars();
      
     VERBOSE_MSG(1,"service logic ended\n");

@@ -18,7 +18,7 @@
                   load_service_specification_immediate/2, load_service_specification/2,
                   unload_service_specification/1,
                   load_monitor/1, unload_monitor/1, truncate_trace/2,
-
+                  target_lang_monitor_sensor/5,
                   pjson_ms_cv/1
 	       ]).
 
@@ -27,8 +27,8 @@
 :- use_module(library('http/json')).
 :- use_module(library('http/json_convert')).
 
-:- use_module(library(test_wizard)).
-:- set_prolog_flag(log_query_file, 'queries.pl').
+%:- use_module(library(test_wizard)).
+%:- set_prolog_flag(log_query_file, 'queries.pl').
 
 %-------------------------------------------
 %
@@ -39,9 +39,11 @@
 %
 % Other Parameters:
 %
-
-target_lang('C', 'rmv_ms.c', mep_eval).
-target_lang('Prolog', 'rmv_ms.pl', ms_eval).
+% standard choices for monitor sensor implementation
+% target_lang(ms_lang, LangName, Directory,           File,       EvalMode)
+target_lang_monitor_sensor(ms_c,  'C',      'RMV/SENSORS/rmv_ms_c',  'sensor.h',  ms_eval).
+target_lang_monitor_sensor(ms_pl, 'Prolog', 'RMV/SENSORS/rmv_ms_pl', 'rmv_ms.pl', ms_eval).
+target_lang_monitor_sensor(  _  , x,        x,                       x,           x).
 
 % now in param as rmv_atom_eval_mode and rmv_monitor_sensor_lang
 % atom_eval_mode, if defined, overrides monitor_atom_eval in the configuration vector
@@ -131,7 +133,7 @@ is_monitor(Monitor) :- % is a well-formed monitor
         % further conditions on the arguments
         true.
 
-monitor_atoms_eval( MonId, Atoms, AEval ) :-
+monitor_atoms_eval( MonId, Atoms, AEval ) :- % from MonitorId extract atoms and where to evaluate
         ms_cv(MonId,MScv),
         MScv = ms_cv(MonId,_Vdecl,_Vo,_Vm,_Vp,_Vr,_Vt,Atoms,AEval,_Vinit,_Beh,_Timer,_Host,_Port),
         true.
@@ -179,7 +181,7 @@ is_service_creation_context(SCC) :- is_list(SCC).
 % MONITOR SENSOR CONFIGURATION VECTOR
 
 % ms_cv/2 retrieves an ms_cv/14 record by monitor Id
-ms_cv( MonId, MScv ) :- % lookup stored monitor by id
+ms_cv( MonId, MScv ) :- % lookup stored monitor configuration vectore by MonitorId
         monitor( MonId, _SSpecId, _ModId, _Properties, _MSlang, _MSid, MScv, _MSfile ).
 
 % construct/deconstruct
@@ -285,7 +287,7 @@ un_init :-
 
 app(appid_00001,a,b,c,d,e,f).
 
-% monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv )
+% monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile )
 %   MonitorId - unique monitor ID (suffix should be unique over all runs)
 %   ModelId - unique model ID (same suffix as MonId)
 %   MScv - mv_cv/14 initialization vector for monitor sensor (see below)
@@ -293,25 +295,22 @@ app(appid_00001,a,b,c,d,e,f).
 %   MSlang - implementation language of the service & monitor sensor: ms_c, ms_pl, ...
 %
 % Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile ),
+% 
 monitor(monid_00002, ssid_00002, modid_00002, [], ms_c, msid_00027,
         ms_cv( monid_00002, [m:integer, n:integer, o:integer, p:boolean, q:boolean, r:float, s:float],
                 [m, n, o, p, q, r, s], [n, p, q, s], [m, n, o, p, q, r, s], [m, n, o, p, q, r, s], [q, s],
                 [p:p, a1:eq(n,2), a2:lt(r,2.4), a3:eq(p,q), a4:false, a5:true, a6:eq(p,true),
                 a7:ne(n,s), a7a:ne(s,n), a8:lt(o,2.4), a8a:ge(2.4,o), q:q, notp:not(p)],
                 ms_eval, ms_pl, [], 0, '127.0.0.1', 8005),
-        'rmv_ms.h' ).
+        'sensor.h' ).
 
-monitor(monid_00004, ssid_00004, modid_00004,
+monitor(monid_00004, ssid_00004, modid_00004, [], ms_pl, msid_00047,
         ms_cv( monid_00004, [n:integer, o:integer, p:boolean, q:boolean, r:float, s:float],
                 [n, o, p, q, r, s], [n, p, q, s], [n, p, q], [n, o, s, p, q], [q, s],
                 [p:p, a1:eq(n,2), a2:lt(s,2.4), a3:eq(p,q), a4:false, a5:true, a6:eq(p,true),
                 a7:ne(n,s), a7a:ne(s,n), a8:lt(o,2.4), a8a:ge(2.4,o), q:q, notp:not(p)],
                 ms_eval, ms_pl, [], 0, '127.0.0.1', 8005),
-        nurv(x), ms_pl ).
-
-monitor(monid_00003, modid_00003, [n, o, p, q, r, s], [n, o, s, p, q],
-        [p:p, a1:eq(n,2), a2:lt(n,2), a3:eq(p,q), q:q],
-        ms_eval, ms_c).
+        'rmv_ms.pl' ).
 
 property(propid_00001,true).
 
@@ -362,27 +361,29 @@ ex_cv(1, ms_cv( % old format
 
 ex_cv(2, ms_cv( % new format
              /* monitor_id */         'monid_00002',
-             /* shared_var_decl */    [n:integer,
+             /* shared_var_decl */    [m:integer,
+                                       n:integer,
                                        o:integer,
                                        p:boolean,
                                        q:boolean,
                                        r:float,
                                        s:float],
-             /* observable_vars */    [n, o, p, q, r, s],
+             /* observable_vars */    [m, n, o, p, q, r, s],
              /* model_vars */         [n, p, q, s],
              /* property_vars */      [n, p, q],
-             /* reportable_vars */    [n, o, s, p, q],
+             /* reportable_vars */    [m, n, o, p, q, r, s],
              /* trigger_vars */       [q, s],
              /* monitor_atoms */      [p:p,a1:eq(n,2),a2:lt(n,2),a3:eq(p,q),q:q],
              /* monitor_atom_eval */  ms_eval,
-             /* shared_var_init */    [n=1,
+             /* shared_var_init */    [m=0,
+                                       n=1,
                                        o=2,
                                        p=true,
                                        q=false,
                                        r=undefined,
                                        s=1
                                       ],
-             /* behavior */           [],
+             /* behavior */           [n=5,p=false,o=7,r=3.14159,q=true],
              /* timer */              0,
              /* rmvhost */            '127.0.0.1',
              /* rmvport */            8005
