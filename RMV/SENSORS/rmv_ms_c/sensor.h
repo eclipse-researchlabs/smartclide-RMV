@@ -384,7 +384,9 @@ extern int h_errno;
 void open_MEP_comm(){
     struct hostent *hp;
     struct sockaddr_in addr; int on = 1;
-    char *host = RMV_HOST; in_port_t port = RMV_PORT;
+    //char *host = RMV_HOST; in_port_t port = RMV_PORT;
+    char *host = monitor_interface.mi_cv.rmvhost;
+    in_port_t port = monitor_interface.mi_cv.rmvport;
 
 /*     if( (hp = gethostbyname(host)) == NULL ){
         printf("error: gethostbyname\n"); return;

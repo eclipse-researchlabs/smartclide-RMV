@@ -1,20 +1,20 @@
 % RMV - Monitor Creation - Create Model
 % Work in Progress
 
-:- module(rmv_mc_cm,[create_smv_model/2
+:- module(rmv_mc_cm,[create_model/2
 	       ]).
 
 :- use_module(['COM/param',rmv_ml]).
 
-% create_smv_model(+SSpec, -SMVmodel)
+% create_model(+SSpec, -Model)
 %
-create_smv_model(SS, Model) :-
+create_model(SS, Model) :-
     is_service_spec(SS, SSpecId, SSpecBody),
     is_service_spec_body(SSpecBody,Sitems),
 
     ssid2modid(SSpecId,ModelId),
 
-    magic(Sitems,SMVstruct),
+    smv_magic(Sitems,SMVstruct),
 
     SMVstruct = smv( _SMV, SMVmodeltext, SMVordtext, _SMVvars),
     %SMVvars = vars(Vdecls,Vo,Vm,Vp,Vr,Vt),
@@ -29,8 +29,7 @@ create_smv_model(SS, Model) :-
     cons_model(ModelId,SMVstruct,SMVmodelFile,SMVordFile, Model),
     true.
 
-magic(_,SMVstruct) :- % TODO
-
+smv_magic(_,SMVstruct) :- % TODO complete
     SMVstruct = smv(x, SMVtext, SMVord, SMVvars),
     %SMVvars = vars(Vdecls,Vo,Vm,Vp,Vr,Vt),
     SMVvars = vars([p:boolean,q:boolean],[p,q],[p,q],[p,q],[p,q],[q]),

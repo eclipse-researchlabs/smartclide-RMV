@@ -9,7 +9,7 @@
                   cons_deployment/4, is_deployment/1, is_deployment/3, is_deployment/4,
                   monitor/2, monitor/8, cons_monitor/9, is_monitor/1, monitor_atoms_eval/3,
                   model/2, model/4, cons_model/5, is_model/1,
-                  ms_cv/14, cons_ms_cv/15,
+                  ms_cv/2, ms_cv/14, cons_ms_cv/15,
                   property/2, is_property/1, is_property/3,
                   is_app/1, is_app/8, is_service/1, is_service/8, is_trace/1, is_trace/3,
                   is_service_creation_context/1,
@@ -76,7 +76,7 @@ is_app(App) :- is_app(App,_,_,_,_,_,_,_).
 is_app(App,_,_,_,_,_,_,_) :-
         App = app(_,_,_,_,_,_,_).
 
-is_cmd(_C) :- true.
+is_cmd(_C) :- true. % enumerate the valid commands
 
 % DEPLOYMENT
 
@@ -181,7 +181,7 @@ is_service_creation_context(SCC) :- is_list(SCC).
 % MONITOR SENSOR CONFIGURATION VECTOR
 
 % ms_cv/2 retrieves an ms_cv/14 record by monitor Id
-ms_cv( MonId, MScv ) :- % lookup stored monitor configuration vectore by MonitorId
+ms_cv( MonId, MScv ) :- % lookup stored monitor configuration vector by MonitorId
         monitor( MonId, _SSpecId, _ModId, _Properties, _MSlang, _MSid, MScv, _MSfile ).
 
 % construct/deconstruct
@@ -335,7 +335,7 @@ truncate_trace(T,T).
 %
 % ms_cv( MonId, Vdecls, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port )
 %
-:- dynamic ms_cv/4, ms_cv/14.
+%:- dynamic ms_cv/4, ms_cv/14.
 
 ex_cv(1, ms_cv( % old format
              /* monitor_id */         'mid_00001',

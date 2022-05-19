@@ -37,22 +37,23 @@ unload_service_spec(Sid) :-
         rmv_ml:unload_service_specification(Sid).
 
 create_script(SS, NuRVcmds) :-
-        is_service_spec(SS, SSpecId, SSpecBody),
-        rmv_ml:service_spec(SSpecId, SSpecBody),
+        is_service_spec(SS, _SSpecId, _SSpecBody),
+        % rmv_ml:service_spec(SSpecId, SSpecBody),
         NuRVcmds = [].
 
 service_spec2monitor(SS, Monitor) :-
-        create_smv_model( SS, SMVmodel ),
+        create_model( SS, Model ),
+        %Model = model(ModelId,SMVstruct,SMVmodelFile,SMVordFile)
+        %SMVstruct = smv(_SMV, SMVmodeltext, SMVordtext, SMVvars),
+        %SMVvars = vars(Vdecls,Vo,Vm,Vp,Vr,Vt),
         create_ltl_properties( SS, Properties ),
         create_script( SS, NuCmds ), % generate preamble NuRV commands
 
-        create_monitor(SS, SMVmodel, Properties, NuCmds, Monitor),
-        %Properties = properties(PropAtoms,PropVars,PropFormulas),
-        %Monitor = monitor( MonId, SSpecId, ModId, LTLprops, MSlang, MSid, MScv, MSfile ),
+        create_monitor(SS, Model, Properties, NuCmds, Monitor),
         true.
 
 :- dynamic simulated_monitor_creation/0.
-simulated_monitor_creation.
+simulated_monitor_creation. % comment-out to turn-off simulated
 
 create_monitor(SS, Model, Properties, Cmds, Monitor) :-
         is_service_spec(SS,SSpecId,SSbody),
@@ -60,50 +61,60 @@ create_monitor(SS, Model, Properties, Cmds, Monitor) :-
         rmv_ml:load_service_specification(SS,SSpecId),
 
         is_model(Model),
-        Properties = properties(Vp, PropAtoms, PropFormulas),
+        cons_model(ModelId,_SMVstruct,_SMVmodelFile,_SMVordFile,Model),
+        modid2monid(ModelId,MonitorId),
 
-        forall( member(P,PropFormulas), is_property(P) ),
         forall( member(C,Cmds), is_cmd(C) ),
 
         % configure monitor sensor
         %
         % TODO - call NuRV to create and test monitor
         % TODO - Compute Vo, Vm, Vp, Vr, Vt
-        Vo = [],
-        Vm = [],
-        Vr = [],
-        Vt = [],
-        Timer = 0,
-        param:rmv_url(mep,MEP_URL),
 
-        memberchk(monitor_sensor_lang=MSlang,Bitems),
-        target_lang_monitor_sensor(MSlang,_,MSdir,MSfile,AEval),
-        atomic_list_concat([MSdir,'/',MSfile], MSFullFile),
-
-       % make a unique monitor sensor instance id
+        % make a unique monitor sensor instance id
         uuid(U), atom_concat(msid_ , U, MSid),
+
+        (       memberchk(monitor_sensor_lang=MSlang,Bitems)
+        ->      true
+        ;       fail % TODO something else
+        ),
+        target_lang_monitor_sensor(MSlang,_,MSdir,MSfile,MSEval),
+        atomic_list_concat([MSdir,'/',MSfile], MSFullFile),
 
         (       simulated_monitor_creation
         ->      rmv_ml:ex_cv(2,MScv),
-                cons_ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, MEP_URL, MScv),
+                cons_ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port, MScv),
                 (       memberchk(atom_eval_mode=OAEval,Bitems)
                 ->      true % override the eval location
                 ;       OAEval = AEval
                 ),
-                cons_ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, OAEval, Vinit, Beh, Timer, MEP_URL, MScv1)
+                (       memberchk(behavior=OBeh,Bitems)
+                ->      true % override the behavior
+                ;       OBeh = Beh
+                ),
+                cons_ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, OAEval, Vinit, OBeh, Timer, Host, Port, MScv1)
 
-        ;       cons_ms_cv(MonitorId,_Vdecl,_Vo,_Vm,Vp,_Vr,_Vt,PropAtoms,AEval,_Vinit,_Beh,_Timer,MEP_URL,MScv1)
+        ;       
+                Properties = properties(Vp, PropAtoms, PropFormulas),
+                forall( member(P,PropFormulas), is_property(P) ),
+                Vdecl = [],
+                Vo = [],
+                Vm = [],
+                % Vp
+                Vr = [],
+                Vt = [],
+                % PropAtoms
+                AEval = MSEval,
+                Vinit = [],
+                Beh = [],
+                Timer = 0,
+                param:serverhost_ip(Host),
+                param:rmv_port(Port),
+                cons_ms_cv(MonitorId,Vdecl,Vo,Vm,Vp,Vr,Vt,PropAtoms,AEval,Vinit,Beh,Timer,Host,Port,MScv1)
         ),
-        %MScv = ms_cv(MonitorId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port),
-        %MScv = ms_cv(MonitorId, _,_,_,_,_,_,_,_,_,_,_,_,_),
-        Model = model(ModelId,_SMVstruct,_SMVmodelFile,_SMVordFile),
-        %SMVstruct = smv(_SMV, SMVmodeltext, SMVordtext, SMVvars),
-        %SMVvars = vars(Vdecls,Vo,Vm,Vp,Vr,Vt),
 
-        modid2monid(ModelId,MonitorId),
+        % construct and install the new monitor in the library
         cons_monitor(MonitorId, SSpecId, ModelId, Properties, MSlang, MSid, MScv1, MSFullFile, Monitor),
-
-        % install the new monitor in the library
         load_monitor(Monitor),
         true.
 

@@ -69,7 +69,7 @@ help(rmv,       'Switch to rmv user mode.').
 help(rmv_server,'Start the runtime monitoring and verification server.').
 help(rmvt,      'run an rmv built-in test. Default is \'e2e\'.').
 help(rmvt,      'Arg1 (opt) is a test identifier.').
-help(rmvt,      'Arg2 (opt) is evaluation mode (ms_eval, mep_eval).').
+help(rmvt,      'Arg2 (opt) is evaluation mode (ms_eval, mep_eval, no_eval).').
 help(rmvt,      'Arg3 (opt) is monitor sensor language (ms_pl, ms_c).').
 
 help(init_ms,	'Initialize the Prolog Monitor Sensor configuration.').
@@ -170,7 +170,8 @@ rmvt(ms_pl) :-
 rmvt(ms_c) :-
 	true.
 
-rmvt(atom_eval) :-
+rmvt(atom_eval) :- param:rmv_atom_eval_mode(no_eval), !.
+rmvt(atom_eval) :- !,
 	do(rmvt(init_ms_cv)),
 	rmv_ms:monitor_atoms(As),
 	param:rmv_atom_eval_mode(M),
@@ -201,8 +202,5 @@ rmvt(Test,Emode) :-
 rmvt(Test,Emode,MSlang) :-
 	% set the evaluation mode
 	param:setparam(rmv_atom_eval_mode,Emode),
-	%retractall( rmv_ml:atom_eval_mode(_) ), assert( rmv_ml:atom_eval_mode(Emode) ),
-	% set the monitor sensor language
-	%retractall( rmv_ml:monitor_sensor_lang(_) ), assert( rmv_ml:monitor_sensor_lang(MSlang) ),
 	param:setparam(rmv_monitor_sensor_lang,MSlang),
 	rmvt(Test).

@@ -102,6 +102,12 @@ json_var_val( json([Var=Val]), Var=Val ).
 % var_val_json(  ) :- !.
 % var_val_json(  ) :- !.
 
+mep_heartbeat(Mid,Sid,_AtomIds,Reportables,Status) :- % no_eval case, reports only
+    monitor_atoms_eval(Mid,_,no_eval), !,
+    epp_log_gen('mep_heartbeat/5',no_eval),
+    Status = [acknowledged,session(Mid:Sid),basis(no_eval,Reportables)],
+    notifications(report,Mid,Sid,Reportables,no_eval).
+
 mep_heartbeat(Mid,Sid,AtomIds,Reportables,Status) :-
     %monitor(Mid,Monitor),
     %Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile ),

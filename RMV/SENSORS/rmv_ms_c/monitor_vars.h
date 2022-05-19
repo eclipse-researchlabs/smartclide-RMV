@@ -59,6 +59,3 @@ void dump_defined_vars(){
 }
 
 static const char global_monitor_id[] = "monid_00004";
-
-#define RMV_HOST "127.0.0.1"
-#define RMV_PORT 8005

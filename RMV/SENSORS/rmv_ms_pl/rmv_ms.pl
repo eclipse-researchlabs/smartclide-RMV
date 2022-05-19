@@ -73,7 +73,7 @@ rmvport(0).
 
 monitor_session('').
 
-% these configuration elements are unary functors, but most are ord sets
+% these configuration elements are unary functors, but many hold lists
 ms_config_elements([monitor_id, shared_var_decl,
                     observable_vars, model_vars,
                     property_vars, reportable_vars,
@@ -203,7 +203,7 @@ set_ms_configuration(CL) :-
         % handle the overrides recorded in rmv_ml
         % currently only the atom evaluation mode
         % these are only for testing as the monitor library
-        % is not available in the standalone.
+        % is not available in the standalone monitor sensor.
         % If this is to be permitted dynamically then another
         % way of getting the override into the monitor sensor
         % must be devised. Probably direct modification of
@@ -286,6 +286,7 @@ responder :-
 %
 % TODO - use var_oldval_newval/3 for reference to past values by var
 %
+aT_list_constructor(_,[]) :- monitor_atom_eval(no_eval), !. % explicitly no atom evaluation to be done
 aT_list_constructor(As,ATs) :-
         writeln('ms_eval aT_list_constructor'),
         findall(Ai, (member(Ai:Ap,As), af_evaluate(Ai:Ap)), ATs).
