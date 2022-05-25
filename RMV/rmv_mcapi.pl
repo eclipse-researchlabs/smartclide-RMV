@@ -4,6 +4,7 @@
 :- use_module('AUDIT/audit',[audit_gen/2]).
 :- use_module('COM/param').
 :- use_module('COM/apiresp').
+:- use_module(rmv_ml).
 
 :- use_module([rmv_mc, rmv_mc_cm, rmv_mc_cps]).
 
@@ -46,8 +47,9 @@ mcapi([load_spec,create_monitor,graph_monitor]). % MONITOR CREATION APIs
 mcapi_load_sspec(Request) :-
 	std_resp_prefix,
 	catch(
-	    http_parameters(Request,[servicespec(Sspec,[atom]),
-				     token(Token,[atom])]),
+	    http_parameters(Request,[
+					servicespec(Sspec,[atom]),
+				    token(Token,[atom])]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
 	(   authenticate(Token)
@@ -60,8 +62,8 @@ load_sspec_aux(SS) :-
 	(   ( ground(SS), load_service_spec_immediate(SS,ServId) )
 	->  std_resp_BS(success,'service spec loaded immediate',ServId),
 	    audit_gen(monitor_creation, load_spec(ServId,success))
-	;   std_resp_MS(failure,'malformed spec or load error','spec elided'),
-	    audit_gen(monitor_creation, load_spec('spec elided',failure))
+	;   std_resp_MS(failure,'malformed spec or load error',failure),
+	    audit_gen(monitor_creation, load_spec('malformed spec or load error',failure))
 	).
 
 %-------------------------------------
@@ -69,8 +71,9 @@ load_sspec_aux(SS) :-
 mcapi_unload_sspec(Request) :-
 	std_resp_prefix,
 	catch(
-	    http_parameters(Request,[specid(SspecId,[atom]),
-				     token(Token,[atom])]),
+	    http_parameters(Request,[
+					specid(SspecId,[atom]),
+				    token(Token,[atom])]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
 	(   authenticate(Token)
@@ -81,10 +84,10 @@ mcapi_unload_sspec(_) :- audit_gen(monitor_creation, unload_spec(failure)).
 
 unload_sspec_aux(Sid) :-
 	(   ( atom(Sid), unload_service_spec(Sid) )
-	->  std_resp_BS(success,'service spec loaded immediate',ServId),
-	    audit_gen(monitor_creation, load_spec(ServId,success))
-	;   std_resp_MS(failure,'malformed spec or load error','spec elided'),
-	    audit_gen(monitor_creation, load_spec('spec elided',failure))
+	->  std_resp_BS(success,'service spec unloaded',Sid),
+	    audit_gen(monitor_creation, unload_sspec(Sid,success))
+	;   std_resp_MS(failure,unload_sspec,Sid),
+	    audit_gen(monitor_creation, unload_spec(Sid,failure))
 	).
 
 %-------------------------------------
@@ -92,46 +95,57 @@ unload_sspec_aux(Sid) :-
 mcapi_create_monitor(Request) :-
 	std_resp_prefix,
 	catch(
-	    http_parameters(Request,
-			[service_spec(SS,[atom])
+	    http_parameters(Request,[
+				token(Token,[atom]),
+				service_spec(SS,[atom])
 			]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	create_monitor_aux(SS,_),
-	!.
+	(	authenticate(Token)
+	->	create_monitor_aux(SS)
+	;	true
+	).
 mcapi_create_monitor(_) :- audit_gen(monitor_creation, create_monitor(failure)).
 
-create_monitor_aux(_,_). % use rmv_mc:service_spec2monitor(SS,Monitor)
+create_monitor_aux(SSA) :- trace,
+	(	( read_term_from_atom(SSA,SS,[]), is_service_spec(SS), rmv_mc:service_spec2monitor(SS,Monitor) )
+	->	monitor(MonId,Monitor),
+		std_resp_BS(success,'monitor created',MonId),
+		audit_gen(monitor_creation, create_monito(MonId,success))
+	;	std_resp_MS(failure,create_monitor,SS),
+		audit_gen(monitor_creation, create_monitor(SS,failure))
+	).
+	
 
 % graph_monitor
 mcapi_graph_monitor(Request) :-
 	std_resp_prefix,
 	catch(
-	     http_parameters(Request,[user(User,[atom]),
-				 ar(AR,[atom]),
-				 object(Object,[atom]),
-				 purpose(Purpose,[atom,optional(true)]), % DPLP
-				 cond(CondAtom,[atom,optional(true)])
+	     http_parameters(Request,[
+				token(Token,[atom]),
+				monitor_id(Mid,[atom])
 				]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	param:current_policy(Policy),
-	graph_monitor_aux(Policy,User,AR,Object,Purpose,CondAtom),
-	!.
-mcapi_graph_monitor(_) :- audit_gen(monitor_creation, graph_monitor(failure)).
+	(	authenticate(Token)
+	->	graph_monitor_aux(Mid), !
+	;	true
+	).
+mmcapi_graph_monitor(_) :- audit_gen(monitor_creation, graph_monitor(failure)).
 
-graph_monitor_aux(_,_,_,_,_,_).
+graph_monitor_aux(_Mid) :-
+	std_resp_MS(failure,'graph_monitor',unimplemented).
 
 
 %
 %
 
 authenticate(Token) :-
-	(   authenticate_token(Token)
+	(   authenticate_mc_token(Token)
 	->  true
 	;   std_resp_M(failure,'authentication error',''),
-	    audit_gen(policy_admin, 'authentication error'),
+	    audit_gen(monitor_creation, 'authentication error'),
 	    !, fail
 	).
 
-authenticate_token(Token) :- atom(Token), param:rmv_token(Token), !.
+authenticate_mc_token(Token) :- atom(Token), param:rmv_mc_token(Token), !.

@@ -4,8 +4,9 @@
 :- module(rmv_mc_cm,[create_model/2
 	       ]).
 
-:- use_module(['COM/param',rmv_ml]).
-
+:- use_module('COM/param').
+:- use_module(rmv_ml).
+    
 % create_model(+SSpec, -Model)
 %
 create_model(SS, Model) :-

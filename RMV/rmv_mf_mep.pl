@@ -1,7 +1,7 @@
 % RMV - Monitoring Framework - Monitor Event Processing
 % Work in Progress
 
-:- module(rmv_mf_mep,[mep_monitor_start/2, mep_monitor_stop/3,
+:- module(rmv_mf_mep,[mep_monitor_start/2, mep_monitor_stop/2,
     mep_heartbeat/2, mep_heartbeat/5, json_var_val/2
 	       ]).
 
@@ -9,6 +9,7 @@
 :- use_module(library('http/json_convert')).
     
 :- use_module('COM/param').
+:- use_module('COM/sessions').
 :- use_module('RMV/rmv_ml').
 :- use_module('RMV/rmv_mc_nui').
 :- use_module('EPP/epp').
@@ -61,6 +62,7 @@ report_event(Event, Reply) :- ms_event(Event), !,
 */
 
 mep_monitor_start(Mid,Status) :-
+    epp_log_gen(monitor_event_processing, monitor_start),
     %rmv_mc_nui:start_monitor(Mid,Status), % TODO - currently only returns a status
     monitor(Mid,Monitor), !,
     initiate_monitor(Monitor,SessId),
@@ -69,14 +71,14 @@ mep_monitor_start(Mid,Status) :-
 mep_monitor_start(Mid,Status) :-
     Status = [monitor_not_found(Mid)].
 
-mep_monitor_stop(Mid,SessId,Status) :- atom(Mid),
-    (   number(SessId)
-    ->  atom_number(SessIdA,SessId)
-    ;   SessIdA = SessId
-    ),
-    %rmv_mc_nui:stop_monitor(Mid,Status), % TODO - currently only returns a status
-    terminate_monitor(SessIdA), % TODO - don't really need MonitorId, just SessId
-	Status = [monitor_stopping],
+mep_monitor_stop(SessId,Status) :-
+    % (   number(SessId)
+    % ->  atom_number(SessIdA,SessId)
+    % ;   SessIdA = SessId
+    % ),
+    % %rmv_mc_nui:stop_monitor(Mid,Status), % TODO - currently only returns a status
+    terminate_monitor(SessId), % TODO - don't really need MonitorId, just SessId
+	Status = [monitor_stopped],
     true.
 
 mep_heartbeat(HBterm,Status) :-
@@ -150,26 +152,44 @@ notifications(verdict,Mid,Sid,_,Verdict) :-
 % INITIATE/TERMINATE A RUNTIME MONITOR SESSION
 %
 initiate_monitor(M,SessId) :-
-    cons_monitor(MonitorId,_SSpecId,ModelId,_,_,_,_,_,M),
-    open_nurv_session(int,SessId,MonitorId),
-	%format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
-	nurv_session_get_resp(SessId,''),
-	param:monitor_directory_name(MD),
-	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
-	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
-	nurv_monitor_init(SMVmodelFile,SMVordFile,SessId),
+    cons_monitor(MonitorId,_SSpecId,ModelId,_,_,_,MScv,_,_,M),
+    MScv=ms_cv(MonitorId,_Vdecl,_Vo,_Vm,_Vp,_Vr,_Vt,_Atoms,AEval,_Vinit,_Beh,_Timer,_Host,_Port),
+
+    (   AEval == no_eval
+    ->  % this is a RMV-only session, no NuRV session
+        % the MonitorId alone is not a sufficient SessId because there can be multiple instances
+        % so a unique id is created here
+        uuid(U), atomic_list_concat([MonitorId, '_', U], SessId)
+    ;   % the RMV session includes a NuRV session
+        open_nurv_session(int,NuRVSessId,MonitorId),
+        %format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
+        nurv_session_get_resp(NuRVSessId,''),
+        param:monitor_directory_name(MD),
+        atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
+        atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
+        nurv_monitor_init(SMVmodelFile,SMVordFile,NuRVSessId),
+        atomic_list_concat([MonitorId, '_', NuRVSessId], SessId)
+    ),
+    init_session(SessId, monitor_framework),
 	true.
 
 terminate_monitor(SessId) :-
-	quit_nurv_session(SessId),
-	writeln('session ended').
+	atomic_list_concat([monid,_UMid,USid], '_', SessId),
+    (   rmv_mc_nui:nurv_session(USid,_,_,_,_)
+    ->  quit_nurv_session(USid)
+    ;   true
+    ),
+    ( is_session(SessId, monitor_framework) -> end_session(SessId) ; true ),
+	%writeln('session ended'),
+    true.
 
+% nameserver version
 initiate_monitor2(M,SessId) :-
-    cons_monitor(MonitorId,SessId,_,_,_,_,_,_,M),
-    open_nurv_session(orbit,SessId,MonitorId),
+    cons_monitor(MonitorId,SessId,_,_,_,_,_,_,_,M),
+    open_nurv_session(orbit,NuRVSessId,MonitorId),
 	param:local_nameserver_IOR(IOR),
 	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
-	nurv_session_cmd_resp(SessId,ServerCmd,_Resp),
+	nurv_session_cmd_resp(NuRVSessId,ServerCmd,_Resp),
 	true.
 
 

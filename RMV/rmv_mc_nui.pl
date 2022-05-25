@@ -47,15 +47,15 @@ heartbeat(_,_,_,_).
 %    the full monitor ID FullMid will be used with the nameserver
 
 start_monitor_server(Mid) :- % TODO
-	monitor(Mid,_,_,_,_,_,_,_),
+	monitor(Mid,_,_,_,_,_,_,_,_),
 	atom_concat('NuRV/Monitor/',Mid,_FullMid).
 
 stop_monitor_server(Mid) :-
-	monitor(Mid,_,_,_,_,_,_,_),
+	monitor(Mid,_,_,_,_,_,_,_,_),
 	atom_concat('NuRV/Monitor/',Mid,_FullMid).
 
 heartbeat_monitor_server(Mid,Sid,AtomIds,Reset,Verdict) :-
-	monitor(Mid,_,_,_,_,_,_,_),
+	monitor(Mid,_,_,_,_,_,_,_,_),
 	atom_concat('NuRV/Monitor/',Mid,_FullMid),
 	% send NuRV heartbeat to session Sid and return verdict
 	% dummy values for testing
@@ -161,12 +161,12 @@ open_nurv_session(int,SessionId,MonitorId) :- % open interactive NuRV session
 	param:local_NuRV(_,NuRV),
 	process_create(path(NuRV),['-quiet', '-int'],
 		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
-	atom_number(SessionId,NuRVpid),
-	init_session(SessionId, monitor_framework),
+	atom_number(NuRVSessionId,NuRVpid),
+%	init_session(SessionId, monitor_framework),
 	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
-	assert( nurv_session(SessionId,int,MonitorId,ToStream,FromStream) ).
+	assert( nurv_session(NuRVSessionId,int,MonitorId,ToStream,FromStream) ).
 
-open_nurv_session(orbit,SessionId,MonitorId) :- % open orbit NuRV session
+open_nurv_session(orbit,NuRVSessionId,MonitorId) :- % open orbit NuRV session
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
 	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
@@ -174,10 +174,10 @@ open_nurv_session(orbit,SessionId,MonitorId) :- % open orbit NuRV session
 	process_create(path(NuRV),
 		       ['-quiet','-int','-i',SMVordFile,SMVmodelFile],
 		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
-	atom_number(SessionId,NuRVpid),
-	init_session(SessionId, monitor_framework),
-	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
-	assert( nurv_session(SessionId,orbit,MonitorId,ToStream,FromStream) ),
+	atom_number(NuRVSessionId,NuRVpid),
+%	init_session(SessionId, monitor_framework),
+	( param:verbose(on) -> format('NuRV session ~a~n',NuRVSessionId) ; true ),
+	assert( nurv_session(NuRVSessionId,orbit,MonitorId,ToStream,FromStream) ),
 	nurv_session_cmd_resp(Sid,go,_Resp1),
 	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp2).
 /*
@@ -202,7 +202,7 @@ quit_nurv_session(SessionId) :- % send quit command, then close
 close_nurv_session(SessionId) :- % only close the session
 	nurv_session(SessionId,_Stype,_MonitorId,ToStream,FromStream),
 	close(ToStream), close(FromStream),
-	(   is_session(SessionId, monitor_framework) -> end_session(SessionId) ; true ),
+%	(   is_session(SessionId, monitor_framework) -> end_session(SessionId) ; true ),
 	retractall( nurv_session(SessionId,_,_,_,_) ),
 	atom_number(SessionId,NuRVpid),
 	process_wait(NuRVpid,Exit),

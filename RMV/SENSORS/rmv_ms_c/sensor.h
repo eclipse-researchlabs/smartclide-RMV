@@ -1,5 +1,5 @@
 //#define MS_TEST
-#define VERBOSITY 3
+#define VERBOSITY 1
 #define VERBOSE(L) if(VERBOSITY >= L)
 #define VERBOSE_MSG(L,M) if(VERBOSITY >= L){printf(M);fflush(stdout);}
 #include <stdio.h>
@@ -38,7 +38,7 @@ typedef enum mstatus {
     monitor_uninitialized,
     monitor_initialized,
     monitor_started,
-    monitor_stopping
+    monitor_stopped
 } mstatus;
 
 // TODO - make this an array
@@ -47,7 +47,7 @@ char *mstatus_string(mstatus ms){
         case monitor_uninitialized: return("monitor_uninitialized");
         case monitor_initialized: return("monitor_initialized");
         case monitor_started: return("monitor_started");
-        case monitor_stopping: return("monitor_stopping");
+        case monitor_stopped: return("monitor_stopped");
     }
 }
 
@@ -286,8 +286,8 @@ static char JSON_STRING[JSON_STRING_SZ] = "";
 // MS to MEP communications
 bool ms_mep_comm_is_open = false;
 int ms_mep_comm_sock = -1;
-int ms_mep_session_num;
-char ms_mep_session_id[10]; // session identifier as a string
+//int ms_mep_session_num;
+char ms_mep_session_id[100]; // session identifier as a string
 
 // SUS can register a callback function to handle MEP recovery indicator
 void (*sus_recovery_callback)() = NULL;
@@ -481,7 +481,7 @@ void send_MEP_comm(char *request_ep, char *mid, char *sid, char *payload, char *
     }
 }
 
-void send_MEP_monitor_start(char *request_ep,char *mid,char *sid,char **Response){
+void send_MEP_monitor_start(char *request_ep,char *mid,char **Response){
     char req_buf[STRINGS_SZ]; char encode_buf[CHARS_SZ];
     static char resp_buf[RESPONSE_BUF_SZ];
     char *req_pieces[] =
@@ -497,6 +497,35 @@ void send_MEP_monitor_start(char *request_ep,char *mid,char *sid,char **Response
 
         write(ms_mep_comm_sock, req_buf, sz);
 
+        //VERBOSE(1){printf("Response: \n"); fflush(stdout);}
+        bzero( resp_buf, RESPONSE_BUF_SZ );
+        if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
+            VERBOSE(1){printf(" %s",resp_buf); fflush(stdout);}
+            //bzero( resp_buf, STRINGS_SZ );
+        }
+    close_MEP_comm();
+
+    if( Response != NULL ){
+            *Response = resp_buf; // only valid until next send_MEP_monitor_start
+    }
+}
+
+void send_MEP_monitor_stop(char *request_ep,char *sid,char **Response){
+    char req_buf[STRINGS_SZ]; char encode_buf[CHARS_SZ];
+    static char resp_buf[RESPONSE_BUF_SZ];
+    char *req_pieces[] =
+        {"GET ",request_ep,"?token=",RMV_TOKEN,"&session_id=",sid,"\r\n\r\n",0};
+
+    char *rb = req_buf; *rb = '\0';
+    for( char** p=req_pieces; *p; p++ ){
+        for( char* ps=*p; (*rb = *ps); rb++, ps++) ;
+    }
+    int sz = rb - req_buf;
+    open_MEP_comm();
+        VERBOSE(1){printf("Stop Request:\n %s\n",req_buf); fflush(stdout);}
+
+        write(ms_mep_comm_sock, req_buf, sz);
+
         VERBOSE(1){printf("Response: \n"); fflush(stdout);}
         bzero( resp_buf, RESPONSE_BUF_SZ );
         if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
@@ -506,39 +535,102 @@ void send_MEP_monitor_start(char *request_ep,char *mid,char *sid,char **Response
     close_MEP_comm();
 
     if( Response != NULL ){
-            *Response = resp_buf; // only valid until next send_MEP_comm
+            *Response = resp_buf; // only valid until next send_MEP_monitor_stop
     }
+}
+
+void range(jsmntok_t*, int, int, char*);
+char *get_str_attr(char*, jsmntok_t*, int, char*);
+
+// generally useful for interpreting RMV API responses
+void parse_mep_response(char *Response,
+        char **respStatus, char **respMessage, char **respBody){
+    char *rp = Response;
+    jsmn_parser p; jsmntok_t t[100]; int r;
+
+    //for(char *cp=Response; *cp!='\0'; cp++) printf("%d\n",(int)*cp);
+    //fflush(stdout);
+
+    while( *rp != '\0'){
+        if( *rp != '{' ) rp++; else break;
+    }
+    VERBOSE(2){printf("JSON in Response:\n%s\n",rp); fflush(stdout);}
+    if(*rp != '\0' && strncmp(rp-4,"\r\n\r\n{",5)==0){
+        //printf("found start of JSON\n"); 
+        jsmn_init(&p);
+        r = jsmn_parse(&p, rp, strlen(rp), t, sizeof(t) / sizeof(t[0]));
+        if(r < 0){ // failed to parse JSON
+            //printf("Failed to parse JSON: %s\n",
+            // r==-1?"NOMEM":r==-2?"INVAL":r==-3?"PART":"Unknown");
+        }else{
+            //printf("jsmn_parse returned %d tokens\n",r);
+            //range(t,1,r,rp); fflush(stdout);
+            *respStatus = get_str_attr("respStatus",t,0,rp);
+            *respMessage = get_str_attr("respMessage",t,0,rp);
+            *respBody = get_str_attr("respBody",t,0,rp);
+            VERBOSE(2){
+                printf("Response values:\nrespStatus=%s\nrespMessage=%s\nrespBody=%s\n",
+                *respStatus, *respMessage, *respBody);fflush(stdout);}
+        }
+    }else{
+        // there is no JSON in the response!
+        VERBOSE(2){printf("did not find JSON\n"); fflush(stdout);}
+    }
+}
+
+int parse_session(char *s, char *session_id){
+    //sprintf(session_id,"blahblahblah");
+    char *prefix="session('";
+    int start = strlen(prefix);
+    if( strncmp(s,prefix,start)==0 ){
+        for(char *p=s+start; *p!='\''; p++) *session_id++ = *p;
+        *session_id = '\0';
+        return 1;
+    }
+    return 0;
 }
 
 /* MEP shims */
 void mep_monitor_start(char *Mid, char **Msessid, mstatus *Mstatus){
-    char *Response;
+    char *Response, *respStatus, *respMessage, *respBody;
     if( SIMULATED_MEP ){
-        ms_mep_session_num = 11111;
+         sprintf(ms_mep_session_id,"%5d",11111);
     }else{
         //send_MEP_comm("/mep/monitor_start",Mid,*Msessid,NULL,&Response);
-        send_MEP_monitor_start("/mep/monitor_start",Mid,*Msessid,&Response);
-        // extract ms_mep_session_num from Response
-        ms_mep_session_num = 11111;
+        send_MEP_monitor_start("/mep/monitor_start",Mid,&Response);
+        parse_mep_response(Response,&respStatus,&respMessage,&respBody);
+        //char tmp_ms_mep_session_id[100];
+        if( strcmp(respStatus,"success") != 0 ||
+                parse_session(respBody, ms_mep_session_id) == 0){
+            // could not find session in response
+            *Mstatus = monitor_uninitialized;
+            ms_mep_session_id[0]='\0';
+        }else{
+            VERBOSE(2){printf("session from response: %s\n", ms_mep_session_id);fflush(stdout);}
+        }
     }
 
-    sprintf(ms_mep_session_id,"%5d",ms_mep_session_num);
     *Msessid = ms_mep_session_id;
     *Mstatus = monitor_started;
 
-    VERBOSE(1){printf("Monitor session id: %s starting\n", *Msessid); fflush(stdout); }
+    //VERBOSE(1){printf("Monitor session id: %s starting\n", *Msessid); fflush(stdout); }
 };
 
-void mep_monitor_stop(char *Mid, char *Msessid, mstatus *Mstatus){
-    char *Response;
+void mep_monitor_stop(char *Msessid, mstatus *Mstatus){
+    char *Response, *respStatus, *respMessage, *respBody;
+
     if( SIMULATED_MEP ){
     }else{
-        send_MEP_comm("/mep/monitor_stop",Mid,Msessid,NULL,&Response);
+        send_MEP_monitor_stop("/mep/monitor_stop",Msessid,&Response);
+        parse_mep_response(Response,&respStatus,&respMessage,&respBody);
+        if( strcmp(respStatus,"success") != 0 ){
+            VERBOSE(2){printf("unexpected failure of monitor_stop\n");fflush(stdout);}
+        }
     }
 
-    *Mstatus = monitor_stopping;
+    *Mstatus = monitor_stopped;
 
-    VERBOSE(1){printf("Monitor session id: %s stopping\n", Msessid); fflush(stdout); }
+    VERBOSE(1){printf("Monitor session id: %s stopped\n", Msessid); fflush(stdout); }
 };
 
 void mep_heartbeat(char *HB_json, int *Response){

@@ -58,21 +58,20 @@ simulated_monitor_creation. % comment-out to turn-off simulated
 create_monitor(SS, Model, Properties, Cmds, Monitor) :-
         is_service_spec(SS,SSpecId,SSbody),
         is_service_spec_body(SSbody,Bitems),
-        rmv_ml:load_service_specification(SS,SSpecId),
+        rmv_ml:load_service_specification(SS,SSpecId), % commit this SS to the Monitor Library
 
-        is_model(Model),
-        cons_model(ModelId,_SMVstruct,_SMVmodelFile,_SMVordFile,Model),
-        modid2monid(ModelId,MonitorId),
+        is_model(Model), cons_model(ModelId,_SMVstruct,_SMVmodelFile,_SMVordFile,Model),
 
         forall( member(C,Cmds), is_cmd(C) ),
+
+        % make a unique monitor sensor instance id
+        % modid2monid(ModelId,MonitorId),
+        uuid(U), atom_concat(monid_ , U, MonitorId),
 
         % configure monitor sensor
         %
         % TODO - call NuRV to create and test monitor
         % TODO - Compute Vo, Vm, Vp, Vr, Vt
-
-        % make a unique monitor sensor instance id
-        uuid(U), atom_concat(msid_ , U, MSid),
 
         (       memberchk(monitor_sensor_lang=MSlang,Bitems)
         ->      true
@@ -82,8 +81,9 @@ create_monitor(SS, Model, Properties, Cmds, Monitor) :-
         atomic_list_concat([MSdir,'/',MSfile], MSFullFile),
 
         (       simulated_monitor_creation
-        ->      rmv_ml:ex_cv(2,MScv),
-                cons_ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port, MScv),
+        ->
+                rmv_ml:ex_cv(2,MScv), % ignore the monitor ID in the test MScv
+                cons_ms_cv(_MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port, MScv),
                 (       memberchk(atom_eval_mode=OAEval,Bitems)
                 ->      true % override the eval location
                 ;       OAEval = AEval
@@ -92,8 +92,7 @@ create_monitor(SS, Model, Properties, Cmds, Monitor) :-
                 ->      true % override the behavior
                 ;       OBeh = Beh
                 ),
-                cons_ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, OAEval, Vinit, OBeh, Timer, Host, Port, MScv1)
-
+                cons_ms_cv(MonitorId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, OAEval, Vinit, OBeh, Timer, Host, Port, MScv1)
         ;       
                 Properties = properties(Vp, PropAtoms, PropFormulas),
                 forall( member(P,PropFormulas), is_property(P) ),
@@ -113,9 +112,82 @@ create_monitor(SS, Model, Properties, Cmds, Monitor) :-
                 cons_ms_cv(MonitorId,Vdecl,Vo,Vm,Vp,Vr,Vt,PropAtoms,AEval,Vinit,Beh,Timer,Host,Port,MScv1)
         ),
 
+        (       MSlang == ms_c
+        ->      create_svh_file(MScv1,SVFullFile)
+        ;       SVFullFile = none
+        ),
+
         % construct and install the new monitor in the library
-        cons_monitor(MonitorId, SSpecId, ModelId, Properties, MSlang, MSid, MScv1, MSFullFile, Monitor),
+        cons_monitor(MonitorId, SSpecId, ModelId, Properties, MSlang, MSfile, MScv1, MSFullFile, SVFullFile, Monitor),
         load_monitor(Monitor),
+        true.
+
+create_svh_file(MScv,SVFullFile) :-
+        % pull MonitorId and Vdecl from the MScv
+        cons_ms_cv(MonitorId,Vdecl,_Vo,_Vm,_Vp,_Vr,_Vt,_PropAtoms,_AEval,_Vinit,_Beh,_Timer,_Host,_Port,MScv),
+
+        monid2monvarshfile(MonitorId,SVfile),
+        param:monitor_directory_name(MD),
+	atomic_list_concat([MD,'/',SVfile],SVFullFile),
+
+        current_output(OS),
+        open(SVFullFile,write,S,[create([default])]),
+        forall( member(L, [
+        % file header
+        '// This file is created by RMV Monitor Creation for variables',
+        '// shared between the SUS and the Monitor Sensor monid_00002.',
+        '// These declarations (must) appear in the same order as in the',
+        '// shared variable list in the MS configuration vector generated',
+        '// by Monitor Creation.',
+        '// This file is included by ms_vars.h of the C monitor sensor.' ]), writeln(S,L)),
+        % variable declarations
+        nl(S),
+        forall( ( member(Vname:Vtype,Vdecl), type_pl_n_e_c(Vtype,_,_,Ctype) ),
+                ( atomic_list_concat([Ctype,' ',Vname,';'],DeclLine), writeln(S,DeclLine)) ),
+        % getters and setters for each variable
+        nl(S),
+        forall( ( member(Vname:Vtype,Vdecl), type_pl_n_e_c(Vtype,_,_,Ctype) ),
+                ( atomic_list_concat(['void get_',Vname,'(void*ip){*(',Ctype,'*)ip=',Vname,';}'],GetrLine),
+                  atomic_list_concat(['void set_',Vname,'(void*newp, void*oldp){*(',Ctype,'*)oldp = ',
+                        Ctype,'_setter_by_addr(&',Vname,',*(',Ctype,'*)newp);}'],
+                        SetrLine),
+                  writeln(S,GetrLine), writeln(S,SetrLine)
+                )
+        ),
+        % shared_var_attr_t table
+        nl(S),
+        writeln(S,'shared_var_attr_t shared_var_attrs[] = {'),
+        writeln(S,'//  va_name va_type va_addr va_trig va_rep va_prop va_getter va_setter'),
+
+        forall( ( member(Vname:Vtype,Vdecl), type_pl_n_e_c(Vtype,_,Enum,_) ),
+                ( atomic_list_concat(['    {"',Vname,'", ',Enum,', &',Vname,
+                        ', false, false, false, &get_',Vname,', &set_',Vname,', &set_',Vname,'},'], AtLine),
+                  writeln(S,AtLine)
+                )
+        ),
+        writeln(S,'    0\n};'),
+        % define N_SHARED_VARS
+        nl(S),
+        length(Vdecl,Nvars),
+        format(S,'#define N_SHARED_VARS ~d~n',Nvars),
+        % dump_defined_vars
+        nl(S),
+        writeln(S,'void dump_defined_vars(){\n    printf("defined vars DIRECT access:\\n");'),
+        forall( ( member(Vname:Vtype,Vdecl), member(Vtype,[boolean,integer,float,address]) ),
+                  ( nth0(N,[boolean,integer,float,address],Vtype), nth0(N,['%s','%d','%f','%lu'],Ft), !,
+                    ( Vtype == boolean -> Ftplus='?"true":"false"' ; Ftplus='' ),
+                    atomic_list_concat(['    printf(" ',Vname,'=',Ft,'\\n",',Vname,Ftplus,');'], PLine),
+                    writeln(S,PLine)
+                  )
+        ),
+        writeln(S,'    fflush(stdout);\n}'),
+        % global monitor id
+        nl(S),
+        atomic_list_concat(['static const char global_monitor_id[] = "',MonitorId,'";'], MidLine),
+        writeln(S,MidLine),
+        nl(S),
+        close(S),
+        current_output(OS),
         true.
 
 graph_monitor(Monitor) :- is_monitor(Monitor).

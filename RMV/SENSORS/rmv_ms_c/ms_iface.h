@@ -38,11 +38,12 @@ void ms_responder(){
 }
 
 int ms_startup(){
+    // the first part of this would change if config source is not a file
     if( ms_configuration_file[0] == '\0' ){
         strcpy(ms_configuration_file, global_monitor_id);
         strcat(ms_configuration_file, CONFIG_FILENAME_SUFFIX);
     }
-    VERBOSE(0){printf("ms_startup: %s\n",ms_configuration_file);fflush(stdout);}
+    VERBOSE(0){printf("ms_startup configuration: %s\n",ms_configuration_file);fflush(stdout);}
     if( ms_configuration_file[0] != '\0' ){
         FILE *fp;
         if( (fp = fopen(ms_configuration_file,"r")) == NULL ) {
@@ -70,7 +71,7 @@ int ms_startup(){
 
     url_encoder_rfc_tables_init();
 
-    // open_MEP_comm();
+    // open_MEP_comm(); // have to do this for every comm
 
     ms_global_trigger_enable = true;
     VERBOSE_MSG(2,"calling mep_monitor_start\n");
@@ -86,12 +87,13 @@ void ms_shutdown(){
 
     ms_global_trigger_enable = false;
 
-    mep_monitor_stop(mip->mi_cv.monitor_id, mip->mi_sessid, &mip->mi_mstatus);
-    if( mip->mi_mstatus != monitor_stopping ){
+    VERBOSE_MSG(2,"calling mep_monitor_stop\n");
+    mep_monitor_stop(mip->mi_sessid, &mip->mi_mstatus);
+    if( mip->mi_mstatus != monitor_stopped ){
         printf("error from mep_monitor_stop\n");
-    }else printf("monitor stopped\n");
+    }else VERBOSE_MSG(2,"monitor stopped\n");
 
-    //close_MEP_comm();
+    //close_MEP_comm(); // have to do this for every comm
 
     un_init_ms(mip);
 }

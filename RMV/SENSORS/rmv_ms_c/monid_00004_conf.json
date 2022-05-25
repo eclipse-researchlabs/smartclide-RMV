@@ -21,7 +21,7 @@
     {"aid":"a3", "aex":"eq(p,q)"},
     {"aid":"q", "aex":"q"}
   ],
-  "monitor_atom_eval":"ms_eval",
+  "monitor_atom_eval":"no_eval",
   "shared_var_init": [
     {"name":"m", "value":0},
     {"name":"n", "value":1},

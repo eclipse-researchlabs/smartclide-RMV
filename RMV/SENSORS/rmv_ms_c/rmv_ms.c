@@ -5,7 +5,7 @@
 void service_logic(){
     VERBOSE_MSG(1,"service logic starting\n");
 
-    VERBOSE(2){
+    VERBOSE(3){
     dump_ms_cv( &monitor_interface.mi_cv );
     dump_shared_var_attributes(monitor_interface.mi_shared_vars,monitor_interface.mi_num_shared_vars);
     //for(monitor_atom *a=monitor_atoms;a<next_monitor_atom;a++) dump_parse(a->ma_aex);
@@ -22,7 +22,7 @@ void service_logic(){
 
  */
     ms_responder();
-    ms_run_behavior();
+    //ms_run_behavior();
     //dump_defined_vars();
      
     VERBOSE_MSG(1,"service logic ended\n");

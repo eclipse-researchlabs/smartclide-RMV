@@ -37,7 +37,7 @@ mepapi_monitor_start(Request) :-
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
 	(	authenticate_rmv(Token)
-	->	monitor_start_aux(Mid) %, !
+	->	monitor_start_aux(Mid), !
 	;	true
 	).
 mepapi_monitor_start(_) :- epp_log_gen(monitor_event, monitor_start(failure)).
@@ -65,21 +65,32 @@ mepapi_monitor_stop(Request) :-
 	catch(
 	     http_parameters(Request,[
 			token(Token,[atom]),
-			monitor_id(Mid,[atom]),
+			%monitor_id(Mid,[atom]),
 			session_id(Sid,[atom])
 			]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
 	(	authenticate_rmv(Token)
-	->	monitor_stop_aux(Mid,Sid,_,_,_,_), !
+	->	monitor_stop_aux(Sid), !
 	;	true
 	).
 mepapi_monitor_stop(_) :- epp_log_gen(monitor_event, monitor_stop(failure)).
 
-monitor_stop_aux(Mid,Sid,_,_,_,_) :-
-	mep_monitor_stop(Mid,Sid,Status),
-	std_resp_MS(success,'monitor_stop',Status),
-	true.
+monitor_stop_aux(Sid) :-
+	(	atomic_list_concat([monid,_UMid,_USid],'_',Sid)
+	->	(	mep_monitor_stop(Sid,Status) 
+		->	(	memberchk(monitor_stopped, Status)
+			->	std_resp_MS(success,monitor_stop,monitor_stopped),
+				epp_log_gen(monitor_event_processing, monitor_stop(success,monitor_stopped))
+			;	std_resp_MS(failure,monitor_stop,unexpected_status),
+				epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_status))
+			)
+		;	std_resp_MS(failure,monitor_stop,unexpected_failure),
+			epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_failure))
+		)
+	;	std_resp_MS(failure,'monitor_stop','malformed session ID'),
+		epp_log_gen(monitor_event_processing, monitor_stop(failure,'malformed session ID'))
+	).
 
 % monitor_heartbeat
 mepapi_monitor_heartbeat(Request) :-

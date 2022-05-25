@@ -64,7 +64,7 @@ tok_cnt_rel(jsmntok_t *tp){
 
 // display all tokens in a range of indices
 void
-range(jsmntok_t t[], int low, int high){
+range(jsmntok_t t[], int low, int high, char json_string[]){
     printf("\nrange %d-%d\n",low,high-1);
 #ifdef JSMN_PARENT_LINKS
     printf("T# P#(ty)[sz] item tok_cnt\n");
@@ -77,7 +77,8 @@ range(jsmntok_t t[], int low, int high){
         jsmntok_t *g = &t[i]; int r_cnt = tok_cnt(t,i);
         printf("%d(%d)[%d] %.*s\ttok_cnt(%d)==%d\n", i,
 #endif
-        g->type, g->size, g->end - g->start, JSON_STRING + g->start, i, r_cnt);
+        //g->type, g->size, g->end - g->start, JSON_STRING + g->start, i, r_cnt);
+        g->type, g->size, g->end - g->start, json_string + g->start, i, r_cnt);
     }
 }
 
@@ -227,7 +228,7 @@ sto_assign( sh_var_name_value **where, jsmntok_t *tp, char *js ){
     ++(*where);
 }
 
-void compile_monitor_atom(monitor_atom*); // defined in conf.h
+//void compile_monitor_atom(monitor_atom*); // defined in conf.h
 
 void
 sto_ma( jsmntok_t *tp, char *js ){

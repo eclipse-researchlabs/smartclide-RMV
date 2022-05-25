@@ -27,7 +27,7 @@ initialize_ms_configuration(ms_configuration_vector *cv){
             r==-1?"NOMEM":r==-2?"INVAL":r==-3?"PART":"Unknown");
     }else{ // parse succeeded
         VERBOSE(1){printf("jsmn_parse returned %d tokens\n",r);fflush(stdout);}
-        VERBOSE(4){range(t,0,r); fflush(stdout);}
+        VERBOSE(4){range(t,0,r,JSON_STRING); fflush(stdout);}
     }
     if (r < 1 || t[0].type != JSMN_OBJECT) return 0;
 
@@ -109,12 +109,12 @@ sv_attr_by_name(char *name){
     return(NULL);
 }
 
+// already done statically in monitor-specific _vars.h file
+// Could use the declarations from the JSON configuration
+// vector to check consistency here.
 void declare_sus_vars(sh_var_decl *SVd){
     if( SVd == NULL ) return;
     VERBOSE_MSG(3,"declaring sus vars\n");
-    // already done statically in monitor-specific _vars.h file
-    // Could use the declarations from the JSON configuration
-    // vector to check consistency here.
 }
 
 void assign_val( char *valstr, shared_var_attr_t *sva ){
@@ -185,6 +185,8 @@ void set_ms_sus_vars( sh_var_name_value *SVi, sh_var_name_value *end ){
     VERBOSE(2) dump_sh_vars();
 }
 
+// for each of the variable name/value pairs store the value at the var address
+// given in the variable attribute table
 void assign_ms_sus_vars( sh_var_name_value *SVo, sh_var_name_value *end ){
     if( SVo == NULL ) return;
     VERBOSE_MSG(2,"running assignment ops\n");
@@ -503,13 +505,15 @@ aT_list_constructor(){
     monitor_interface_t *mi = &monitor_interface;
     monitor_atom *atm = monitor_atoms;
     
-    VERBOSE(3)dump_compiled_atoms();
-    for( int i=0; i<mi->mi_cv.n_monitor_atoms; i++, atm++ ){
-        bool e;
-        if( (e = af_evaluate(atm)) ) *next_atom++ = atm->ma_aid;
-        else {}
-        VERBOSE(3){printf(" atom \"%s\":\"%s\" evaluated %s\n",
-            atm->ma_aid, atm->ma_aex, e?"true":"false");fflush(stdout);}
+    if( strcmp(mi->mi_cv.monitor_atom_eval, "ms_eval")==0 ){
+        VERBOSE(3)dump_compiled_atoms();
+        for( int i=0; i<mi->mi_cv.n_monitor_atoms; i++, atm++ ){
+            bool e;
+            if( (e = af_evaluate(atm)) ) *next_atom++ = atm->ma_aid;
+            else {}
+            VERBOSE(3){printf(" atom \"%s\":\"%s\" evaluated %s\n",
+                atm->ma_aid, atm->ma_aex, e?"true":"false");fflush(stdout);}
+        }
     }
     *next_atom = NULL; // terminator in case dump_strings used
     return true_atoms; // return list of strings
@@ -617,6 +621,8 @@ void ms_heartbeat(char *mid, char *sid, char **ATl, char *ORl, int *Response){
  * MS INITIALIZATION, UN-INIT and RE-INIT
  */
 
+// initialize the monitor interface structure and the ms config vector
+// contained in it
 monitor_interface_t*
 init_ms(monitor_interface_t *mip){
     if( mip->mi_mstatus != monitor_uninitialized )
@@ -629,17 +635,18 @@ init_ms(monitor_interface_t *mip){
     compile_monitor_atoms();
 
     VERBOSE_MSG(3,"complete initialization of cv\n");
-    VERBOSE(3)dump_shared_var_attributes(shared_var_attrs,N_SHARED_VARS);
 
     mip->mi_JSON_cv = JSON_STRING;
-    // following would be better to get directly from shared_var_decls
+    // following could also be gotten directly from shared_var_decls
     // mip->mi_num_shared_vars = len_narr((void*)mip->mi_cv.observable_vars);
+    // should be consistent unless something in generated files has manually been changed
     mip->mi_num_shared_vars = N_SHARED_VARS;
     mip->mi_shared_vars = build_sh_var_attributes(&mip->mi_cv);
     mip->mi_mstatus = monitor_initialized;
+    VERBOSE(3)dump_shared_var_attributes(shared_var_attrs,N_SHARED_VARS);
 
     if( mip->mi_cv.shared_var_decls != NULL )
-        declare_sus_vars( mip->mi_cv.shared_var_decls );
+        declare_sus_vars( mip->mi_cv.shared_var_decls ); // noop because already done above
 
     if( mip->mi_cv.shared_var_inits != NULL )
         assign_ms_sus_vars( sh_var_name_values, next_sh_var_name_value );
