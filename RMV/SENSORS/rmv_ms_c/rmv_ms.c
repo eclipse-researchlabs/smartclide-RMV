@@ -3,29 +3,22 @@
 #include "sensor.h"
 
 void service_logic(){
-    VERBOSE_MSG(1,"service logic starting\n");
+    VERBOSE_MSG(0,"service logic starting\n");
 
-    VERBOSE(3){
-    dump_ms_cv( &monitor_interface.mi_cv );
-    dump_shared_var_attributes(monitor_interface.mi_shared_vars,monitor_interface.mi_num_shared_vars);
-    //for(monitor_atom *a=monitor_atoms;a<next_monitor_atom;a++) dump_parse(a->ma_aex);
-    dump_compiled_atoms();
-    dump_defined_vars();
+    VERBOSE(2){ // to dump major data structures
+        dump_ms_cv( &monitor_interface.mi_cv );
+        dump_shared_var_attributes(monitor_interface.mi_shared_vars,monitor_interface.mi_num_shared_vars);
+        //for(monitor_atom *a=monitor_atoms;a<next_monitor_atom;a++) dump_parse(a->ma_aex);
+        dump_compiled_atoms();
+        dump_defined_vars();
     }
 
- /*     char *MEP_Reply;
-    send_event("test_event", &MEP_Reply);
-    //VERBOSE(1){printf("reply from send_event:\n%s\n",MEP_Reply); fflush(stdout);}
-    sleep(1);
-    send_event("test_event", &MEP_Reply);
-    //VERBOSE(1){printf("reply from send_event:\n%s\n",MEP_Reply); fflush(stdout);}
+    ms_responder(); // send heartbeat with initial values
 
- */
-    ms_responder();
-    //ms_run_behavior();
-    //dump_defined_vars();
+    // run the behavior recorded in the configuration vector
+    ms_run_behavior(); // assignment seq with triggered heartbeats
      
-    VERBOSE_MSG(1,"service logic ended\n");
+    VERBOSE_MSG(0,"service logic ended\n");
 }
 
 int main(int argc, char *argv[]){

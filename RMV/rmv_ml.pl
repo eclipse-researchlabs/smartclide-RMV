@@ -58,8 +58,8 @@ type_pl_n_e_c(symbol,9,svt_Symbol,'char[]').% unused
 % now in param as rmv_atom_eval_mode and rmv_monitor_sensor_lang
 % atom_eval_mode, if defined, overrides monitor_atom_eval in the configuration vector
 %:- dynamic atom_eval_mode/1, monitor_sensor_lang/1.
-% atom_eval_mode(_) is either ms_eval or mep_eval
-% monitor_sensor_lang(_) is either ms_pl or ms_c
+% atom_eval_mode(_) is one of unset_eval, no_eval, ms_eval or mep_eval
+% monitor_sensor_lang(_) one of ms_pl or ms_c
 	
 
 %-------------------------------------------

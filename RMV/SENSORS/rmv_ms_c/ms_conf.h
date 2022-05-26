@@ -590,6 +590,7 @@ void ms_heartbeat(char *mid, char *sid, char **ATl, char *ORl, int *Response){
     // before the next call).
     // This way we already have the name and value as individual strings
 
+    VERBOSE(1){printf("ms_heartbeat: mid=%s, sid=%s\n",mid,sid);}
     VERBOSE(0){dump_strings(" true atoms", ATl); fflush(stdout);}
     VERBOSE(0){dump_sv_inits(" variable report in heartbeat");}
 
@@ -612,7 +613,7 @@ void ms_heartbeat(char *mid, char *sid, char **ATl, char *ORl, int *Response){
                     vnv!=sh_var_name_values?", ":"",vnv->vnv_name, quote, vnv->vnv_value, quote);
    }
     nc = sprintf(HB," ]\n}\n");  HB += nc;
-    printf("Heartbeat message (JSON):\n%s\n", HB_message); fflush(stdout);
+    VERBOSE(1){printf("Heartbeat message (JSON):\n%s\n", HB_message); fflush(stdout);}
 
     mep_heartbeat(HB_message,Response);
 }

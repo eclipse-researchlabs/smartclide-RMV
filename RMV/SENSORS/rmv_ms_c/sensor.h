@@ -1,5 +1,5 @@
 //#define MS_TEST
-#define VERBOSITY 1
+#define VERBOSITY 0  // set to -1 for silence
 #define VERBOSE(L) if(VERBOSITY >= L)
 #define VERBOSE_MSG(L,M) if(VERBOSITY >= L){printf(M);fflush(stdout);}
 #include <stdio.h>
@@ -464,11 +464,11 @@ void send_MEP_comm(char *request_ep, char *mid, char *sid, char *payload, char *
     int sz=make_monitor_heartbeat_request(req_buf, encode_buf, sid);
 
     open_MEP_comm();
-        VERBOSE(1){printf("Request:\n %s\n",req_buf); fflush(stdout);}
+        VERBOSE(1){printf("Heartbeat Request:\n %s\n",req_buf); fflush(stdout);}
 
         write(ms_mep_comm_sock, req_buf, sz);
 
-        VERBOSE(1){printf("Response: \n"); fflush(stdout);}
+        VERBOSE(1){printf("Heartbeat Response: \n"); fflush(stdout);}
         bzero( resp_buf, RESPONSE_BUF_SZ );
         if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
             VERBOSE(1){printf("%s",resp_buf); fflush(stdout);}
@@ -497,7 +497,7 @@ void send_MEP_monitor_start(char *request_ep,char *mid,char **Response){
 
         write(ms_mep_comm_sock, req_buf, sz);
 
-        //VERBOSE(1){printf("Response: \n"); fflush(stdout);}
+        VERBOSE(1){printf("Start Response: \n"); fflush(stdout);}
         bzero( resp_buf, RESPONSE_BUF_SZ );
         if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
             VERBOSE(1){printf(" %s",resp_buf); fflush(stdout);}
@@ -526,7 +526,7 @@ void send_MEP_monitor_stop(char *request_ep,char *sid,char **Response){
 
         write(ms_mep_comm_sock, req_buf, sz);
 
-        VERBOSE(1){printf("Response: \n"); fflush(stdout);}
+        VERBOSE(1){printf("Stop Response: \n"); fflush(stdout);}
         bzero( resp_buf, RESPONSE_BUF_SZ );
         if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
             VERBOSE(1){printf(" %s",resp_buf); fflush(stdout);}
@@ -633,12 +633,12 @@ void mep_monitor_stop(char *Msessid, mstatus *Mstatus){
     VERBOSE(1){printf("Monitor session id: %s stopped\n", Msessid); fflush(stdout); }
 };
 
+// synchronously send heartbeat to rmv_mf_mep and wait for response
+// The message is sent via the mepapi.
+// For standalone test we call a mep_heartbeat stub
+// build the HTTP call to MEP
 void mep_heartbeat(char *HB_json, int *Response){
-    // synchronously send heartbeat to rmv_mf_mep and wait for response
-    // The message is sent via the mepapi.
-    // For standalone test we call a mep_heartbeat stub
-    // build the HTTP call to MEP
-    char *MEP_Reply;
+    char *MEP_Reply, *respStatus, *respMessage, *respBody;
 
     if( SIMULATED_MEP ){
         VERBOSE_MSG(1,"Simulated MEP received heartbeat\n");
@@ -651,8 +651,15 @@ void mep_heartbeat(char *HB_json, int *Response){
 
     char* mid = monitor_interface.mi_cv.monitor_id;
     send_MEP_comm("/mep/monitor_heartbeat", mid, ms_mep_session_id, HB_json, &MEP_Reply);
-    *Response = 1; // TODO - get this info out of MEP_Reply
-    VERBOSE(1){printf("reply from mep_heartbeat:\n%s\n",MEP_Reply); fflush(stdout);}
+    parse_mep_response(MEP_Reply,&respStatus,&respMessage,&respBody);
+    VERBOSE(2){printf("Parsed response: respStatus=%s respMessage=%s respBody=%s\n",
+            respStatus, respMessage, respBody);fflush(stdout);}
+    if( strcmp(respStatus,"success") != 0 ){
+        VERBOSE(2){printf("unexpected failure of monitor_heartbeat\n");fflush(stdout);}
+        //[acknowledged,session(Sid),basis(no_eval,Reportables)]
+    }
+    *Response = 1; // TODO - get proper response out of MEP_Reply
+    //VERBOSE(1){printf("reply from mep_heartbeat:\n%s\n",MEP_Reply); fflush(stdout);}
 }
 
 void send_event(char *event, char **Response){

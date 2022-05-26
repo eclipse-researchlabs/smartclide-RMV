@@ -34,7 +34,8 @@
         context_port/1, exec_sim_port/1, warrant_port/1,
         rmv_port/1, rmv_mcapi_port/1, rmv_mfapi_port/1, rmv_eppapi_port/1,
         rmv_auditapi_port/1, rmv_lnapi_port/1, rmv_start_nameserver_on_init/1,
-        rmv_run_with_http_server/1, rmv_monitor_id_prefix/1, rmv_model_id_prefix/1,
+        rmv_run_with_http_server/1, rmv_monitor_id_prefix/1, rmv_session_id_prefix/1,
+        rmv_model_id_prefix/1,
         rmv_atom_eval_mode/1, rmv_monitor_server_lang/1
 		 ]).
 
@@ -83,8 +84,9 @@ build_version(rmv,'0.1','initial structure setup').
 build_version(rmv,'0.1.1','runtime monitoring initial development' ).
 
 build_version(rmv,'0.1.2', 'monitor sensor, simple NuRV sessions, nameserver session' ).
-build_version(rmv,'0.1.3' /* ongoing development */ ).
-build_current_version_description(rmv,'NuRV sessions with nameserver,improved sequencing, tests, C monitor sensor').
+build_version(rmv,'0.1.3', 'C monitor sensor, MEP APIs' ).
+build_version(rmv,'0.1.4' /* ongoing development */ ).
+build_current_version_description(rmv,'NuRV sessions with nameserver, end-to-end tests').
 %
 build_version(epp,'0.1','initial structure setup').
 build_version(epp,'0.1.1','initial development' ).
@@ -299,6 +301,7 @@ local_NuRV_prompt('NuRV > ').
 rmv_start_nameserver_on_init(false).
 rmv_run_with_http_server(true). % 'false' is used for testing (set to false by test harness)
 rmv_monitor_id_prefix('monid_').
+rmv_session_id_prefix('sessid_').
 rmv_model_id_prefix('modid_').
 % following used in command_rmv for rmvt commands
 rmv_atom_eval_mode(ms_cv). % override ms_cv: ms_cv, ms_eval, mep_eval or no_eval

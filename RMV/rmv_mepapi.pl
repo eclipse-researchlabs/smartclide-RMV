@@ -4,6 +4,7 @@
 :- use_module('AUDIT/audit',[audit_gen/2]).
 :- use_module('COM/param').
 :- use_module('COM/apiresp').
+:- use_module('COM/sessions').
 :- use_module(rmv_mf_mep).
 :- use_module('EPP/epp').
 %:- use_module('EPP/epp').
@@ -43,19 +44,11 @@ mepapi_monitor_start(Request) :-
 mepapi_monitor_start(_) :- epp_log_gen(monitor_event, monitor_start(failure)).
 
 monitor_start_aux(Mid) :- !,
-	%Status = [monitor_started,session('11111')],
-	mep_monitor_start(Mid,Status),
-	(	(memberchk(monitor_started, Status), memberchk(session(Sid), Status))
-	->	std_resp_MS(success,'monitor_start',session(Sid))
-	;	std_resp_MS(failure,'monitor_start',Status)
-	),
-	true.
-
-monitor_start_aux(Mid) :-
-	mep_monitor_start(Mid,Status),
-	(	(memberchk(monitor_started, Status), memberchk(session(Sid), Status))
-	->	std_resp_MS(success,'monitor_start',Sid)
-	;	std_resp_MS(failure,'monitor_start',Status)
+	(	(mep_monitor_start(Mid,Status), memberchk(monitor_started, Status), memberchk(session(Sid), Status))
+	->	std_resp_MS(success,'monitor_start',session(Sid)),
+		epp_log_gen(monitor_event_processing, monitor_start(success,Status))
+	;	std_resp_MS(failure,'monitor_start',Mid),
+		epp_log_gen(monitor_event_processing, monitor_start(failure))
 	),
 	true.
 
@@ -77,16 +70,13 @@ mepapi_monitor_stop(Request) :-
 mepapi_monitor_stop(_) :- epp_log_gen(monitor_event, monitor_stop(failure)).
 
 monitor_stop_aux(Sid) :-
-	(	atomic_list_concat([monid,_UMid,_USid],'_',Sid)
-	->	(	mep_monitor_stop(Sid,Status) 
-		->	(	memberchk(monitor_stopped, Status)
-			->	std_resp_MS(success,monitor_stop,monitor_stopped),
-				epp_log_gen(monitor_event_processing, monitor_stop(success,monitor_stopped))
-			;	std_resp_MS(failure,monitor_stop,unexpected_status),
-				epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_status))
-			)
-		;	std_resp_MS(failure,monitor_stop,unexpected_failure),
-			epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_failure))
+	param:rmv_session_id_prefix(SessIdPref),
+	(	atom_concat(SessIdPref,_Uniq,Sid)
+	->	(	( mep_monitor_stop(Sid,Status), memberchk(monitor_stopped, Status) )
+		->	std_resp_MS(success,monitor_stop,Status),
+			epp_log_gen(monitor_event_processing, monitor_stop(success,Status))
+		;	std_resp_MS(failure,monitor_stop,unexpected_status),
+			epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_status))
 		)
 	;	std_resp_MS(failure,'monitor_stop','malformed session ID'),
 		epp_log_gen(monitor_event_processing, monitor_stop(failure,'malformed session ID'))
@@ -98,7 +88,6 @@ mepapi_monitor_heartbeat(Request) :-
 	catch(
 	     http_parameters(Request,[
 				token(Token,[atom]),
-				%monitor_id(Mid,[atom]),
 				session_id(Sid,[atom]),
 			    heartbeat(HBatom,[atom])
 				]),
@@ -112,17 +101,13 @@ mepapi_monitor_heartbeat(_) :- epp_log_gen(monitor_event, monitor_heartbeat(fail
 
 %monitor_heartbeat_aux(_,_) :- !.
 monitor_heartbeat_aux(Sid,HBatom) :-
-	epp_log_gen('MEP API received heartbeat for session',Sid),
-%	read_term_from_atom(AtomsListAtom,AtomsList,[]),
-%	read_term_from_atom(OVarsListAtom,OVarsList,[]),
-%	mep_heartbeat(Mid,AtomsList,OVarsList,Response),
 	read_term_from_atom(HBatom,HBterm,[]),
-	epp_log_gen(monitor_heartbeat_aux,args(Sid,HBterm)),
+	%epp_log_gen(monitor_event_processing,monitor_heartbeat(Sid,HBterm)),
     (   mep_heartbeat(HBterm,Status)
 	->  std_resp_BS(success,'monitor heartbeat recorded',Status),
 	    epp_log_gen(monitor_event_processing, heartbeat(success,Status))
 	;   std_resp_MS(failure,'heartbeat recording',HBterm),
-	    epp_log_gen(monitor_event_processing, heartbeat(failure))
+	    epp_log_gen(monitor_event_processing, heartbeat(failure,Sid))
 	).
 
 mepapi_monitor_test(Request) :-
@@ -155,7 +140,7 @@ monitor_test_aux(_) :- !,
 
 
 authenticate_mep(Session) :-
-	(   rmv_mc_nui:nurv_session(Session,_,_,_,_)
+	(   is_session(Session, monitor_framework) %rmv_mc_nui:nurv_session(Session,_,_,_,_)
 	->  true
 	;   std_resp_M(failure,'session authentication error',''),
 		audit_gen(mep,'session authentication error'),
