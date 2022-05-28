@@ -5,6 +5,11 @@
 % ms_shutdown is called by the SUS when it is shutting down
 % ms_responder causes a MS message to be sent to the MEP - called by setters
 % ms_step is called for state change to trigger the responder
+% ms_run_behavior executes sequence of assigns in the behavior ms_cv element
+% ms_start_timer starts (or resets) a repeating timer at specified interval
+% ms_stop_timer stops repeating timer interrupt and cancels outstanding timer
+% ms_service_timer the default timer interrupt service routine
+% ms_recovery register a recovery service routine
 */
 
 void ms_responder(){
@@ -155,7 +160,7 @@ void ms_stop_timer(){
     stop_timer();
 }
 
-void service_timer(){
+void ms_service_timer(){
     // TODO - make sure a responder() is not running
     // Make ms_responder a critical section.
     // Could just skip this timer interrupt if ms_responder is running,

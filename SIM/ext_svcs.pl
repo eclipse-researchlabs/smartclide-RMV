@@ -176,11 +176,11 @@ ext_create_service(SS) :- % not called currently
 ext_service_spec2service(ServiceSpec, Service) :-
 	is_service_spec(ServiceSpec, SSid, SSb),
 	is_service_spec_body(SSb,Bitems),
-	intersection(Bitems, [trace=_,behavior=_], Behavior),
+	intersection(Bitems, [trace=_,service_main=_], ServiceMain),
 	memberchk(atom_eval_mode=Aeval,Bitems),
 	memberchk(monitor_sensor_lang=MSlang,Bitems),
 	atom_concat(ssid_,N,SSid), atom_concat(servid_,N,ServId),
-	cons_service(ServId,_,_,_,Aeval,MSlang,Behavior,Service).
+	cons_service(ServId,_,_,_,Aeval,MSlang,ServiceMain,Service).
 
 % end SERVICE CREATION SIMULATION
 create_monitor(ServSpec,Monitor) :- % bypass HTTP API
@@ -219,11 +219,23 @@ new_deployment_id(Did) :-
 % monitor event processing. The sim_app module provides application
 % simulation in Prolog (see execute_service(remote, ...)).
 
+ext_execute_service( ms_pl, Deployment ) :- % special case when behavior is list of Prolog goals
+	is_deployment(Deployment, _, Service, Monitor),
+	is_service(Service,_,_,_,_,_,_,ServiceMain),
+	is_monitor(Monitor),
+	memberchk( service_main=Goals, ServiceMain ),
+	\+ memberchk( _=_, Goals ), !,
+	Monitor = monitor( MonId,_, _, _, _MSlang, MSfile, _MScv, MSCVfile, _SVfile ),
+	% pull out correct Monitor ID and config file
+	retractall(rmv_ms:global_monitor_id(_)), assert(rmv_ms:global_monitor_id(MonId)),
+	retractall(rmv_ms:ms_configuration_file(_)), assert(rmv_ms:ms_configuration_file(MSCVfile)),
+	exec_pl_goals(Goals).
+
 ext_execute_service( ms_pl, Deployment ) :- !,
 	is_deployment(Deployment, _, Service, Monitor),
-	is_service(Service,_,_,_,_,_,_,Behavior),
+	is_service(Service,_,_,_,_,_,_,ServiceMain),
 	is_monitor(Monitor),
-	memberchk( behavior=Assigns, Behavior ),
+	memberchk( behavior=Assigns, ServiceMain ),
 	execute_service(ms_pl,Service,Deployment,/*_SessionId,*/Assigns), % TODO - get correct sessid
 	true.
 
@@ -231,9 +243,9 @@ ext_execute_service( ms_c, _Deployment ) :- !.
 
 ext_execute_service( RemOrLoc, Deployment ) :- ( RemOrLoc == remote ; RemOrLoc == local), !,
 	is_deployment(Deployment, _, Service, Monitor),
-	is_service(Service,_,_,_,_,_,_,Behavior),
+	is_service(Service,_,_,_,_,_,_,ServiceMain),
 	is_monitor(Monitor),
-	memberchk( trace=States, Behavior ),
+	memberchk( trace=States, ServiceMain ),
 	initiate_monitor(Monitor,SessionId),
 	execute_service(RemOrLoc,Service,Deployment,SessionId,States),
 	terminate_monitor(SessionId).
@@ -256,6 +268,9 @@ ext_execute_service(orbit,Deployment) :- !,
 %-------------------------------------------------------
 % EXECUTE THE SERVICE
 %
+exec_pl_goals([]).
+exec_pl_goals([Goal|Goals]) :- call(Goal), exec_pl_goals(Goals).
+
 execute_service(ms_pl,Service,Deployment, /*SessionId,*/ Assigns) :- !, is_service(Service),
     % act as the executing (Prolog-implemented) service
     % using the assigns from the behavior argument

@@ -129,7 +129,24 @@ do(stop_nameserver) :- !, rmv:stop_nameserver.
 
 behavior(1,[p=true,q=false,n=2,p=true,q=false,s=2,p=false,q=true,p=false,q=true]).
 behavior(2,[n=5,p=false,o=7,r=3.14159,q=true]).
-ssid(ssid_00002).
+ssid(1,ssid_00002).
+ssid(2,ssid_00003).
+pl_goals(1,[false]).
+pl_goals(2,[command:service_pl]).
+eval_mode(1,ms_eval).
+eval_mode(2,ms_eval).
+ms_lang(1,ms_pl).
+ms_lang(2,ms_pl).
+
+service_pl :-
+	rmv_ms:ms_startup,
+	%rmv_ms:ms_recovery( app_recovery ), % defined below
+	rmv_ms:ms_responder,
+    rmv_ms:ms_run_behavior,
+	rmv_ms:ms_shutdown.
+
+app_recovery(R) :- format('Service recovery callback invoked with ~q~n',R).
+
 
 rmvt(e2e) :-
 	% end-to-end from service/monitor creation through execution
@@ -138,23 +155,24 @@ rmvt(e2e) :-
 	% must still make real ms heartbeat message and nurv heartbeat in orbit mode
 	% fake notifications are temporarily stubbed-out in MEP
 	% this test now subsumes rmvt(ms_pl)
-  epp:epp_log_gen(monitor_event_processing, monitor_test(in_progress)),
-	behavior(1,Assigns), ssid(SSid), EvalMode=ms_eval, MSlang=ms_pl,
-	ServiceCreationContext = [behavior=Assigns,ssid=SSid,atom_eval_mode=EvalMode,monitor_sensor_lang=MSlang],
-	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the assigns
-	ext_service_spec2service(ServiceSpec,Service),
-	rmv_mc:service_spec2monitor(ServiceSpec,Monitor),
-	ext_deploy_service_with_monitor(Service,Monitor,Deployment),
+  epp:epp_log_gen(monitor_event_processing, monitor_test(starting)),
+	T=2,
+	behavior(T,Assigns), ssid(T,SSid), eval_mode(T,EvalMode), ms_lang(T,MSlang), pl_goals(T,Goals),
+	ServiceCreationContext = [service_main=Goals,ssid=SSid,atom_eval_mode=EvalMode,monitor_sensor_lang=MSlang],
+	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the Main
+	ext_service_spec2service(ServiceSpec,Service), % service now has the Main
+	rmv_mc:service_spec2monitor(ServiceSpec,Monitor), % monitor configuration vector has the Main
+	ext_deploy_service_with_monitor(Service,Monitor,Deployment), % Main is now in the deployment
   epp:epp_log_gen(monitor_event_processing, monitor_test(ready_to_execute)),
-	ext_execute_service(ms_pl,Deployment), % assigns, other args are passed in with deployed service/monitor
+	ext_execute_service(ms_pl,Deployment), % Main, other args are passed in with deployed service/monitor
 	true.
 
 rmvt(e2e_c) :-
 	behavior(1,Assigns), SSid=ssid_00004,
 	ServiceCreationContext = [behavior=Assigns,ssid=SSid,atom_eval_mode=ms_eval,monitor_sensor_lang=ms_c],
 	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the assigns
-	%ext_service_spec2service(ServiceSpec,Service),
-	rmv_mc:service_spec2monitor(ServiceSpec,Monitor),
+	%ext_service_spec2service(ServiceSpec,Service), % service has the assigns
+	rmv_mc:service_spec2monitor(ServiceSpec,Monitor), % monitor configuration vector has the assigns (behavior)
 	format('Monitor=~q~n',[Monitor]),
 	true.
 

@@ -10,6 +10,8 @@
 :- use_module(rmv_ml).
 :- use_module([rmv_mc_cm, rmv_mc_cps, rmv_mc_nui
 	      ]).
+:- use_module(library('http/json')).
+:- use_module(library('http/json_convert')).
 
 :- dynamic mc_initialized/1.
 mc_initialized(false).
@@ -67,6 +69,8 @@ create_monitor(SS, Model, Properties, Cmds, Monitor) :-
         % make a unique monitor sensor instance id
         % modid2monid(ModelId,MonitorId),
         uuid(U), atom_concat(monid_ , U, MonitorId),
+        param:monitor_directory_name(RMdir),
+        atomic_list_concat([RMdir,'/',MonitorId,'_conf.json'],MScvFullFile),
 
         % configure monitor sensor
         %
@@ -81,7 +85,7 @@ create_monitor(SS, Model, Properties, Cmds, Monitor) :-
         atomic_list_concat([MSdir,'/',MSfile], MSFullFile),
 
         (       simulated_monitor_creation
-        ->
+        ->      % take Eval and ServiceMain from SSpec and using MScv make a new ms_cv: MScv1
                 rmv_ml:ex_cv(2,MScv), % ignore the monitor ID in the test MScv
                 cons_ms_cv(_MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port, MScv),
                 (       memberchk(atom_eval_mode=OAEval,Bitems)
@@ -92,7 +96,7 @@ create_monitor(SS, Model, Properties, Cmds, Monitor) :-
                 ->      true % override the behavior
                 ;       OBeh = Beh
                 ),
-                cons_ms_cv(MonitorId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, OAEval, Vinit, OBeh, Timer, Host, Port, MScv1)
+                cons_ms_cv(MonitorId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, OAEval, Vinit,  OBeh, Timer, Host, Port, MScv1)
         ;       
                 Properties = properties(Vp, PropAtoms, PropFormulas),
                 forall( member(P,PropFormulas), is_property(P) ),
@@ -112,15 +116,25 @@ create_monitor(SS, Model, Properties, Cmds, Monitor) :-
                 cons_ms_cv(MonitorId,Vdecl,Vo,Vm,Vp,Vr,Vt,PropAtoms,AEval,Vinit,Beh,Timer,Host,Port,MScv1)
         ),
 
+        create_cvjson_file(MScv1,MScvFullFile),
+
         (       MSlang == ms_c
         ->      create_svh_file(MScv1,SVFullFile)
         ;       SVFullFile = none
         ),
 
         % construct and install the new monitor in the library
-        cons_monitor(MonitorId, SSpecId, ModelId, Properties, MSlang, MSfile, MScv1, MSFullFile, SVFullFile, Monitor),
+        %cons_monitor(MonitorId, SSpecId, ModelId, Properties, MSlang, MSfile, MScv1, MSFullFile, SVFullFile, Monitor),
+        cons_monitor(MonitorId, SSpecId, ModelId, Properties, MSlang, MSFullFile, MScv1, MScvFullFile, SVFullFile, Monitor),
         load_monitor(Monitor),
         true.
+
+create_cvjson_file(MScv,MScvFullFile) :-
+        rmv_ml:ms_cv_to_pjson(MScv,PJCV),
+        atom_json_term(JSA,PJCV,[as(atom)]),
+        open(MScvFullFile,write,S,[create([default])]),
+        write(S,JSA),
+        close(S,[force(true)]).
 
 create_svh_file(MScv,SVFullFile) :-
         % pull MonitorId and Vdecl from the MScv
@@ -130,7 +144,7 @@ create_svh_file(MScv,SVFullFile) :-
         param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',SVfile],SVFullFile),
 
-        current_output(OS),
+        %current_output(OS),
         open(SVFullFile,write,S,[create([default])]),
         forall( member(L, [
         % file header
@@ -187,7 +201,7 @@ create_svh_file(MScv,SVFullFile) :-
         writeln(S,MidLine),
         nl(S),
         close(S),
-        current_output(OS),
+        %current_output(OS),
         true.
 
 graph_monitor(Monitor) :- is_monitor(Monitor).

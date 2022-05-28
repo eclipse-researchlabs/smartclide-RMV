@@ -13,13 +13,34 @@
 % MONITOR SENSOR functions exposed to the SUS
 %
 % ms_startup is called by the SUS when it begins execution
+% ms_shutdown is called by the SUS when it is shutting down
+% ms_responder causes a MS message to be sent to the MEP - called by setters
+% ms_step is called for state change to trigger the responder
+% ms_run_behavior executes sequence of assigns in the behavior ms_cv element
+% ms_start_timer starts (or resets) a repeating timer at specified interval
+% ms_stop_timer stops repeating timer interrupt and cancels outstanding timer
+% ms_service_timer the default timer interrupt service routine
+% ms_recovery register a recovery service routine
+%
+% ms_startup is called by the SUS when it begins execution
 ms_startup :- init_ms.
 
 % ms_shutdown is called by the SUS when it is shutting down
 ms_shutdown :- shutdown.
 
+ms_responder :- responder.
+
 % ms_step is called by SUS logic to explicitly trigger the responder
 ms_step :- responder.
+
+
+ms_run_behavior :- behavior(Beh), set_ms_sus_vars(Beh,trigger).
+
+ms_start_timer(_Interval) :- true.
+
+ms_stop_timer :- true.
+
+ms_service_timer :- true.
 
 % ms_recovery registers a callback with MS for recovery
 % the predicate is assumed to be of arity 1 to accommodate
@@ -53,10 +74,9 @@ invoke_SUS_recovery(_).
         property_vars/1, reportable_vars/1,
         trigger_vars/1, monitor_atoms/1,
         monitor_atom_eval/1, shared_var_init/1,
-        behavior/1, timer/1, rmvhost/1, rmvport/1,
-        monitor_session/1.
+        behavior/1, timer/1, rmvhost/1, rmvport/1.
 
-monitor_id('monid_00002'). % TODO somehow must be set before init
+monitor_id(''). % TODO somehow must be set before init
 shared_var_decl([]).
 observable_vars([]).
 model_vars([]).
@@ -71,8 +91,6 @@ timer(0.0).
 rmvhost('').
 rmvport(0).
 
-monitor_session('').
-
 % these configuration elements are unary functors, but many hold lists
 ms_config_elements([monitor_id, shared_var_decl,
                     observable_vars, model_vars,
@@ -84,63 +102,70 @@ ms_config_elements([monitor_id, shared_var_decl,
 % MS STARTUP/SHUTDOWN INITIALIZATION
 %
 
-:- dynamic ms_initialized/1.
+:- dynamic ms_initialized/1, global_monitor_id/1, ms_configuration_file/1, monitor_session/1.
+
 ms_initialized(false).
+
+global_monitor_id('').
+
+ms_configuration_file('').
+
+monitor_session('').
 
 % CONCRETE CONFIGURATION VECTOR
 % These definitions are presented as examples and are used by the self tests
 % It is also defined in the monitor library rmv_ml as ms_test_cv.
 
-test_cv(1, ms_cv( % old format
-             /* monitor_id */         'mid_00001',
-             /* shared vars */        [a,b,c,s,t,u,v,w,x,y,z],
-             /* monitor_atoms */      [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
-             /* monitor_vars */       [s,t,u,v,w,x,y,z],
-             /* monitor_observable_vars */ [u,v,w,x,y,z],
-             /* monitor_property_vars */   [v,w,x,y,z],
-             /* monitor_reportable_vars */ [v,w,x,y,z],
-             /* monitor_trigger_vars */    [x],
-             /* monitor_atom_eval */  ms_eval,
-             /* shared_vars_init */   [s=undefined,
-                                       t=undefined,
-                                       u=undefined,
-                                       v=false,
-                                       w=true,
-                                       x=1,
-                                       y=2,
-                                       z=3
-                                      ]
-         )
-       ).
+% test_cv(1, ms_cv( % old format
+%              /* monitor_id */         'mid_00001',
+%              /* shared vars */        [a,b,c,s,t,u,v,w,x,y,z],
+%              /* monitor_atoms */      [a1:eq(x,2),a2:lt(x,2),a3:lt(y,x),a4:leq(x,2)],
+%              /* monitor_vars */       [s,t,u,v,w,x,y,z],
+%              /* monitor_observable_vars */ [u,v,w,x,y,z],
+%              /* monitor_property_vars */   [v,w,x,y,z],
+%              /* monitor_reportable_vars */ [v,w,x,y,z],
+%              /* monitor_trigger_vars */    [x],
+%              /* monitor_atom_eval */  ms_eval,
+%              /* shared_vars_init */   [s=undefined,
+%                                        t=undefined,
+%                                        u=undefined,
+%                                        v=false,
+%                                        w=true,
+%                                        x=1,
+%                                        y=2,
+%                                        z=3
+%                                       ]
+%          )
+%        ).
 
-test_cv(2, ms_cv( % new format - identical to ex_cv(2, CV) in rmv_ml
-             /* monitor_id */         'monid_00002',
-             /* shared_var_decl */    [n:integer,
-                                       o:integer,
-                                       p:boolean,
-                                       q:boolean,
-                                       r:float,
-                                       s:float],
-             /* observable_vars */    [n, o, p, q, r, s],
-             /* model_vars */         [n, p, q, s],
-             /* property_vars */      [n, p, q],
-             /* reportable_vars */    [n, o, s, p, q],
-             /* trigger_vars */       [q, s],
-             /* monitor_atoms */      [p:p,a1:eq(n,2),a2:lt(n,2),a3:eq(p,q),q:q],
-             /* monitor_atom_eval */  ms_eval,
-             /* shared_var_init */    [n=1,
-                                       o=2,
-                                       p=true,
-                                       q=false,
-                                       r=undefined,
-                                       s=1
-                                      ],
-             /* behavior */           [],
-             /* timer */              0,
-             /* rmvhost */            '127.0.0.1',
-             /* rmvport */            8005
-         )
-       ).
+% test_cv(2, ms_cv( % new format - identical to ex_cv(2, CV) in rmv_ml
+%              /* monitor_id */         'monid_00002',
+%              /* shared_var_decl */    [n:integer,
+%                                        o:integer,
+%                                        p:boolean,
+%                                        q:boolean,
+%                                        r:float,
+%                                        s:float],
+%              /* observable_vars */    [n, o, p, q, r, s],
+%              /* model_vars */         [n, p, q, s],
+%              /* property_vars */      [n, p, q],
+%              /* reportable_vars */    [n, o, s, p, q],
+%              /* trigger_vars */       [q, s],
+%              /* monitor_atoms */      [p:p,a1:eq(n,2),a2:lt(n,2),a3:eq(p,q),q:q],
+%              /* monitor_atom_eval */  ms_eval,
+%              /* shared_var_init */    [n=1,
+%                                        o=2,
+%                                        p=true,
+%                                        q=false,
+%                                        r=undefined,
+%                                        s=1
+%                                       ],
+%              /* behavior */           [],
+%              /* timer */              0,
+%              /* rmvhost */            '127.0.0.1',
+%              /* rmvport */            8005
+%          )
+%        ).
 
 % get_cv will import actual concrete MS configuration vector
 % or use the test configuration vector
@@ -150,8 +175,8 @@ get_cv(CV) :- !, get_cv(CV,'monid_00002'). % default
 get_cv(CV) :- test_cv(2,CV).
 get_cv(CV,N) :- integer(N), !, test_cv(N,CV).
 get_cv(CV,Mid) :- atom(Mid), !,
-        param:monitor_directory_name(MD),
-        atomic_list_concat([MD,'/',Mid,'_conf.json'], CF),
+        param:monitor_directory_name(RMdir),
+        atomic_list_concat([RMdir,'/',Mid,'_conf.json'], CF),
         open(CF,read,Stream),
         json_read(Stream,JSONterm),
         %writeln(JSONterm),
@@ -183,7 +208,7 @@ init_ms :-
         true.
 
 initialize_ms_configuration :-
-        (       ( monitor_id(Mid), Mid \== '' )
+        (       ( global_monitor_id(Mid), Mid \== '' )
         ->      get_cv(CV,Mid)
         ;       get_cv(CV)
         ),
@@ -195,7 +220,7 @@ initialize_ms_configuration(CV) :-
         clear_ms_configuration,
         set_ms_configuration([MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port]),
         declare_sus_vars(Vdecl),
-        set_ms_sus_vars(Vinit).
+        set_ms_sus_vars(Vinit,no_trigger).
 
 set_ms_configuration(CL) :-
         ms_config_elements(CE),
@@ -224,16 +249,21 @@ declare_sus_vars([Decl|Decls]) :- !,
 declare_sus_var(SVname:SVtype) :-
         assert( sus_var(SVname,SVtype,undefined) ).
 
-set_ms_sus_vars([]).
-set_ms_sus_vars([N=V|SVs]) :-
-        set_ms_sus_var(N,V), set_ms_sus_vars(SVs).
+set_ms_sus_vars([],_).
+set_ms_sus_vars([N=V|SVs],Trigger) :-
+        set_ms_sus_var(N,V,Trigger), set_ms_sus_vars(SVs,Trigger).
 
-set_ms_sus_var(N,V) :-
+set_ms_sus_var(N,V,Trigger) :-
         (   sus_var(N,T,_)
         ->  retractall( sus_var(N,_,_) )
         ;   T = undeclared
         ),
-        assert( sus_var(N,T,V) ).
+        assert( sus_var(N,T,V) ),
+        (       Trigger == trigger
+        ->      trigger_vars(Tvars),
+                ( memberchk(N,Tvars) -> responder ; true )
+        ;       true
+        ).
 
 clear_ms_configuration :-
         % clear all unary config elements
@@ -247,13 +277,13 @@ shutdown :-
         monitor_id(Mid),
         monitor_session(Sid),
         mep_monitor_stop(Mid,Sid,Mstatus), % TODO - call through mepapi
-        (   memberchk(monitor_stopping,Mstatus)
+        (   memberchk(monitor_stopped,Mstatus)
         ->  true
         ;   writeln('error from mep_monitor_stop'),
             fail
         ),
         retractall(ms_initialized(_)), assert(ms_initialized(complete)),
-        rmv_mc_nui:display_session_log(Sid).
+        rmv_mc_nui:display_session_log(Mid,Sid).
 
 re_init :- un_init, init.
 
@@ -323,23 +353,6 @@ arg_instantiate(Vars,A,IA) :- varname(A), !,
 arg_instantiate(_,A,A).
 
 % basic set of atomic expressions
-/* a_eval(true) :- !.
-a_eval(false) :- !, fail.
-a_eval(not(X)) :- atom(X), !, X \== true.
-a_eval(eq(X,Y)) :- number(X), number(Y), !, X=:=Y.
-a_eval(eq(X,Y)) :- atom(X), atom(Y), !, X==Y.
-a_eval(ne(X,Y)) :- number(X), number(Y), !, X=\=Y.
-a_eval(ne(X,Y)) :- atom(X), atom(Y), !, X\==Y.
-a_eval(neq(X,Y)) :- number(X), number(Y), !, X=\=Y.
-a_eval(neq(X,Y)) :- atom(X), atom(Y), !, X\==Y.
-a_eval(gt(X,Y)) :- number(X), number(Y), !, X>Y.
-a_eval(lt(X,Y)) :- number(X), number(Y), !, X<Y.
-a_eval(geq(X,Y)) :- number(X), number(Y), !, X>=Y.
-a_eval(leq(X,Y)) :- number(X), number(Y), !, X=<Y.
-a_eval(ge(X,Y)) :- number(X), number(Y), !, X>=Y.
-a_eval(le(X,Y)) :- number(X), number(Y), !, X=<Y.
-a_eval(_) :- !, fail.
- */
 a_eval(true,    true) :- !.
 a_eval(false,   false) :- !.
 a_eval(not(X),  R) :- atom(X), !, (X \== true -> R=true;R=false).

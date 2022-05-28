@@ -128,18 +128,18 @@ is_model(Model) :-
 % MONITOR
 
 monitor( MonId, Monitor ) :- % lookup stored monitor by id
-        monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile, SVfile ),
-        Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile, SVfile ).
+        monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ),
+        Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ).
 
-cons_monitor(MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile, SVfile, Monitor) :- % construct/deconstruct
-        Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile, SVfile ).
+cons_monitor(MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile, Monitor) :- % construct/deconstruct
+        Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ).
 
 is_monitor(Monitor) :- % is a well-formed monitor
-        Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile, SVfile ),
-        atom(MonId), atom(SSpecId), atom(ModId), atom(MSfile), atom(SVfile),
+        Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ),
+        atom(MonId), atom(SSpecId), atom(ModId), atom(MSfile), atom(MSCVfile), atom(SVfile),
         Properties = properties( PropVars, PropAtoms, PropFormulas ),
         is_list(PropVars), is_list(PropAtoms), is_list(PropFormulas),
-        (MSlang == ms_c; MSlang == ms_pl), atom(MSid), is_ms_cv(MScv),
+        (MSlang == ms_c; MSlang == ms_pl), is_ms_cv(MScv),
         % further conditions on the arguments
         true.
 
@@ -416,11 +416,13 @@ ex_cv(2, ms_cv( % new format
 
 assigns_to_pjson(A,JA) :- findall( json([name=Svn,value=Svv]), member(Svn=Svv, A), JA).
 
+decls_to_pjson(D,JD) :- findall( json([name=Svn,type=Svt]), member(Svn:Svt, D), JD).
+
 ms_cv_to_pjson(CV,PJCV) :-
         CV =  ms_cv(Mid,Svd,Vo,Vm,Vp,Vr,Vt,Atoms,Mae,Vinit,Beh,Timer,Host,Port),
         PJCV = json([
                 monitor_id=Mid,
-                shared_var_decl=Svd,
+                shared_var_decl=JSvd,
                 observable_vars=Vo,
                 model_vars=Vm,
                 property_vars=Vp,
@@ -437,6 +439,7 @@ ms_cv_to_pjson(CV,PJCV) :-
         findall(json([aid=Ai,aex=Eaf]),
                 ( member(Ai:Af,Atoms), encode_as_atoms(Af,Eaf)),
                 JAtoms),
+        decls_to_pjson(Svd,JSvd),
         assigns_to_pjson(Vinit,JSvi),
         assigns_to_pjson(Beh,JBeh).
 
@@ -529,7 +532,7 @@ pt2(rmv_ml:atm(a,b)).
 pt3(atm(a,(rmv_ml:lt(x,2)))).
 
 check_conversions :- Mid='mid_00001',
-        ms_cv(Mid,MS_CV), format('ms_cv from library: ~q~n',MS_CV),
+        ex_cv(2,MS_CV), format('ms_cv from library: ~q~n',MS_CV),
         nl,
         ms_cv_to_pjson(MS_CV,PJCV), format('ms_cv_to_pjson: ~q~n',PJCV),
         nl,
@@ -592,9 +595,9 @@ reconstitute_atoms(A,R) :- %compound(A), !,
 
 % LIBRARY DISPLAY OPS
 %
-
+% ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port)
 display_cv(CV) :-
-        CV = ms_cv(Monid,SVD,Ov,Mv,Pv,Rv,Tv,Ma,Mae,SVi),
+        CV = ms_cv(Monid,SVD,Ov,Mv,Pv,Rv,Tv,Ma,Mae,SVi,Beh,Timer,Host,Port),
         format('monitor_id: ~q~n', Monid),
         write('shared_var_decl: '), writeq(SVD), nl,
         write('observable_vars: '), writeq(Ov), nl,
@@ -605,10 +608,10 @@ display_cv(CV) :-
         write('monitor_atoms: '), writeq(Ma), nl,
         format('monitor_atom_eval: ~q~n', Mae),
         format('shared_var_init: ~q~n', [SVi]),
-        format('behavior: ~n'),
-        format('timer: ~n'),
-        format('host: ~n'),
-        format('port: ~n'),
+        format('behavior: ~q~n',[Beh]),
+        format('timer: ~f~n',Timer),
+        format('host: ~a~n',Host),
+        format('port: ~d~n',Port),
         true.
 
 display_monitor(M) :-

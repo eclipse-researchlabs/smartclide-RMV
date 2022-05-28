@@ -2,7 +2,7 @@
 % for human and automated interaction
 
 :- module(rmv_mc_nui,[start_monitor/2, stop_monitor/2, heartbeat/4,
-		      nurv_monitor_init/3,
+		      nurv_monitor_init/3, monid_sessid_NuRVsid/3, nurv_session/5, nurv_session_log/2,
 		      open_nurv_session/3, quit_nurv_session/1, close_nurv_session/1,
 		      nurv_session_cmd/2, nurv_session_cmd_resp/3, nurv_session_get_resp/2
 		     ]).
@@ -48,15 +48,17 @@ heartbeat(_,_,_,_).
 
 start_monitor_server(Mid) :- % TODO
 	monitor(Mid,_,_,_,_,_,_,_,_),
-	atom_concat('NuRV/Monitor/',Mid,_FullMid).
+	%atom_concat('NuRV/Monitor/',Mid,_FullMid),
+	true.
 
 stop_monitor_server(Mid) :-
 	monitor(Mid,_,_,_,_,_,_,_,_),
-	atom_concat('NuRV/Monitor/',Mid,_FullMid).
+	%atom_concat('NuRV/Monitor/',Mid,_FullMid),
+	true.
 
 heartbeat_monitor_server(Mid,Sid,AtomIds,Reset,Verdict) :-
 	monitor(Mid,_,_,_,_,_,_,_,_),
-	atom_concat('NuRV/Monitor/',Mid,_FullMid),
+	%atom_concat('NuRV/Monitor/',Mid,_FullMid),
 	% send NuRV heartbeat to session Sid and return verdict
 	% dummy values for testing
 	(   memberchk(p,AtomIds)
@@ -67,7 +69,8 @@ heartbeat_monitor_server(Mid,Sid,AtomIds,Reset,Verdict) :-
 	    )
 	),
 	format(atom(Cmd),'heartbeat -n 0 ~w',[ArgAtom]),
-	nurv_session_cmd_resp(Sid,Cmd,Verdict),
+	monid_sessid_NuRVsid(Mid,Sid,NuRVSid),
+	nurv_session_cmd_resp(NuRVSid,Cmd,Verdict),
 	%format('Response from NuRV heartbeat: ~q~n',Verdict),
 	Reset = false, % to be determined by model/parameters
 	true.
@@ -147,23 +150,33 @@ nurv_monitor_init(Infile,Ordfile,Sid) :-
 	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp4),
 	true.
 
+%%%%%%%%%%%%%%%%%
 % NuRV session tracking
+%
 :- dynamic nurv_session/5, nurv_session_log/2.
+
 nurv_session('11111', int, monid_00001, x, x). % keep for testing
 nurv_session(sid,stype,mid,to_stream,from_stream). % sid is pid as an atom
 
 nurv_session_log(sid,response).
 
-display_session_log(Sid) :- writeln('NuRV Log:'),
-	forall(nurv_session_log(Sid,Msg), format('~q ~s~n',[Sid,Msg])).
+monid_sessid_NuRVsid(Mid,SessId,NuRVSid) :-
+	atom_length(Mid,LM), SNS is LM+1, sub_atom(SessId,SNS,_,0,NuRVSid).
 
-open_nurv_session(int,SessionId,MonitorId) :- % open interactive NuRV session
+%
+%%%
+
+display_session_log(Mid,Sid) :- writeln('NuRV Log:'),
+	monid_sessid_NuRVsid(Mid,Sid,NuRVsid),
+	forall(nurv_session_log(NuRVsid,Msg), format('~q ~s~n',[Sid,Msg])).
+
+open_nurv_session(int,NuRVSessionId,MonitorId) :- % open interactive NuRV session
 	param:local_NuRV(_,NuRV),
 	process_create(path(NuRV),['-quiet', '-int'],
 		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
 	atom_number(NuRVSessionId,NuRVpid),
 %	init_session(SessionId, monitor_framework),
-	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
+	( param:verbose(on) -> format('NuRV session ~a~n',NuRVSessionId) ; true ),
 	assert( nurv_session(NuRVSessionId,int,MonitorId,ToStream,FromStream) ).
 
 open_nurv_session(orbit,NuRVSessionId,MonitorId) :- % open orbit NuRV session
@@ -195,18 +208,18 @@ quit_nurv_session :- % assumes only one active session
 	nurv_session(SessionId,_,_,_,_),
 	quit_nurv_session(SessionId).
 
-quit_nurv_session(SessionId) :- % send quit command, then close
-	nurv_session_cmd(SessionId,quit),
-	close_nurv_session(SessionId).
+quit_nurv_session(NSessionId) :- % send quit command, then close
+	nurv_session_cmd(NSessionId,quit),
+	close_nurv_session(NSessionId).
 
-close_nurv_session(SessionId) :- % only close the session
-	nurv_session(SessionId,_Stype,_MonitorId,ToStream,FromStream),
+close_nurv_session(NSessionId) :- % only close the session
+	nurv_session(NSessionId,_Stype,_MonitorId,ToStream,FromStream),
 	close(ToStream), close(FromStream),
 %	(   is_session(SessionId, monitor_framework) -> end_session(SessionId) ; true ),
-	retractall( nurv_session(SessionId,_,_,_,_) ),
-	atom_number(SessionId,NuRVpid),
+	retractall( nurv_session(NSessionId,_,_,_,_) ),
+	atom_number(NSessionId,NuRVpid),
 	process_wait(NuRVpid,Exit),
-	writeln(Exit).
+	writeln(Exit). % TODO get rid of this
 
 % Batch-style interaction with NuRV
 %

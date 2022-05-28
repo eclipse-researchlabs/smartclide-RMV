@@ -1,7 +1,7 @@
 % RMV - Monitoring Framework - Monitor Event Processing
 % Work in Progress
 
-:- module(rmv_mf_mep,[mep_monitor_start/2, mep_monitor_stop/2,
+:- module(rmv_mf_mep,[mep_monitor_start/2, mep_monitor_stop/3,
     mep_heartbeat/2, json_var_val/2
 	       ]).
 
@@ -62,6 +62,7 @@ report_event(Event, Reply) :- ms_event(Event), !,
 */
 
 mep_monitor_start(Mid,Status) :-
+    writeln(user_error,mep_monitor_start(Mid)),
     %epp_log_gen(monitor_event_processing, monitor_start),
     %rmv_mc_nui:start_monitor(Mid,Status), % TODO - currently only returns a status
     monitor(Mid,Monitor), !,
@@ -69,21 +70,24 @@ mep_monitor_start(Mid,Status) :-
 	Status = [monitor_started,session(SessId)],
     true.
 mep_monitor_start(Mid,Status) :-
+    writeln(user_error,mep_monitor_start(Mid)),
     Status = [monitor_not_found(Mid)].
 
-mep_monitor_stop(SessId,Status) :-
+mep_monitor_stop(Mid,SessId,Status) :-
+    writeln(user_error,mep_monitor_stop(Mid,SessId)),
     % (   number(SessId)
     % ->  atom_number(SessIdA,SessId)
     % ;   SessIdA = SessId
     % ),
     % %rmv_mc_nui:stop_monitor(Mid,Status), % TODO - currently only returns a status
-    terminate_monitor(SessId), % TODO - don't really need MonitorId, just SessId
+    terminate_monitor(Mid,SessId), % TODO - don't really need MonitorId, just SessId
 	Status = [monitor_stopped,session(SessId)],
     true.
 
 mep_heartbeat(HBterm,Status) :-
     /* HBterm = ms_event(MSmessage),*/
     \+ var(HBterm), !,
+    writeln(user_error,mep_heartbeat(HBterm)),
     % unpack the HBterm
     term_to_atom(HBterm,JA),
     atom_json_term(JA,JT,[]),
@@ -188,9 +192,11 @@ initiate_monitor(M,SessId) :-
         atom_concat(MonIdPref,MonIdUniq,MonitorId), % extract unique part of Monitor ID
         uuid(U), % make unique part of Session ID
         atomic_list_concat([SessIdPref,MonIdUniq, '_', U], SessId)
+
     ;   % the RMV session includes a NuRV session
         open_nurv_session(int,NuRVSessId,MonitorId),
-        %format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,SessId]), flush_output,
+        %format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,NuRVSessId]), flush_output,
+
         nurv_session_get_resp(NuRVSessId,''),
         param:monitor_directory_name(MD),
         atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
@@ -201,11 +207,10 @@ initiate_monitor(M,SessId) :-
     init_session(SessId, monitor_framework),
 	true.
 
-terminate_monitor(SessId) :-
-    param:rmv_session_id_prefix(SessIdPref), atom_concat(SIP,'_',SessIdPref),
-	atomic_list_concat([SIP,_UMid,USid], '_', SessId),
-    (   rmv_mc_nui:nurv_session(USid,_,_,_,_)
-    ->  quit_nurv_session(USid)
+terminate_monitor(Mid,SessId) :-
+    monid_sessid_NuRVsid(Mid,SessId,NSid),
+    (   rmv_mc_nui:nurv_session(NSid,_,_,_,_)
+    ->  quit_nurv_session(NSid)
     ;   true
     ),
     ( is_session(SessId, monitor_framework) -> end_session(SessId) ; true ),
