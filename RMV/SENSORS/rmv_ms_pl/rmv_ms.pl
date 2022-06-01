@@ -274,16 +274,15 @@ clear_ms_configuration :-
         true.
 
 shutdown :-
-        monitor_id(Mid),
         monitor_session(Sid),
-        mep_monitor_stop(Mid,Sid,Mstatus), % TODO - call through mepapi
+        mep_monitor_stop(Sid,Mstatus), % TODO - call through mepapi
         (   memberchk(monitor_stopped,Mstatus)
         ->  true
         ;   writeln('error from mep_monitor_stop'),
             fail
         ),
         retractall(ms_initialized(_)), assert(ms_initialized(complete)),
-        rmv_mc_nui:display_session_log(Mid,Sid).
+        rmv_mc_nui:display_session_log(Sid,clear).
 
 re_init :- un_init, init.
 
@@ -412,7 +411,7 @@ send_ms_heartbeat(Mid,Sid,ATl,ORl,Resp) :-
         term_to_atom(HBterm,JA),
         %format('send_ms_heartbeat HBterm: ~w~n',HBterm),
         % use only one of the two following goals
-        rmv_mf_mep:mep_heartbeat(HBterm,Resp),
+        rmv_mf_mep:mep_heartbeat(Sid,HBterm,Resp),
         %rmv_mf_mep:mep_heartbeat(Mid,Sid,ATl,ORl,Resp),
         true.
 

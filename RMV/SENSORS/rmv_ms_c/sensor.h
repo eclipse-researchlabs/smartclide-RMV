@@ -1,5 +1,5 @@
 //#define MS_TEST
-#define VERBOSITY 0  // set to -1 for silence
+#define VERBOSITY 1  // set to -1 for silence
 #define VERBOSE(L) if(VERBOSITY >= L)
 #define VERBOSE_MSG(L,M) if(VERBOSITY >= L){printf(M);fflush(stdout);}
 #include <stdio.h>
@@ -510,11 +510,11 @@ void send_MEP_monitor_start(char *request_ep,char *mid,char **Response){
     }
 }
 
-void send_MEP_monitor_stop(char *request_ep,char *sid,char **Response){
+void send_MEP_monitor_stop(char *request_ep,char *mid,char *sid,char **Response){
     char req_buf[STRINGS_SZ]; char encode_buf[CHARS_SZ];
     static char resp_buf[RESPONSE_BUF_SZ];
     char *req_pieces[] =
-        {"GET ",request_ep,"?token=",RMV_TOKEN,"&session_id=",sid,"\r\n\r\n",0};
+        {"GET ",request_ep,"?token=",RMV_TOKEN,"&monitor_id=",mid,"&session_id=",sid,"\r\n\r\n",0};
 
     char *rb = req_buf; *rb = '\0';
     for( char** p=req_pieces; *p; p++ ){
@@ -616,12 +616,12 @@ void mep_monitor_start(char *Mid, char **Msessid, mstatus *Mstatus){
     //VERBOSE(1){printf("Monitor session id: %s starting\n", *Msessid); fflush(stdout); }
 };
 
-void mep_monitor_stop(char *Msessid, mstatus *Mstatus){
+void mep_monitor_stop(char *Monid, char *Msessid, mstatus *Mstatus){
     char *Response, *respStatus, *respMessage, *respBody;
 
     if( SIMULATED_MEP ){
     }else{
-        send_MEP_monitor_stop("/mep/monitor_stop",Msessid,&Response);
+        send_MEP_monitor_stop("/mep/monitor_stop",Monid,Msessid,&Response);
         parse_mep_response(Response,&respStatus,&respMessage,&respBody);
         if( strcmp(respStatus,"success") != 0 ){
             VERBOSE(2){printf("unexpected failure of monitor_stop\n");fflush(stdout);}

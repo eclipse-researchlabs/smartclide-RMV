@@ -19,7 +19,8 @@
                   unload_service_specification/1,
                   load_monitor/1, unload_monitor/1, truncate_trace/2,
                   target_lang_monitor_sensor/5, type_pl_n_e_c/4,
-                  pjson_ms_cv/1
+                  monid_sessid_suniq/3, monid_sessid_muniq_suniq/4,
+                  pjson_ms_cv/1, json_var_val/2
 	       ]).
 
 :- use_module('COM/param').
@@ -61,6 +62,8 @@ type_pl_n_e_c(symbol,9,svt_Symbol,'char[]').% unused
 % atom_eval_mode(_) is one of unset_eval, no_eval, ms_eval or mep_eval
 % monitor_sensor_lang(_) one of ms_pl or ms_c
 	
+atom_eval_mode_type([unset_eval, no_eval, ms_eval, mep_eval]).
+monitor_sensor_lang_type([ms_pl, ms_c]).
 
 %-------------------------------------------
 %
@@ -203,7 +206,9 @@ is_ms_cv(MScv) :-
         MScv = ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port),
         atom(MonId), atom(AEval),
         is_list(Vdecl), is_list(Vo), is_list(Vm), is_list(Vp), is_list(Vr), is_list(Vt),
-        is_list(Atoms), (AEval == ms_eval; AEval == mep_eval), is_list(Vinit), is_list(Beh),
+        is_list(Atoms),
+        atom_eval_mode_type(EvalType), member(AEval,EvalType),
+        is_list(Vinit), is_list(Beh),
         number(Timer), atom(Host), number(Port),
         % further conditions on the arguments
         true.
@@ -231,10 +236,27 @@ monid2monvarshfile(MonitorId,MonVarsFile) :-
 
 monitorid_nurvid(Mid,NuRVid) :- Mid = NuRVid. % define if necessary
 
+monid_sessid_suniq(Mid,SessId,Suniq) :- % +Mid, +Sid, -Suniq
+    param:rmv_monitor_id_prefix(Mpref), param:rmv_session_id_prefix(Spref),
+	atom_concat(Mpref,Mu,Mid), atom_length(Spref,SpL), atom_length(Mu,MuL),
+	SuS is SpL+MuL+1, sub_atom(SessId,SuS,_,0,Suniq).
+
+monid_sessid_muniq_suniq(Monid,Sessid,Muniq,Suniq) :- % ?Mid, +Sid, ?Muniq, ?Suniq
+	param:rmv_monitor_id_prefix(Mpref), param:rmv_session_id_prefix(Spref),
+	atom_concat(Spref,ID,Sessid),
+	atomic_list_concat([Muniq,Suniq],'_',ID),
+	atom_concat(Mpref,Muniq,Monid).
+
+%
 
 %-------------------------------------------
-% JSON CONVERSION
+% JSON CONVERSIONS
 %
+
+json_var_val( json([Var='@'(true)]), Var=true ) :- !.
+json_var_val( json([Var='@'(false)]), Var=false ) :- !.
+json_var_val( json([Var=Val]), Var=Val ).
+
 
 
 %-------------------------------------------

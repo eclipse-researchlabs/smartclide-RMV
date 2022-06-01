@@ -1,13 +1,19 @@
 % interface to NuRV (and nuXmvm NuSMV)
 % for human and automated interaction
+%
+% includes a simple NuRV simulation for testing
 
 :- module(rmv_mc_nui,[start_monitor/2, stop_monitor/2, heartbeat/4,
-		      nurv_monitor_init/3, monid_sessid_NuRVsid/3, nurv_session/5, nurv_session_log/2,
+		      nurv_monitor_init/3,
+			  nurv_session/5, nurv_session_log/2,
+			  display_session_log/1, display_session_log/2, clear_session_log/1,
 		      open_nurv_session/3, quit_nurv_session/1, close_nurv_session/1,
 		      nurv_session_cmd/2, nurv_session_cmd_resp/3, nurv_session_get_resp/2
 		     ]).
 
 :- use_module(['COM/param','COM/ui','COM/sessions','RMV/rmv_na','RMV/rmv_ml',rmv_mc]).
+
+nurv_simulation(false). % true/false 
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -15,7 +21,7 @@
 %
 %   These functions are relayed here by rmv_mf_mep for
 %   events received from monitor sensors to be sent to
-%   monitor servers
+%   property monitor servers
 %
 
 % start a NuRV server instance with instance id derived form monitor id
@@ -29,9 +35,9 @@ start_monitor(_Mid,[monitor_start_failure]) :-
 % stop the NuRV server intance corresponding to monitor id
 stop_monitor(Mid,Status) :-
 	stop_monitor_server(Mid),
-	Status = [monitor_stopping],
+	Status = [monitor_stopped],
 	!.
-stop_monitor(_,[monitor_failure]).
+stop_monitor(_,[monitor_stop_failure]).
 
 % pass the T atoms to the monitor server for a verdict
 % send reportables to subscribers
@@ -69,7 +75,7 @@ heartbeat_monitor_server(Mid,Sid,AtomIds,Reset,Verdict) :-
 	    )
 	),
 	format(atom(Cmd),'heartbeat -n 0 ~w',[ArgAtom]),
-	monid_sessid_NuRVsid(Mid,Sid,NuRVSid),
+	monid_sessid_suniq(Mid,Sid,NuRVSid),
 	nurv_session_cmd_resp(NuRVSid,Cmd,Verdict),
 	%format('Response from NuRV heartbeat: ~q~n',Verdict),
 	Reset = false, % to be determined by model/parameters
@@ -141,7 +147,7 @@ nurv_session_get_resp(Sid,Resp) :-
 		nurv_session_get_resp(Sid,Resp)
 	).
 
-nurv_monitor_init(Infile,Ordfile,Sid) :-
+nurv_monitor_init(Infile,Ordfile,Sid) :- nurv_simulation(false), !,
 	atomic_list_concat(['set input_file ',Infile],Cmd1),
 	atomic_list_concat(['set input_order_file ',Ordfile],Cmd2),
 	nurv_session_cmd_resp(Sid,Cmd1,_Resp1),
@@ -149,9 +155,11 @@ nurv_monitor_init(Infile,Ordfile,Sid) :-
 	nurv_session_cmd_resp(Sid,go,_Resp3),
 	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp4),
 	true.
+nurv_monitor_init(_,_,_) :- nurv_simulation(true), !,
+	true.
 
 %%%%%%%%%%%%%%%%%
-% NuRV session tracking
+% NuRV session tracking and logging
 %
 :- dynamic nurv_session/5, nurv_session_log/2.
 
@@ -160,15 +168,20 @@ nurv_session(sid,stype,mid,to_stream,from_stream). % sid is pid as an atom
 
 nurv_session_log(sid,response).
 
-monid_sessid_NuRVsid(Mid,SessId,NuRVSid) :-
-	atom_length(Mid,LM), SNS is LM+1, sub_atom(SessId,SNS,_,0,NuRVSid).
-
-%
 %%%
 
-display_session_log(Mid,Sid) :- writeln('NuRV Log:'),
-	monid_sessid_NuRVsid(Mid,Sid,NuRVsid),
-	forall(nurv_session_log(NuRVsid,Msg), format('~q ~s~n',[Sid,Msg])).
+clear_session_log(Sid) :-
+	monid_sessid_muniq_suniq(_,Sid,_,NuRVsid),
+	retractall( nurv_session_log(NuRVsid,_)).
+
+display_session_log(Sid) :- display_session_log(Sid,noclear).
+
+display_session_log(Sid,Clear) :- writeln('NuRV Log:'),
+	monid_sessid_muniq_suniq(_,Sid,_,NuRVsid),
+	forall(nurv_session_log(NuRVsid,Msg), format('~a: ~s~n',[Sid,Msg])),
+	(Clear==clear -> clear_session_log(Sid) ; true ).
+
+%%%
 
 open_nurv_session(int,NuRVSessionId,MonitorId) :- % open interactive NuRV session
 	param:local_NuRV(_,NuRV),

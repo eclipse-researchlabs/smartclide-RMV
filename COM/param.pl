@@ -26,7 +26,7 @@
 		audit_selection/1, default_condition_variables/1,
         conditions_file/1, default_condition_predicates/1,
         context_file/1, eppapi_port/1, epp_token/1, rmv_token/1, rmv_epp_token/1,
-        rmv_mc_token/1,
+        rmv_mc_token/1, rmv_ln_token/1,
         epp_logging/1, epp_stream/1, null_stream/1, sleep_after_server_start/1,
         jsonresp_epp/1, jsonresp_server/1, jsonresp/1, epp_status/1,
         deny_resp/1, grant_resp/1,
@@ -123,7 +123,7 @@ name_string(epp,'Event Processing Point - TOG').
     admin_token/1, audit_token/1, audit_logging/1, audit_stream/1, audit_selection/1, audit_record/1,
     current_gpolicy/1, current_cpolicy/1, current_erp/1, epp_status/1,
     conditions_file/1, context_file/1, eppapi_port/1, epp_token/1, rmv_token/1, rmv_epp_token/1,
-    rmv_mc_token/1,
+    rmv_mc_token/1, rmv_ln_token/1,
     epp_logging/1, epp_stream/1, null_stream/1, sleep_after_server_start/1,
     jsonresp_epp/1, jsonresp_server/1, jsonresp/1,
     serverhost_ip/1, context_url/1, context_sim/1, local_nameserver_IOR/1,
@@ -135,7 +135,7 @@ settable_params([debug,self_test,statusprt,guitracer,guiserver,initialize,initia
                  current_gpolicy, current_cpolicy,
                  current_erp, epp_initialized, epp_status,
                  conditions_file, context_file, eppapi_port, epp_token, rmv_token, rmv_epp_token,
-                 rmv_mc_token,
+                 rmv_mc_token, rmv_ln_token/1,
                  epp_logging, epp_stream, null_stream, sleep_after_server_start,
                  jsonresp_epp, jsonresp_server, jsonresp, serverhost_ip, context_url, context_sim,
                  local_nameserver_IOR, rmv_run_with_http_server,
@@ -237,6 +237,7 @@ epp_token('epp_token'). % default epp token
 rmv_token('rmv_token'). % default rmv token
 rmv_epp_token('rmv_epp_token'). % default rmv_epp token
 rmv_mc_token('rmv_mc_token'). % default rmv_mc token
+rmv_ln_token('rmv_ln_token'). % default rmv_ln token
 
 % DPL CONDITIONS
 %

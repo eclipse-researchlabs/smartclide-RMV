@@ -1,9 +1,10 @@
 % LOGGING and NOTIFICATION Admin API
 :- module(rmv_lnapi, []).
 
-:- use_module('AUDIT/audit',[audit_gen/2]).
 :- use_module('COM/param').
 :- use_module('COM/apiresp').
+:- use_module(rmv_la).
+:- use_module(rmv_na).
 
 :- use_module(library(http/thread_httpd)).
 :- use_module(library(http/http_dispatch)).
@@ -24,12 +25,14 @@ lnapi_subscribe(Request) :-
 	std_resp_prefix,
 	catch(
 	     http_parameters(Request,[
-				]),
+			token(Token,[atom,optional(true)])
+			]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
+	( nonvar(Token) -> authenticate(rmv_ln,Token) ; true ), % TODO decide whether to have ln token
 	subscribe(_,_,_,_,_,_),
 	!.
-lnapi_subscribe(_) :- audit_gen(monitor_creation, create(failure)).
+lnapi_subscribe(_) :- audit_gen(logging_notification, subscribe(failure)).
 
 subscribe(_,_,_,_,_,_) :-
 	true.

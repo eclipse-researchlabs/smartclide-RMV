@@ -134,7 +134,7 @@ ssid(2,ssid_00003).
 pl_goals(1,[false]).
 pl_goals(2,[command:service_pl]).
 eval_mode(1,ms_eval).
-eval_mode(2,ms_eval).
+eval_mode(2,no_eval).
 ms_lang(1,ms_pl).
 ms_lang(2,ms_pl).
 
@@ -155,15 +155,16 @@ rmvt(e2e) :-
 	% must still make real ms heartbeat message and nurv heartbeat in orbit mode
 	% fake notifications are temporarily stubbed-out in MEP
 	% this test now subsumes rmvt(ms_pl)
-  epp:epp_log_gen(monitor_event_processing, monitor_test(starting)),
+%  epp:epp_log_gen(monitor_event_processing, monitor_test(starting)),
 	T=2,
-	behavior(T,Assigns), ssid(T,SSid), eval_mode(T,EvalMode), ms_lang(T,MSlang), pl_goals(T,Goals),
+	%behavior(T,Assigns),
+	ssid(T,SSid), eval_mode(T,EvalMode), ms_lang(T,MSlang), pl_goals(T,Goals),
 	ServiceCreationContext = [service_main=Goals,ssid=SSid,atom_eval_mode=EvalMode,monitor_sensor_lang=MSlang],
 	ext_get_service_spec(ServiceCreationContext, ServiceSpec), % service spec will have the Main
 	ext_service_spec2service(ServiceSpec,Service), % service now has the Main
 	rmv_mc:service_spec2monitor(ServiceSpec,Monitor), % monitor configuration vector has the Main
 	ext_deploy_service_with_monitor(Service,Monitor,Deployment), % Main is now in the deployment
-  epp:epp_log_gen(monitor_event_processing, monitor_test(ready_to_execute)),
+%  epp:epp_log_gen(monitor_event_processing, monitor_test(ready_to_execute)),
 	ext_execute_service(ms_pl,Deployment), % Main, other args are passed in with deployed service/monitor
 	true.
 

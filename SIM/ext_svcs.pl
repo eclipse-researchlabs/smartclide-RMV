@@ -225,7 +225,7 @@ ext_execute_service( ms_pl, Deployment ) :- % special case when behavior is list
 	is_monitor(Monitor),
 	memberchk( service_main=Goals, ServiceMain ),
 	\+ memberchk( _=_, Goals ), !,
-	Monitor = monitor( MonId,_, _, _, _MSlang, MSfile, _MScv, MSCVfile, _SVfile ),
+	Monitor = monitor( MonId,_, _, _, _MSlang, _MSfile, _MScv, MSCVfile, _SVfile ),
 	% pull out correct Monitor ID and config file
 	retractall(rmv_ms:global_monitor_id(_)), assert(rmv_ms:global_monitor_id(MonId)),
 	retractall(rmv_ms:ms_configuration_file(_)), assert(rmv_ms:ms_configuration_file(MSCVfile)),

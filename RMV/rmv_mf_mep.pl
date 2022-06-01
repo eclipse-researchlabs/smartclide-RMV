@@ -1,8 +1,8 @@
 % RMV - Monitoring Framework - Monitor Event Processing
 % Work in Progress
 
-:- module(rmv_mf_mep,[mep_monitor_start/2, mep_monitor_stop/3,
-    mep_heartbeat/2, json_var_val/2
+:- module(rmv_mf_mep,[mep_monitor_start/2, mep_monitor_stop/2,
+    mep_heartbeat/3, json_var_val/2
 	       ]).
 
 :- use_module(library('http/json')).
@@ -62,58 +62,61 @@ report_event(Event, Reply) :- ms_event(Event), !,
 */
 
 mep_monitor_start(Mid,Status) :-
-    writeln(user_error,mep_monitor_start(Mid)),
+    writeln(user_error,mep_monitor_start(Mid)), flush_output(user_error),
     %epp_log_gen(monitor_event_processing, monitor_start),
     %rmv_mc_nui:start_monitor(Mid,Status), % TODO - currently only returns a status
     monitor(Mid,Monitor), !,
     initiate_monitor(Monitor,SessId),
 	Status = [monitor_started,session(SessId)],
-    true.
+    epp_log_gen(monitor_event_processing, monitor_start(success,Status)).
 mep_monitor_start(Mid,Status) :-
     writeln(user_error,mep_monitor_start(Mid)),
-    Status = [monitor_not_found(Mid)].
+    Status = [monitor_not_found(Mid)],
+    epp_log_gen(monitor_event_processing, monitor_start(failure,Status)).
 
-mep_monitor_stop(Mid,SessId,Status) :-
-    writeln(user_error,mep_monitor_stop(Mid,SessId)),
+
+mep_monitor_stop(SessId,Status) :-
+    writeln(user_error,mep_monitor_stop(SessId)), flush_output(user_error),
     % (   number(SessId)
     % ->  atom_number(SessIdA,SessId)
     % ;   SessIdA = SessId
     % ),
     % %rmv_mc_nui:stop_monitor(Mid,Status), % TODO - currently only returns a status
-    terminate_monitor(Mid,SessId), % TODO - don't really need MonitorId, just SessId
+    terminate_monitor(SessId), !, 
 	Status = [monitor_stopped,session(SessId)],
-    true.
+    epp_log_gen(monitor_event_processing, monitor_stop(success,Status)).
+mep_monitor_stop(SessId,[unexpected_failure(SessId)]) :-
+    epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_failure(SessId))).
 
-mep_heartbeat(HBterm,Status) :-
+
+% mep_heartbeat/3
+mep_heartbeat(Sid,HBterm,Status) :-
+    writeln(user_error,mep_heartbeat(HBterm)), flush_output(user_error),
     /* HBterm = ms_event(MSmessage),*/
     \+ var(HBterm), !,
-    writeln(user_error,mep_heartbeat(HBterm)),
     % unpack the HBterm
     term_to_atom(HBterm,JA),
     atom_json_term(JA,JT,[]),
     % handle the heartbeat message in JT
     JT = json([monid=Monid, sessid=Sessid, atoms=ATl, vars=JVAl]),
-    is_list(ATl), is_list(JVAl),
+    atom(Monid), Sid==Sessid, is_list(ATl), is_list(JVAl),
     maplist(json_var_val, JVAl, VAl),
     monitor_atoms_eval(Monid,Atoms,Eval),
 
-    mep_heartbeat(Eval,Monid,Sessid,Atoms,ATl,VAl,Status).
+    mep_heartbeat(Eval,Monid,Sessid,Atoms,ATl,VAl,Status),
+    epp_log_gen(monitor_event_processing, heartbeat(success,Status)).
     %format(atom(A),'monid=~a, sessid=~a, eval=~a, status=~q', [Monid,Sessid,Eval,Status]),
     %epp_log_gen(monitor_event_processing,mep_heartbeat(A)).
+mep_heartbeat(Sid,HBterm,Status) :-
+    Status = [failure,mep_heartbeat(Sid,HBterm)],
+    epp_log_gen(monitor_event_processing, heartbeat(failure,Sid,HBterm)).
 
 
-json_var_val( json([Var='@'(true)]), Var=true ) :- !.
-json_var_val( json([Var='@'(false)]), Var=false ) :- !.
-json_var_val( json([Var=Val]), Var=Val ).
-
-
+% mep_heartbeat/7
 mep_heartbeat(mep_eval,Mid,Sid,Atoms,_AtomIds,Reportables,Status) :- !,
     aT_list_constructor(Atoms,Reportables,AtomIdsMEP), % ignore AtomIds from MS heartbeat
     rmv_mc_nui:heartbeat(Mid,Sid,AtomIdsMEP,Verdict), % call NuRV property monitor
     hb_verdict_status(Verdict,Sid,AtomIdsMEP,Reportables,Status).
-    % format(atom(A),'monid=~a, sessid=~a, eval=~a, atoms=~q, vars=~q, status=~q',
-    %     [Mid,Sid,mep_eval,AtomIdsMEP,Reportables,Status]),
-    % epp_log_gen('mep_heartbeat:',A).
 
 mep_heartbeat(ms_eval,Mid,Sid,_Atoms,AtomIds,Reportables,Status) :- !,
     rmv_mc_nui:heartbeat(Mid,Sid,AtomIds,Verdict), % call NuRV property monitor
@@ -125,12 +128,15 @@ mep_heartbeat(no_eval,_,Sid,_,_,Reportables,Status) :- !,
 mep_heartbeat(_,_,Sid,_,_,Reportables,Status) :- !,
     hb_verdict_status(unset_eval,Sid,[],Reportables,Status).
 
+%
 
 hb_verdict_status(error,Sid,AtomIds,Reportables,Status) :- !,
-    Status = [exception,session(Sid),verdict(error),basis(AtomIds,Reportables)].
+    Status = [exception,session(Sid),verdict(error),basis(AtomIds,Reportables)],
+    notifications(monitor_report,Sid,Status).
 
 hb_verdict_status(Verdict,Sid,AtomIds,Reportables,Status) :- !,
-    Status = [acknowledged,session(Sid),verdict(Verdict),basis(AtomIds,Reportables)].
+    Status = [acknowledged,session(Sid),verdict(Verdict),basis(AtomIds,Reportables)],
+    notifications(monitor_report,Sid,Status).
 
 /*
 mep_heartbeat(Mid,Sid,no_eval,_AtomIds,Reportables,Status) :- !, % no_eval case, reports only
@@ -166,13 +172,16 @@ mep_heartbeat(Mid,Sid,Eval,AtomIds,Reportables,Status) :-
     true.
 */
 % temporary stub for notifications:
-notifications(monitor_report,_Mid,Sid,Reportables,Verdict) :-
+notifications(monitor_report,Sid,Status) :-
+    %monid_sessid_muniq_suniq(Mid,Sid,Muniq,Suniq),
+    memberchk(basis(_,Reportables), Status), memberchk(verdict(Verdict), Status),
     epp_log_gen(monitor_event_processing, notification(monitor_report,Sid,Reportables,Verdict)),
     %format('notification: monitor report ~q:~a verdict: ~q, vars: ~q~n',[Mid,Sid,Verdict,Reportables]),
     true.
 
-notifications(monitor_verdict,Mid,Sid,Reportables,Verdict) :-
-    notifications(monitor_report,Mid,Sid,Reportables,_),
+notifications(monitor_verdict,Sid,Reportables,Verdict) :-
+    %monid_sessid_muniq_suniq(Mid,Sid,Muniq,Suniq),
+    notifications(monitor_report,Sid,Reportables,_),
     epp_log_gen(monitor_event_processing, notification(monitor_verdict,Sid,Verdict)),
     %format('notification: monitor report ~q:~a verdict: ~q~n',[Mid,Sid,Verdict]),
     true.
@@ -183,17 +192,16 @@ notifications(monitor_verdict,Mid,Sid,Reportables,Verdict) :-
 initiate_monitor(M,SessId) :-
     cons_monitor(MonitorId,_SSpecId,ModelId,_,_,_,MScv,_,_,M),
     MScv=ms_cv(MonitorId,_Vdecl,_Vo,_Vm,_Vp,_Vr,_Vt,_Atoms,AEval,_Vinit,_Beh,_Timer,_Host,_Port),
+    % the MonitorId alone is not a sufficient SessId because there can be multiple instances
+    % so a unique id is created (either the pid of a NuRV session or other unique id)
+    param:rmv_monitor_id_prefix(MonIdPref), param:rmv_session_id_prefix(SessIdPref),
+    atom_concat(MonIdPref,MonIdUniq,MonitorId), % extract unique part of Monitor ID
 
     (   AEval == no_eval
     ->  % this is a RMV-only session, no NuRV session
-        % the MonitorId alone is not a sufficient SessId because there can be multiple instances
-        % so a unique id is created here
-        param:rmv_monitor_id_prefix(MonIdPref), param:rmv_session_id_prefix(SessIdPref),
-        atom_concat(MonIdPref,MonIdUniq,MonitorId), % extract unique part of Monitor ID
-        uuid(U), % make unique part of Session ID
-        atomic_list_concat([SessIdPref,MonIdUniq, '_', U], SessId)
+        uuid(SessUniq) % make unique part of Session ID
 
-    ;   % the RMV session includes a NuRV session
+    ;   % the RMV session includes an interactive NuRV session
         open_nurv_session(int,NuRVSessId,MonitorId),
         %format('Monitor ID: ~a; NuRV session: ~a~n',[MonitorId,NuRVSessId]), flush_output,
 
@@ -202,13 +210,14 @@ initiate_monitor(M,SessId) :-
         atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
         atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
         nurv_monitor_init(SMVmodelFile,SMVordFile,NuRVSessId),
-        atomic_list_concat([MonitorId, '_', NuRVSessId], SessId)
+        SessUniq = NuRVSessId
     ),
+    atomic_list_concat([SessIdPref,MonIdUniq, '_', SessUniq], SessId),
     init_session(SessId, monitor_framework),
 	true.
 
-terminate_monitor(Mid,SessId) :-
-    monid_sessid_NuRVsid(Mid,SessId,NSid),
+terminate_monitor(SessId) :-
+    monid_sessid_muniq_suniq(_,SessId,_,NSid),
     (   rmv_mc_nui:nurv_session(NSid,_,_,_,_)
     ->  quit_nurv_session(NSid)
     ;   true
