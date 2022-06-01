@@ -350,7 +350,7 @@ monitor(monid_00004, ssid_00004, modid_00004, [], ms_pl, msid_00047,
 monitor(monid_00004, ssid_00004, modid_00004, [], ms_c, msid_00047,
         ms_cv( monid_00004, [m: integer, n:integer, o:integer, p:boolean, q:boolean, r:float, s:float],
                 [m, n, o, p, q, r, s], [n, p, q, s], [n, p, q], [n, o, p, q, s], [q, s],
-                [p:p, a1:eq(n,2), a2:lt(n,2), a3:eq(p,q), q:q], no_eval,
+                [p:p, a1:eq(n,2), a2:lt(n,2), a3:eq(p,q), q:q], ms_eval,
                 [m=0, n=1, o=2, p=true, q=false, r=undefined, s=1],
                 [n=5, p=false, o=7, r=3.14159, q=true], 0, '127.0.0.1', 8005),
                 'RMV/SENSORS/rmv_ms_c/sensor.h', 'RUNTIME/MONITORS/monid_00004_vars.h' ).

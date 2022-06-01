@@ -580,10 +580,12 @@ void parse_mep_response(char *Response,
 
 int parse_session(char *s, char *session_id){
     //sprintf(session_id,"blahblahblah");
-    char *prefix="session('";
+    char *prefix="session("; // session id may be between single quotes
     int start = strlen(prefix);
     if( strncmp(s,prefix,start)==0 ){
-        for(char *p=s+start; *p!='\''; p++) *session_id++ = *p;
+        char *p=s+start;
+        if( *p == '\'' ) p++;
+        for( ; *p!=')' && *p!='\''; p++) *session_id++ = *p;
         *session_id = '\0';
         return 1;
     }

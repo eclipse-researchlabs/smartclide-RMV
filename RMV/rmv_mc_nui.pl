@@ -4,16 +4,36 @@
 % includes a simple NuRV simulation for testing
 
 :- module(rmv_mc_nui,[start_monitor/2, stop_monitor/2, heartbeat/4,
-		      nurv_monitor_init/3,
+		      nurv_monitor_init/4, nurv_monitor_stop/1,
 			  nurv_session/5, nurv_session_log/2,
 			  display_session_log/1, display_session_log/2, clear_session_log/1,
 		      open_nurv_session/3, quit_nurv_session/1, close_nurv_session/1,
 		      nurv_session_cmd/2, nurv_session_cmd_resp/3, nurv_session_get_resp/2
 		     ]).
 
-:- use_module(['COM/param','COM/ui','COM/sessions','RMV/rmv_na','RMV/rmv_ml',rmv_mc]).
+:- use_module(['COM/param','COM/ui','COM/sessions','RMV/rmv_na','RMV/rmv_ml','RMV/rmv_mc']).
 
-nurv_simulation(false). % true/false 
+nurv_simulation(true). % true/false
+
+simulated_heartbeat_responses(1,[]).
+simulated_heartbeat_responses(2,[unknown,true,true,true]).
+
+:- dynamic monitor_response_list/2. % monitor_response_list(+NSid,-RemainingResponses)
+
+init_monitor_responses(Sid,N) :-
+	simulated_heartbeat_responses(N,Responses),
+	clear_monitor_responses(Sid),
+	assert( monitor_response_list(Sid,Responses) ).
+
+clear_monitor_responses(Sid) :-
+	retractall( monitor_response_list(Sid,_) ).
+
+get_monitor_response(Sid,Response) :-
+	monitor_response_list(Sid,Responses),
+	Responses \== [],
+	Responses = [Response|RemainingResponses],
+	retractall( monitor_response_list(Sid,_) ),
+	assert( monitor_response_list(Sid,RemainingResponses) ).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -23,6 +43,10 @@ nurv_simulation(false). % true/false
 %   events received from monitor sensors to be sent to
 %   property monitor servers
 %
+
+% Currently start_monitor/2 and stop_monitor/2 are not called
+% but heartbeat/4 => heartbeat_monitor_server/5 sequence is called
+% start_monitor/2 and stop_monitor/2 will be used for the new NuRV server
 
 % start a NuRV server instance with instance id derived form monitor id
 start_monitor(Mid,Status) :- % TODO
@@ -41,10 +65,14 @@ stop_monitor(_,[monitor_stop_failure]).
 
 % pass the T atoms to the monitor server for a verdict
 % send reportables to subscribers
-heartbeat(Mid,Sid,AtomIds,Verdict) :-
+heartbeat(Mid,Sid,AtomIds,Verdict) :- nurv_simulation(false), !,
 	heartbeat_monitor_server(Mid,Sid,AtomIds,_Reset,Verdict),
 	!.
-heartbeat(_,_,_,_).
+heartbeat(Mid,Sid,_,Verdict) :- nurv_simulation(true), !,
+	monid_sessid_muniq_suniq(Mid,Sid,_,NSid),
+	get_monitor_response(NSid,Verdict),
+	format(atom(LogEntry),'simulated verdict=~a',Verdict),
+	assertz( nurv_session_log(NSid,LogEntry) ), !.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %
@@ -147,15 +175,28 @@ nurv_session_get_resp(Sid,Resp) :-
 		nurv_session_get_resp(Sid,Resp)
 	).
 
-nurv_monitor_init(Infile,Ordfile,Sid) :- nurv_simulation(false), !,
+% nurv_monitor_init(+MonitorId,+Infile,+Ordfile,-NSid)
+nurv_monitor_init(MonitorId,Infile,Ordfile,NSid) :- nurv_simulation(false), !,
+	open_nurv_session(int,NSid,MonitorId),
+	nurv_session_get_resp(NSid,''),
 	atomic_list_concat(['set input_file ',Infile],Cmd1),
 	atomic_list_concat(['set input_order_file ',Ordfile],Cmd2),
-	nurv_session_cmd_resp(Sid,Cmd1,_Resp1),
-	nurv_session_cmd_resp(Sid,Cmd2,_Resp2),
-	nurv_session_cmd_resp(Sid,go,_Resp3),
-	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp4),
+	nurv_session_cmd_resp(NSid,Cmd1,_Resp1),
+	nurv_session_cmd_resp(NSid,Cmd2,_Resp2),
+	nurv_session_cmd_resp(NSid,go,_Resp3),
+	nurv_session_cmd_resp(NSid,'build_monitor -n 0',_Resp4).
+nurv_monitor_init(_,_,_,'99999') :- nurv_simulation(true), !,
+	init_monitor_responses('99999',2),
 	true.
-nurv_monitor_init(_,_,_) :- nurv_simulation(true), !,
+
+% nurv_monitor_stop(+NSid)
+nurv_monitor_stop(NSid) :- nurv_simulation(false), !,
+	(   nurv_session(NSid,_,_,_,_)
+	->  quit_nurv_session(NSid)
+	;   true
+	).
+nurv_monitor_stop(NSid) :- nurv_simulation(true), !,
+	clear_monitor_responses(NSid),
 	true.
 
 %%%%%%%%%%%%%%%%%

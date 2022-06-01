@@ -134,7 +134,7 @@ ssid(2,ssid_00003).
 pl_goals(1,[false]).
 pl_goals(2,[command:service_pl]).
 eval_mode(1,ms_eval).
-eval_mode(2,no_eval).
+eval_mode(2,ms_eval).
 ms_lang(1,ms_pl).
 ms_lang(2,ms_pl).
 
