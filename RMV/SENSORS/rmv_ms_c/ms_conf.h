@@ -590,9 +590,9 @@ void ms_heartbeat(char *mid, char *sid, char **ATl, char *ORl, int *Response){
     // before the next call).
     // This way we already have the name and value as individual strings
 
-    VERBOSE(1){printf("ms_heartbeat: mid=%s, sid=%s\n",mid,sid);}
-    VERBOSE(0){dump_strings(" true atoms", ATl); fflush(stdout);}
-    VERBOSE(0){dump_sv_inits(" variable report in heartbeat");}
+    VERBOSE(2){printf("ms_heartbeat: mid=%s, sid=%s\n",mid,sid);}
+    VERBOSE(2){dump_strings(" true atoms", ATl); fflush(stdout);}
+    VERBOSE(2){dump_sv_inits(" variable report in heartbeat");}
 
     char HB_message[JSON_STRING_SZ]; char *HB = HB_message; int nc;
     nc = sprintf(HB,"{\n\t\"monid\":\"%s\", \"sessid\":\"%s\",\n\t\"atoms\":[ ",mid,sid); HB += nc;

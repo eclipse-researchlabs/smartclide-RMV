@@ -282,7 +282,8 @@ shutdown :-
             fail
         ),
         retractall(ms_initialized(_)), assert(ms_initialized(complete)),
-        rmv_mc_nui:display_session_log(Sid,clear).
+        rmv_mc_nui:display_session_log(Sid,clear),
+        rmv_mc_nui:dump_nu_lines(Sid).
 
 re_init :- un_init, init.
 
@@ -315,10 +316,10 @@ responder :-
 %
 % TODO - use var_oldval_newval/3 for reference to past values by var
 %
-aT_list_constructor(_,[]) :- monitor_atom_eval(no_eval), !. % explicitly no atom evaluation to be done
-aT_list_constructor(As,ATs) :-
-        writeln('ms_eval aT_list_constructor'),
+aT_list_constructor(As,ATs) :- monitor_atom_eval(ms_eval), !,
+        %writeln('ms_eval aT_list_constructor'),
         findall(Ai, (member(Ai:Ap,As), af_evaluate(Ai:Ap)), ATs).
+aT_list_constructor(_,[]).
 
 af_evaluate(_Ai:Ap) :-
         aformula_instantiate(Ap,IAp), % a_eval(IAp).

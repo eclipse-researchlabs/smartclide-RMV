@@ -72,6 +72,7 @@ rmv(Selftest,Regression,Init,Verbose) :-
 rmv_server :-
 	get_command_args(Argv),
 	initialize_rmv,
+	param:setparam(sleep_after_server_start,on),
 	rmv_server_with_args(Argv).
 
 get_command_args(Argv) :-
@@ -118,9 +119,10 @@ start_nameserver :-
 	process_create(path(NameServ),[],
 		       [process(NSpid),stdin(pipe(ToS)),stdout(pipe(FromS))]),
 	atom_number(NSinstanceId,NSpid),
-	param:raw_read_delay(Delay),
+	param:nurv_read_delay(Delay),
 	sleep(Delay), % a short delay of less than a second
-	with_tty_raw((fill_buffer(FromS),read_pending_codes(FromS,Codes,T))), T=[],
+	%with_tty_raw((fill_buffer(FromS),read_pending_codes(FromS,Codes,T))), T=[],
+	fill_buffer(FromS), read_pending_codes(FromS,Codes,[]),
 	atom_codes(Response,Codes), atomic_list_concat(L,'\n',Response), nth1(2,L,IOR),
 	param:setparam(local_nameserver_IOR,IOR),
 	retractall( nameserver_instance(_,_,_,_) ),

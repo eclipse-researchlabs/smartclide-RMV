@@ -28,7 +28,7 @@
 mepapi([monitor_start,monitor_stop,monitor_heartbeat]). % MONITOR EVENT PROCESSING APIs
 
 % monitor_start
-mepapi_monitor_start(Request) :-
+mepapi_monitor_start(Request) :- 
 	std_resp_prefix,
 	catch(
 	     http_parameters(Request,[
@@ -133,9 +133,10 @@ monitor_test_aux(Sid) :- var(Sid), !,
 	epp_log_gen(monitor_event_processing, monitor_test(complete)),
 	std_resp_MS(success,'monitor_test',yes).
 monitor_test_aux(Sid) :- atom(Sid),
-	epp_log_gen(monitor_event_processing, monitor_test(session_id)),
-	rmv_mc_nui:nurv_session(Sid,A,B,C,D), !,
-	std_resp_MS(success,'monitor_test',nurv_session(Sid,A,B,C,D)).
+	epp_log_gen(monitor_event_processing, monitor_test(Sid)),
+	( Sid\==sid -> monid_sessid_muniq_suniq(_,Sid,_,NSid) ; NSid=Sid ),
+	rmv_mc_nui:nurv_session(NSid,A,B,C,D), !,
+	std_resp_MS(success,'monitor_test',nurv_session(NSid,A,B,C,D)).
 monitor_test_aux(_) :- !,
 	epp_log_gen(monitor_event_processing, monitor_test(invalid_argument)),
 	std_resp_MS(failure,'monitor_test',no).

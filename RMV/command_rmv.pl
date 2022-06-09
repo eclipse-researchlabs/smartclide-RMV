@@ -10,6 +10,7 @@
 %
 syntax(rmv,                            basic).
 syntax(rmv_server,                                               rmv).
+syntax(rmv_server(arg),                                          rmv).
 syntax(rmvt,                                                     rmv).
 syntax(rmvt(test_id),                                            rmv).
 syntax(rmvt(test_id,eval_mode),                                  rmv).
@@ -22,6 +23,7 @@ syntax(init_ms,                                                  rmv).
 syntax(nurv_session,                                             rmv).
 syntax(stop_nurv,                                                rmv).
 syntax(import_sspec(serv_spec_file,serv_spec_id),                rmv).
+syntax(nldump(nsid),                                             rmv).
 
 syntax(sspec_load(serv_spec_id,smv_model),                       rmv).
 syntax(sspec_smv(serv_spec_id,smv_model),                        rmv).
@@ -54,9 +56,11 @@ syntax(stop_nameserver,                                          rmv).
 semantics(import_sspec(F,V)) :- !, atom(F), var(V).
 semantics(monitor_start(M)) :- !, atom(M).
 semantics(monitor_stop(M,S)) :- !, atom(M), ( atom(S) ; number(S) ).
+semantics(rmv_server(A)) :- !, atomic(A), (number(A) ; A==nurvsim).
 semantics(rmvt(T)) :- !, atom(T).
 semantics(rmvt(T,E)) :- !, atom(T), atom(E).
 semantics(rmvt(T,E,L)) :- !, atom(T), atom(E), atom(L).
+semantics(nldump(NSid)) :- !, atomic(NSid).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % command help strings
@@ -89,10 +93,9 @@ do(rmv) :- !, user_mode(M), retractall(user_mode(_)), assert(user_mode(rmv)),
 	rem_commands(M), add_commands(rmv), banner(rmv).
 
 do(init_ms) :- !, do(rmvt(init_ms_cv)).
-do(rmv_server) :- !,
-	%do(rmvt(init_ms_cv)),
-	rmv_server:rmv_server_cmd.
-	%writeln('not yet configured to start rmv_server').
+
+do(rmv_server) :- !, rmv_server:rmv_server_cmd.
+do(rmv_server(A)) :- !, rmv_server:rmv_server_cmd(A).
 
 do(rmvt) :- !, rmvt(e2e). % abbrev-change to suit current need
 do(rmvt(ms_c)) :- !, rmvt(ms_c).
@@ -123,6 +126,9 @@ do(check_nameserver) :- !, rmv:check_nameserver.
 do(start_nameserver) :- !, rmv:start_nameserver.
 do(stop_nameserver) :- !, rmv:stop_nameserver.
 
+do(nldump(IdNum)) :- number(IdNum), !, atom_number(NSid,IdNum), do(nldump(NSid)).
+do(nldump(NSid)) :- atom(NSid), !, rmv_mc_nui:dump_nu_lines_nsid(NSid).
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % command procedures
 %
@@ -137,6 +143,8 @@ eval_mode(1,ms_eval).
 eval_mode(2,ms_eval).
 ms_lang(1,ms_pl).
 ms_lang(2,ms_pl).
+nurv_sim(1,true).
+nurv_sim(2,false).
 
 service_pl :-
 	rmv_ms:ms_startup,
@@ -148,7 +156,7 @@ service_pl :-
 app_recovery(R) :- format('Service recovery callback invoked with ~q~n',R).
 
 
-rmvt(e2e) :-
+rmvt(e2e) :- T=2, 
 	% end-to-end from service/monitor creation through execution
 	% uses the disjoint SMV model
 	% builds the monitor and runs it as local e2e in ext_svcs
@@ -156,7 +164,7 @@ rmvt(e2e) :-
 	% fake notifications are temporarily stubbed-out in MEP
 	% this test now subsumes rmvt(ms_pl)
 %  epp:epp_log_gen(monitor_event_processing, monitor_test(starting)),
-	T=2,
+	%nurv_sim(T,TF), param:setparam(rmv_nurv_simulation,TF),
 	%behavior(T,Assigns),
 	ssid(T,SSid), eval_mode(T,EvalMode), ms_lang(T,MSlang), pl_goals(T,Goals),
 	ServiceCreationContext = [service_main=Goals,ssid=SSid,atom_eval_mode=EvalMode,monitor_sensor_lang=MSlang],

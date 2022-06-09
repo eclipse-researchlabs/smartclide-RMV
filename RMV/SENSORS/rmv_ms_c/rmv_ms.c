@@ -5,7 +5,7 @@
 void service_logic(){
     VERBOSE_MSG(0,"service logic starting\n");
 
-    VERBOSE(2){ // to dump major data structures
+    VERBOSE(3){ // to dump major data structures
         dump_ms_cv( &monitor_interface.mi_cv );
         dump_shared_var_attributes(monitor_interface.mi_shared_vars,monitor_interface.mi_num_shared_vars);
         //for(monitor_atom *a=monitor_atoms;a<next_monitor_atom;a++) dump_parse(a->ma_aex);
@@ -30,6 +30,7 @@ int main(int argc, char *argv[]){
 
     if( ms_startup() == EXIT_FAILURE ) return(EXIT_FAILURE);
 
+    ms_test();
     service_logic();
 
     ms_shutdown();

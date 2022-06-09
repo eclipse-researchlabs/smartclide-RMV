@@ -17,7 +17,7 @@
 		policy_prefix/1, policy_language_version/1, server_version/1,
 		policy_directory_name/1, log_directory_name/1,
 		test_directory_name/1, graph_directory_name/1, monitor_directory_name/1,
-		files_directory_name/1, prettyprint_tab/1, raw_read_delay/1,
+		files_directory_name/1, prettyprint_tab/1, nurv_read_delay/1,
 		host_os/1, local_pdf_viewer/2, default_policy_file/1, graph_tmp_file/1,
 		current_policy/1, current_gpolicy/1, current_cpolicy/1, current_erp/1,
         pqapi_port/1, paapi_port/1, gpqapi_port/1,
@@ -36,7 +36,8 @@
         rmv_auditapi_port/1, rmv_lnapi_port/1, rmv_start_nameserver_on_init/1,
         rmv_run_with_http_server/1, rmv_monitor_id_prefix/1, rmv_session_id_prefix/1,
         rmv_model_id_prefix/1,
-        rmv_atom_eval_mode/1, rmv_monitor_server_lang/1
+        rmv_atom_eval_mode/1, rmv_monitor_server_lang/1,
+        rmv_nurv_simulation/1, rmv_server_is_running/1
 		 ]).
 
 % Versioning of various things
@@ -127,7 +128,8 @@ name_string(epp,'Event Processing Point - TOG').
     epp_logging/1, epp_stream/1, null_stream/1, sleep_after_server_start/1,
     jsonresp_epp/1, jsonresp_server/1, jsonresp/1,
     serverhost_ip/1, context_url/1, context_sim/1, local_nameserver_IOR/1,
-    rmv_run_with_http_server/1, rmv_atom_eval_mode/1, rmv_monitor_server_lang/1.
+    rmv_run_with_http_server/1, rmv_atom_eval_mode/1, rmv_monitor_server_lang/1,
+    rmv_nurv_simulation/1, rmv_server_is_running/1, nurv_read_delay/1.
 
 settable_params([debug,self_test,statusprt,guitracer,guiserver,initialize,initialized,regression_test,verbose,
 		 user_level, current_policy, pqapi_port, paapi_port, gpqapi_port, admin_token, prompt_string,
@@ -139,7 +141,8 @@ settable_params([debug,self_test,statusprt,guitracer,guiserver,initialize,initia
                  epp_logging, epp_stream, null_stream, sleep_after_server_start,
                  jsonresp_epp, jsonresp_server, jsonresp, serverhost_ip, context_url, context_sim,
                  local_nameserver_IOR, rmv_run_with_http_server,
-                 rmv_atom_eval_mode, rmv_monitor_server_lang
+                 rmv_atom_eval_mode, rmv_monitor_server_lang,
+                 rmv_nurv_simulation, rmv_server_is_running, nurv_read_delay
                 ]).
 
 setparam(Param,Value) :- atom(Param), ground(Value),
@@ -285,7 +288,7 @@ prettyprint_tab(2). % tab indent for pretty printed output
 host_os(os_x). % define only one
 % host_os(linux). % define only one
 % host_os(windows). % define only one
-raw_read_delay(0.1). % 0.05 seems fairly reliable; 0.01 is too short to be reliable
+nurv_read_delay(0.05). % 0.05 seems fairly reliable; 0.01 is too short to be reliable
 
 % External utilities
 %
@@ -308,3 +311,7 @@ rmv_model_id_prefix('modid_').
 rmv_atom_eval_mode(ms_cv). % override ms_cv: ms_cv, ms_eval, mep_eval or no_eval
 % following is not currently used
 rmv_monitor_sensor_lang(ms_cv). % override ms_cv: ms_c, ms_pl or ms_cv 
+% following says RMV server should simulate a NuRV session
+rmv_nurv_simulation(false). % true/false
+
+rmv_server_is_running(false).

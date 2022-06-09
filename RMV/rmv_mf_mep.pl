@@ -63,30 +63,38 @@ report_event(Event, Reply) :- ms_event(Event), !,
 
 % mep_monitor_start(+Mid,-Status)
 mep_monitor_start(Mid,Status) :-
-    writeln(user_error,mep_monitor_start(Mid)), flush_output(user_error),
+    %writeln(user_error,mep_monitor_start(Mid)), flush_output(user_error),
     monitor(Mid,Monitor), !,
     initiate_monitor(Monitor,SessId),
 	Status = [monitor_started,session(SessId)],
-    epp_log_gen(monitor_event_processing, monitor_start(success,Status)).
+    epp_log_gen(monitor_event_processing, monitor_start(success,Status)),
+    %monid_sessid_muniq_suniq(_,SessId,_,NSid), dump_nu_lines_nsid(NSid),
+    true.
 mep_monitor_start(Mid,Status) :-
-    writeln(user_error,mep_monitor_start(Mid)),
+    %writeln(user_error,mep_monitor_start(Mid)),
     Status = [monitor_not_found(Mid)],
-    epp_log_gen(monitor_event_processing, monitor_start(failure,Status)).
+    epp_log_gen(monitor_event_processing, monitor_start(failure,Status)),
+    % dump_nu_lines(SessId),
+    true.
 
 
 % mep_monitor_stop(+SessId,-Status)
 mep_monitor_stop(SessId,Status) :-
-    writeln(user_error,mep_monitor_stop(SessId)), flush_output(user_error),
+    %writeln(user_error,mep_monitor_stop(SessId)), flush_output(user_error),
     terminate_monitor(SessId), !, 
 	Status = [monitor_stopped,session(SessId)],
-    epp_log_gen(monitor_event_processing, monitor_stop(success,Status)).
+    epp_log_gen(monitor_event_processing, monitor_stop(success,Status)),
+    %monid_sessid_muniq_suniq(_,SessId,_,NSid), dump_nu_lines_nsid(NSid),
+    true.
 mep_monitor_stop(SessId,[unexpected_failure(SessId)]) :-
-    epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_failure(SessId))).
+    epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_failure(SessId))),
+    %monid_sessid_muniq_suniq(_,SessId,_,NSid), dump_nu_lines_nsid(NSid),
+    true.
 
 
 % mep_heartbeat/3
 mep_heartbeat(Sid,HBterm,Status) :-
-    writeln(user_error,mep_heartbeat(HBterm)), flush_output(user_error),
+    %writeln(user_error,mep_heartbeat(HBterm)), flush_output(user_error),
     /* HBterm = ms_event(MSmessage),*/
     \+ var(HBterm), !,
     % unpack the HBterm
@@ -99,12 +107,16 @@ mep_heartbeat(Sid,HBterm,Status) :-
     monitor_atoms_eval(Monid,Atoms,Eval),
 
     mep_heartbeat(Eval,Monid,Sessid,Atoms,ATl,VAl,Status),
-    epp_log_gen(monitor_event_processing, heartbeat(success,Status)).
-    %format(atom(A),'monid=~a, sessid=~a, eval=~a, status=~q', [Monid,Sessid,Eval,Status]),
-    %epp_log_gen(monitor_event_processing,mep_heartbeat(A)).
+    epp_log_gen(monitor_event_processing, heartbeat(success,Status)),
+    notifications(monitor_report,Sessid,Status),
+    %monid_sessid_muniq_suniq(_,Sessid,_,NSid), dump_nu_lines_nsid(NSid),
+    true.
 mep_heartbeat(Sid,HBterm,Status) :-
     Status = [failure,mep_heartbeat(Sid,HBterm)],
-    epp_log_gen(monitor_event_processing, heartbeat(failure,Sid,HBterm)).
+    epp_log_gen(monitor_event_processing, heartbeat(failure,Sid,HBterm)),
+    notifications(monitor_report,Sid,Status),
+    %monid_sessid_muniq_suniq(_,Sid,_,NSid), dump_nu_lines_nsid(NSid),
+    true.
 
 
 % mep_heartbeat/7
@@ -126,12 +138,10 @@ mep_heartbeat(_,_,Sid,_,_,Reportables,Status) :- !,
 %
 
 hb_verdict_status(error,Sid,AtomIds,Reportables,Status) :- !,
-    Status = [exception,session(Sid),verdict(error),basis(AtomIds,Reportables)],
-    notifications(monitor_report,Sid,Status).
+    Status = [exception,session(Sid),verdict(error),basis(AtomIds,Reportables)].
 
 hb_verdict_status(Verdict,Sid,AtomIds,Reportables,Status) :- !,
-    Status = [acknowledged,session(Sid),verdict(Verdict),basis(AtomIds,Reportables)],
-    notifications(monitor_report,Sid,Status).
+    Status = [acknowledged,session(Sid),verdict(Verdict),basis(AtomIds,Reportables)].
 
 /*
 mep_heartbeat(Mid,Sid,no_eval,_AtomIds,Reportables,Status) :- !, % no_eval case, reports only
@@ -208,7 +218,8 @@ initiate_monitor(M,SessId) :-
 	true.
 
 terminate_monitor(SessId) :-
-    monid_sessid_muniq_suniq(_,SessId,_,_),
+    monid_sessid_muniq_suniq(_,SessId,_,NSid),
+    nurv_monitor_stop(NSid),
     ( is_session(SessId, monitor_framework) -> end_session(SessId) ; true ).
 
 % nameserver version
@@ -243,8 +254,7 @@ g(sus_var(N,V), (N=V)).
 % included in the MS and in the MEP.
 %
 aT_list_constructor(As,Vars,ATs) :- % Vars is list of name=value pairs
-    epp_log_gen('entered aT_list_constructor/3',''),
-    %writeln('mep_eval aT_list_constructor'),
+    %epp_log_gen('mep aT_list_constructor',''),
     findall(Ai, (member(Ai:Ap,As), af_evaluate(Ai:Ap,Vars)), ATs).
 
 af_evaluate(_Ai:Ap,Vars) :-

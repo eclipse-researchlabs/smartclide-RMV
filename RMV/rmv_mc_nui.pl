@@ -8,16 +8,18 @@
 			  nurv_session/5, nurv_session_log/2,
 			  display_session_log/1, display_session_log/2, clear_session_log/1,
 		      open_nurv_session/3, quit_nurv_session/1, close_nurv_session/1,
-		      nurv_session_cmd/2, nurv_session_cmd_resp/3, nurv_session_get_resp/2
+		      nurv_session_cmd/2, nurv_session_cmd_resp/3, nurv_session_get_resp/2,
+            dump_nu_lines_sid/1, dump_nu_lines_nsid/1
 		     ]).
 
 :- use_module(['COM/param','COM/ui','COM/sessions','RMV/rmv_na','RMV/rmv_ml','RMV/rmv_mc']).
 
-nurv_simulation(true). % true/false
-
+:- dynamic simulated_heartbeat_responses/2. % lists used to initialize monitor_response_list
 simulated_heartbeat_responses(1,[]).
 simulated_heartbeat_responses(2,[unknown,true,true,true]).
 
+% the monitor_response_list, per session, is initialized with a list of responses
+% which are read one-by-one from the head when a response is needed
 :- dynamic monitor_response_list/2. % monitor_response_list(+NSid,-RemainingResponses)
 
 init_monitor_responses(Sid,N) :-
@@ -45,30 +47,30 @@ get_monitor_response(Sid,Response) :-
 %
 
 % Currently start_monitor/2 and stop_monitor/2 are not called
-% but heartbeat/4 => heartbeat_monitor_server/5 sequence is called
-% start_monitor/2 and stop_monitor/2 will be used for the new NuRV server
+% but will be used for the new nameserver monitor server implementation.
+% The heartbeat/4 => heartbeat_monitor_server/5 sequence is called currently.
 
-% start a NuRV server instance with instance id derived form monitor id
+% start a NuRV server instance with instance id derived from monitor id
 start_monitor(Mid,Status) :- % TODO
-	start_monitor_server(Mid),
-	Status = [monitor_started],
+	start_monitor_server(Mid,Sid),
+	Status = [monitor_started,session(Sid)],
 	!.
 start_monitor(_Mid,[monitor_start_failure]) :-
 	true.
 
-% stop the NuRV server intance corresponding to monitor id
-stop_monitor(Mid,Status) :-
-	stop_monitor_server(Mid),
+% stop the NuRV server instance corresponding to monitor id
+stop_monitor(Sid,Status) :-
+	stop_monitor_server(Sid),
 	Status = [monitor_stopped],
 	!.
 stop_monitor(_,[monitor_stop_failure]).
 
 % pass the T atoms to the monitor server for a verdict
 % send reportables to subscribers
-heartbeat(Mid,Sid,AtomIds,Verdict) :- nurv_simulation(false), !,
+heartbeat(Mid,Sid,AtomIds,Verdict) :- param:rmv_nurv_simulation(false), !,
 	heartbeat_monitor_server(Mid,Sid,AtomIds,_Reset,Verdict),
 	!.
-heartbeat(Mid,Sid,_,Verdict) :- nurv_simulation(true), !,
+heartbeat(Mid,Sid,_,Verdict) :- param:rmv_nurv_simulation(true), !,
 	monid_sessid_muniq_suniq(Mid,Sid,_,NSid),
 	get_monitor_response(NSid,Verdict),
 	format(atom(LogEntry),'simulated verdict=~a',Verdict),
@@ -80,7 +82,7 @@ heartbeat(Mid,Sid,_,Verdict) :- nurv_simulation(true), !,
 %
 %    the full monitor ID FullMid will be used with the nameserver
 
-start_monitor_server(Mid) :- % TODO
+start_monitor_server(Mid,Sid) :- Sid = _, % TODO
 	monitor(Mid,_,_,_,_,_,_,_,_),
 	%atom_concat('NuRV/Monitor/',Mid,_FullMid),
 	true.
@@ -112,16 +114,15 @@ heartbeat_monitor_server(Mid,Sid,AtomIds,Reset,Verdict) :-
 % Interactive
 %
 % enter top level loop for live developer interaction with NuRV session
-nu_tl(Session) :-
-	nurv_session(Session,_,_,ToS,FrS),
-	nu_tl(Session,ToS,FrS).
+% nu_tl(Session) :-
+% 	nurv_session(Session,_,_,ToS,FrS),
+% 	nu_tl(Session,ToS,FrS).
 
-% nu_tl/3 ends either by typing quit or an end_of_file
+% nu_tl ends either by typing quit or an end_of_file
 % quit will cause NuRV to terminate
-nu_tl(Sid,ToNU,FrNU) :-
+nu_tl(Sid) :-
 	param:local_NuRV_prompt(NuRVp),
-	param:raw_read_delay(Delay),
-	read_nu_line(Delay,FrNU,NuL,LenL),
+	read_nu_line(Sid,NuL,LenL),
 	write(NuL), flush_output,
 	Pos is LenL - 7,
 	(   Pos >= 0, sub_atom(NuL,Pos,7,_,NuRVp) % NuL ends with NuRV prompt
@@ -131,35 +132,62 @@ nu_tl(Sid,ToNU,FrNU) :-
 	    (	UL == "quit" -> fail ; true )
 	;   true
 	),
-	nu_tl(Sid,ToNU,FrNU).
-nu_tl(_,_,_).
+	nu_tl(Sid).
+nu_tl(_).
 
-read_nu_line(Slp,S,Lines,Len) :- % read a buffer of the stream from NuRV
-	sleep(Slp), % a short delay of less than a second
-	with_tty_raw((fill_buffer(S),read_pending_codes(S,Codes,T))), T=[], length(Codes,Len),
-	atom_codes(Lines,Codes).
+% record the lines read by read_nu_line
+:- dynamic read_nu_lines/3. % read_nu_lines( NSid, Len, Data )
+
+save_nu_line(Sid,Line) :-
+	%format(user_output, '~a: ~q~n',[Sid,Line]), flush_output(user_output),
+	atom_length(Line,Len), assertz( read_nu_lines(Sid,Len,Line) ).
+
+dump_nu_lines_sid(Sessid) :-
+	monid_sessid_muniq_suniq(_,Sessid,_,NSid),
+	dump_nu_lines_nsid(NSid).
+
+dump_nu_lines_nsid(NSid) :-
+	format(user_error,'~nNu Lines Log for ~a:~n',[NSid]),
+	dump_nu_lines1(NSid).
+
+dump_nu_lines1(NSid) :-
+	read_nu_lines(NSid,_,Lines),
+	( Lines=='' -> fail ; true ),
+	atom_codes(Lines,Codes),
+	forall( member(C,Codes), format(user_error,' ~d',[C]) ),
+	write(user_output,':'),
+	forall( member(C,Codes),
+			(	( C \== 10 -> atom_codes(PC,[C]) ; PC = '\\n' ),
+				format(user_error,' ~a',[PC]) ) ),
+	
+	nl(user_error), flush_output(user_error), fail. 
+dump_nu_lines1(NSid) :- retractall( read_nu_lines(NSid,_,_) ).
+
+read_nu_line(Sid,Lines,Len) :- % read a buffer of the stream from NuRV
+	param:nurv_read_delay(Delay),
+	sleep(Delay), % a short delay of less than a second
+	nurv_session(Sid,_,_,_,FrS),
+	%with_tty_raw((fill_buffer(FrS),read_pending_codes(FrS,Codes,[]))),
+	fill_buffer(FrS), read_pending_codes(FrS,Codes,[]),
+	atom_codes(Lines,Codes), length(Codes,Len),
+	save_nu_line(Sid,Lines).
 
 % send a NuRV command to a session
-nurv_session_cmd(Sid,Cmd) :-
-	nurv_session(Sid,_,_,ToS,_),
+nurv_session_cmd(NSid,Cmd) :-
+	nurv_session(NSid,_,_,ToS,_),
 	writeln(ToS,Cmd), flush_output(ToS),
 %	writeln(Cmd), flush_output,
-	assertz( nurv_session_log(Sid,Cmd) ),
+	assertz( nurv_session_log(NSid,Cmd) ),
+	save_nu_line(NSid,Cmd),
 	true.
 
-nurv_session_cmd_resp(Sid,Cmd,Resp) :-
-	nurv_session(Sid,_,_,ToS,_),
-	writeln(ToS,Cmd), flush_output(ToS),
-%	writeln(Cmd), flush_output,
-	assertz( nurv_session_log(Sid,Cmd) ),
-	nurv_session_get_resp(Sid,Resp).
+nurv_session_cmd_resp(NSid,Cmd,Resp) :-
+    nurv_session_cmd(NSid,Cmd),
+	nurv_session_get_resp(NSid,Resp).
 
-nurv_session_get_resp(Sid,Resp) :-
-	nurv_session(Sid,_,_,_,FrS),
-	param:raw_read_delay(Delay),
-	read_nu_line(Delay,FrS,NuL,LenL),
-%	write(NuL), flush_output,
-	assertz( nurv_session_log(Sid,NuL) ),
+nurv_session_get_resp(NSid,Resp) :-
+	read_nu_line(NSid,NuL,LenL),
+	assertz( nurv_session_log(NSid,NuL) ),
 	param:local_NuRV_prompt(NuRVp),
 	atom_length(NuRVp,NuRVpLen),
 	Pos is LenL - NuRVpLen,
@@ -169,33 +197,39 @@ nurv_session_get_resp(Sid,Resp) :-
 		(	sub_atom(NuL,Before,1,After,'\n')
 		->	After1 is After+1,
 			sub_atom(NuL,0,Before,After1,Resp)
-		;	Resp = ''
+		;	Resp = NuL % Resp = ''
 		)
-	;   % keep looking for prompt
-		nurv_session_get_resp(Sid,Resp)
+	;
+		Resp = NuL % nurv_session_get_resp(NSid,Resp)
 	).
 
 % nurv_monitor_init(+MonitorId,+Infile,+Ordfile,-NSid)
-nurv_monitor_init(MonitorId,Infile,Ordfile,NSid) :- nurv_simulation(false), !,
-	open_nurv_session(int,NSid,MonitorId),
-	nurv_session_get_resp(NSid,''),
+nurv_monitor_init(MonitorId,Infile,Ordfile,NSid) :- param:rmv_nurv_simulation(false), !,
 	atomic_list_concat(['set input_file ',Infile],Cmd1),
 	atomic_list_concat(['set input_order_file ',Ordfile],Cmd2),
-	nurv_session_cmd_resp(NSid,Cmd1,_Resp1),
-	nurv_session_cmd_resp(NSid,Cmd2,_Resp2),
-	nurv_session_cmd_resp(NSid,go,_Resp3),
-	nurv_session_cmd_resp(NSid,'build_monitor -n 0',_Resp4).
-nurv_monitor_init(_,_,_,'99999') :- nurv_simulation(true), !,
+	param:local_NuRV_prompt(NuRVp),
+	open_nurv_session(int,NSid,MonitorId),
+	nurv_session_get_resp(NSid,NuRVp),
+	nurv_session_cmd_resp(NSid,Cmd1,NuRVp),
+	nurv_session_cmd_resp(NSid,Cmd2,NuRVp),
+	nurv_session_cmd_resp(NSid,go,NuRVp),
+	nurv_session_cmd_resp(NSid,'build_monitor -n 0',NuRVp),
+	true.
+nurv_monitor_init(_,_,_,'99999') :- param:rmv_nurv_simulation(true), !,
 	init_monitor_responses('99999',2),
 	true.
 
 % nurv_monitor_stop(+NSid)
-nurv_monitor_stop(NSid) :- nurv_simulation(false), !,
+nurv_monitor_stop(NSid) :- param:rmv_nurv_simulation(false), !,
 	(   nurv_session(NSid,_,_,_,_)
-	->  quit_nurv_session(NSid)
+	->  quit_nurv_session(NSid),
+		%dump_nu_lines_nsid(NSid),
+		%display_session_log_nsid(NSid,clear),
+		retractall( read_nu_lines(NSid,_,_) ),	% clear the last session
+		clear_session_log_nsid(NSid)	
 	;   true
 	).
-nurv_monitor_stop(NSid) :- nurv_simulation(true), !,
+nurv_monitor_stop(NSid) :- param:rmv_nurv_simulation(true), !,
 	clear_monitor_responses(NSid),
 	true.
 
@@ -204,8 +238,8 @@ nurv_monitor_stop(NSid) :- nurv_simulation(true), !,
 %
 :- dynamic nurv_session/5, nurv_session_log/2.
 
-nurv_session('11111', int, monid_00001, x, x). % keep for testing
-nurv_session(sid,stype,mid,to_stream,from_stream). % sid is pid as an atom
+% e.g. nurv_session('11111', int, monid_00001, x, x). 
+nurv_session(sid,sesstype,mid,to_stream,from_stream). % sid is pid as an atom
 
 nurv_session_log(sid,response).
 
@@ -213,14 +247,22 @@ nurv_session_log(sid,response).
 
 clear_session_log(Sid) :-
 	monid_sessid_muniq_suniq(_,Sid,_,NuRVsid),
+	clear_session_log_nsid(NuRVsid).
+
+clear_session_log_nsid(NuRVsid) :-
 	retractall( nurv_session_log(NuRVsid,_)).
 
 display_session_log(Sid) :- display_session_log(Sid,noclear).
 
-display_session_log(Sid,Clear) :- writeln('NuRV Log:'),
+% TODO - return the log instead of writing to user_error
+display_session_log(Sid,Clear) :-
 	monid_sessid_muniq_suniq(_,Sid,_,NuRVsid),
-	forall(nurv_session_log(NuRVsid,Msg), format('~a: ~s~n',[Sid,Msg])),
-	(Clear==clear -> clear_session_log(Sid) ; true ).
+	display_session_log_nsid(NuRVsid,Clear).
+
+display_session_log_nsid(NSid,Clear) :- writeln(user_error,'\nNuRV Log:'),
+	forall(nurv_session_log(NSid,Msg), format(user_error,'~a: ~s~n',[NSid,Msg])),
+	(Clear==clear -> clear_session_log_nsid(NSid) ; true ).
+
 
 %%%
 
@@ -229,7 +271,6 @@ open_nurv_session(int,NuRVSessionId,MonitorId) :- % open interactive NuRV sessio
 	process_create(path(NuRV),['-quiet', '-int'],
 		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
 	atom_number(NuRVSessionId,NuRVpid),
-%	init_session(SessionId, monitor_framework),
 	( param:verbose(on) -> format('NuRV session ~a~n',NuRVSessionId) ; true ),
 	assert( nurv_session(NuRVSessionId,int,MonitorId,ToStream,FromStream) ).
 
@@ -242,11 +283,11 @@ open_nurv_session(orbit,NuRVSessionId,MonitorId) :- % open orbit NuRV session
 		       ['-quiet','-int','-i',SMVordFile,SMVmodelFile],
 		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
 	atom_number(NuRVSessionId,NuRVpid),
-%	init_session(SessionId, monitor_framework),
 	( param:verbose(on) -> format('NuRV session ~a~n',NuRVSessionId) ; true ),
 	assert( nurv_session(NuRVSessionId,orbit,MonitorId,ToStream,FromStream) ),
 	nurv_session_cmd_resp(Sid,go,_Resp1),
-	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp2).
+	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp2),
+	true.
 /*
 % NuRV -quiet -int -i disjoint.ord -source t.cmd disjoint.smv
 
@@ -258,12 +299,12 @@ open_nurv_session(orbit,NuRVSessionId,MonitorId) :- % open orbit NuRV session
 	( param:verbose(on) -> format('NuRV session ~a~n',SessionId) ; true ),
 	assert( nurv_session(SessionId,int,MonitorId,ToStream,FromStream) ).
 */
-quit_nurv_session :- % assumes only one active session
+quit_nurv_session :- % assumes only one active session TODO
 	nurv_session(SessionId,_,_,_,_),
 	quit_nurv_session(SessionId).
 
 quit_nurv_session(NSessionId) :- % send quit command, then close
-	nurv_session_cmd(NSessionId,quit),
+	nurv_session_cmd_resp(NSessionId,quit,_),
 	close_nurv_session(NSessionId).
 
 close_nurv_session(NSessionId) :- % only close the session
@@ -272,8 +313,9 @@ close_nurv_session(NSessionId) :- % only close the session
 %	(   is_session(SessionId, monitor_framework) -> end_session(SessionId) ; true ),
 	retractall( nurv_session(NSessionId,_,_,_,_) ),
 	atom_number(NSessionId,NuRVpid),
-	process_wait(NuRVpid,Exit),
-	writeln(Exit). % TODO get rid of this
+	process_wait(NuRVpid,Exit), Exit = _,
+	%compound(Exit), writeln(user_error,Exit),
+	true.
 
 % Batch-style interaction with NuRV
 %
@@ -408,13 +450,36 @@ test4 :- % test trace interactively with NuRV monitor
 	xml_trace(TraceFile,Trace),
 	truncate_trace(Trace,TTrace),
 	open_nurv_session(int,Sid,none), % format('NuRV session ~a~n',Sid),
-	nurv_session_get_resp(Sid),
+	nurv_session_get_resp(Sid,_),
 	% need to initialize the session with the monitor
 	atomic_list_concat([MD,'/','disjoint.smv'],SMVFile),
 	atomic_list_concat([MD,'/','disjoint.ord'],OrdFile),
-	nurv_monitor_init(SMVFile,OrdFile,Sid),
+	nurv_monitor_init(monid_xxxxx,SMVFile,OrdFile,Sid),
 	app_run(Sid,TTrace),
 	%nu_tl(Sid),close_nurv_session(Sid),
 	quit_nurv_session(Sid),
 	writeln('session ended'),
 	!.
+
+test5 :- % look at what is read in a NuRV session
+	open_nurv_session(int,NSid,none), format('NuRV session ~a~n',NSid),
+	nurv_session_get_resp(NSid,Resp1),
+	nurv_session_cmd_resp(NSid,'set input_file RUNTIME/MONITORS/disjoint.smv',Resp2),
+	nurv_session_cmd_resp(NSid,'set input_order_file RUNTIME/MONITORS/disjoint.ord',Resp3),
+	nurv_session_cmd_resp(NSid,go,Resp4),
+	quit_nurv_session(NSid),
+	dump_nu_lines_nsid(NSid),
+	nl, writeln(Resp1),writeln(Resp2),writeln(Resp3),writeln(Resp4),
+	true.
+/*
+nurv_monitor_init(MonitorId,Infile,Ordfile,NSid) :- param:rmv_nurv_simulation(false), !,
+	open_nurv_session(int,NSid,MonitorId),
+	% nurv_session_get_resp(NSid,''),
+	atomic_list_concat(['set input_file ',Infile],Cmd1),
+	atomic_list_concat(['set input_order_file ',Ordfile],Cmd2),
+	% nurv_session_cmd_resp(NSid,Cmd1,_Resp1),
+	% nurv_session_cmd_resp(NSid,Cmd2,_Resp2),
+	% nurv_session_cmd_resp(NSid,go,_Resp3),
+	% nurv_session_cmd_resp(NSid,'build_monitor -n 0',_Resp4),
+	true.
+*/

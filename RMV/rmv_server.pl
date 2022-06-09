@@ -41,20 +41,26 @@ rmv_server_opt_spec([
         [opt(epp), type(boolean), default(true), shortflags([e]), longflags(['epp']),
          help( 'enable Event Processing Point' )],
         [opt(context), meta('URL'), type(atom), shortflags([c]), longflags(['context']),
-	 help( 'URL of Context system' )]
+	 	 help( 'URL of Context system' )],
+		[opt(nurvsim), type(boolean), default(false), shortflags([n]), longflags(['nurvsim']),
+		  help( 'NuRV simulation' )],
+		[opt(guitracer), type(boolean), default(false), shortflags([g]), longflags(['guitracer']),
+		 help( 'enable GUI tracer' )]
 ]).
 
 :- dynamic rmv_server_options/1.
 rmv_server_options([]).
 
 % rmv_server/0, rmv_server/1, rmv_server/2 and rmv_server/3 are called by command:do
-% rmv_server_with_args/1 is called by rmv:rmv_server
 %
-% should check if server is already running
+% rmv_server_with_args/1 is called by rmv:rmv_server
 %
 rmv_server_cmd :-
 	param:rmv_port(Port), % use same port for all rmv APIs
 	rmv_server_cmd(Port).
+
+rmv_server_cmd(nurvsim) :- !,
+	param:setparam(rmv_nurv_simulation,true), rmv_server_cmd.
 
 rmv_server_cmd(Port) :-
 	%param:build_version(rmv,Vnum), format('rmv-server version ~a starting~n',Vnum),
@@ -65,8 +71,10 @@ rmv_server_cmd(Port) :-
 	),
 	(   param:rmv_run_with_http_server(true)
 	->  param:rmv_token(Rtoken),
-		param:setparam(epp_status,rmv_server),
-		rmv_server_with_opts([portnumber(Port),jsonresp(true),token(Rtoken)])
+		%param:setparam(epp_status,rmv_server),
+		Opts = [portnumber(Port),jsonresp(true),token(Rtoken),epp(true)],
+		( param:rmv_nurv_simulation(true) -> Opts1 = [nurvsim(true)|Opts] ; Opts1 = Opts ),
+		rmv_server_with_opts(Opts1)
 %	->  run_http_rmv_server(Port)
 	;   true
 	).
@@ -103,8 +111,11 @@ rmv_server_with_args(Argv) :-
 	),
 	rmv_server_with_opts(Opts).
 
+rmv_server_with_opts(_) :- param:rmv_server_is_running(true), !,
+	writeln('RMV server is already running').
 rmv_server_with_opts(Opts) :-
-	param:build_version(rmv,Vnum), format('rmv-server version ~a starting~n',Vnum),
+	process_id(Pid),
+	param:build_version(rmv,Vnum), format('rmv-server version ~a starting pid=~d~n',[Vnum,Pid]),
 	format('Options=~q~n',[Opts]),
 	(   memberchk(portnumber(RPort),Opts); true ),
 	(   var(RPort)
@@ -130,6 +141,11 @@ rmv_server_with_opts(Opts) :-
 	    param:setparam(jsonresp,off)
 	),
 
+	(   memberchk(nurvsim(true),Opts)
+	->  param:setparam(rmv_nurv_simulation,true) % force to true
+	;   true % leave whatever is set in param
+	),
+
 	(   memberchk(epp(true),Opts)
 	->  param:setparam(epp_status,rmv_server) % activate EPP as part of rmv server
 	;   true
@@ -146,8 +162,14 @@ rmv_server_with_opts(Opts) :-
 	;   true
 	),
 
+	(   memberchk(guitracer(true),Opts)
+	->  guitracer
+	;   true
+	),
+
 	create_server_audit_log,
 	http_server(http_dispatch, [port(RPort)]),
+	param:setparam(rmv_server_is_running,true),
 	format('rmv-server listening on port ~d~n',[RPort]),
 	audit_gen(rmv, rmv_start, success),
 

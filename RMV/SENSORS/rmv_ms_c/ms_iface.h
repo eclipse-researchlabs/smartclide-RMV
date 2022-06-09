@@ -79,7 +79,7 @@ int ms_startup(){
     // open_MEP_comm(); // have to do this for every comm
 
     ms_global_trigger_enable = true;
-    VERBOSE_MSG(2,"calling mep_monitor_start\n");
+    VERBOSE_MSG(2,"\ncalling mep_monitor_start\n");
     mep_monitor_start(mip->mi_cv.monitor_id, &mip->mi_sessid, &mip->mi_mstatus);
     if( mip->mi_mstatus != monitor_started ) return(EXIT_FAILURE);
     VERBOSE_MSG(1,"MS startup successful\n");
@@ -92,7 +92,8 @@ void ms_shutdown(){
 
     ms_global_trigger_enable = false;
 
-    VERBOSE_MSG(2,"calling mep_monitor_stop\n");
+    VERBOSE_MSG(0,"ms_shutdown()\n");
+    VERBOSE_MSG(2,"\ncalling mep_monitor_stop\n");
     mep_monitor_stop(mip->mi_cv.monitor_id, mip->mi_sessid, &mip->mi_mstatus);
     if( mip->mi_mstatus != monitor_stopped ){
         printf("error from mep_monitor_stop\n"); fflush(stdout);
@@ -147,8 +148,9 @@ void ms_step_addr(void *addr, sh_var_type type, void* oldval, void* newval){
 }
 
 void ms_run_behavior(){
-    VERBOSE_MSG(1,"ms_run_behavior\n");
+    VERBOSE_MSG(0,"ms_run_behavior()\n");
     run_sequence();
+    VERBOSE_MSG(0,"behavior complete\n");
 }
 
 void ms_start_timer(float interval){
@@ -174,3 +176,14 @@ void ms_service_timer(){
 void ms_recovery( void (*recoveryp)() ){
     sus_recovery_callback = recoveryp;
 }
+
+void ms_test(){
+    monitor_interface_t *mip = &monitor_interface;
+
+    VERBOSE_MSG(1,"\ncalling mep_monitor_test\n");
+    mep_monitor_test(mip->mi_cv.monitor_id, mip->mi_sessid, &mip->mi_mstatus);
+    if( mip->mi_mstatus != test_success ){
+        printf("error from mep_monitor_test\n"); fflush(stdout);
+    } //else VERBOSE_MSG(2,"monitor\n");
+}
+

@@ -1,5 +1,5 @@
 //#define MS_TEST
-#define VERBOSITY 1  // set to -1 for silence
+#define VERBOSITY -1  // set to -1 for silence
 #define VERBOSE(L) if(VERBOSITY >= L)
 #define VERBOSE_MSG(L,M) if(VERBOSITY >= L){printf(M);fflush(stdout);}
 #include <stdio.h>
@@ -38,7 +38,8 @@ typedef enum mstatus {
     monitor_uninitialized,
     monitor_initialized,
     monitor_started,
-    monitor_stopped
+    monitor_stopped,
+    test_success
 } mstatus;
 
 // TODO - make this an array
@@ -48,6 +49,7 @@ char *mstatus_string(mstatus ms){
         case monitor_initialized: return("monitor_initialized");
         case monitor_started: return("monitor_started");
         case monitor_stopped: return("monitor_stopped");
+        case test_success: return("test_success");
     }
 }
 
@@ -409,7 +411,7 @@ void open_MEP_comm(){
         printf("error: connect\n"); return;
     }
     ms_mep_comm_is_open = true;
-    VERBOSE_MSG(1,"MEP communication open\n");
+    VERBOSE_MSG(2,"MEP communication open\n");
 }
 
 void close_MEP_comm(){
@@ -418,7 +420,7 @@ void close_MEP_comm(){
     close(ms_mep_comm_sock);
     ms_mep_comm_is_open = false;
     ms_mep_comm_sock = -1;
-    VERBOSE_MSG(1,"MEP communication closed\n");
+    VERBOSE_MSG(2,"MEP communication closed\n");
 }
 
 int make_report_event_request(char req_buf[], char encode_buf[]){
@@ -464,14 +466,14 @@ void send_MEP_comm(char *request_ep, char *mid, char *sid, char *payload, char *
     int sz=make_monitor_heartbeat_request(req_buf, encode_buf, sid);
 
     open_MEP_comm();
-        VERBOSE(1){printf("Heartbeat Request:\n %s\n",req_buf); fflush(stdout);}
+        VERBOSE(2){printf("Heartbeat Request:\n %s\n",req_buf); fflush(stdout);}
 
         write(ms_mep_comm_sock, req_buf, sz);
 
-        VERBOSE(1){printf("Heartbeat Response: \n"); fflush(stdout);}
+        VERBOSE(2){printf("Heartbeat Response: \n"); fflush(stdout);}
         bzero( resp_buf, RESPONSE_BUF_SZ );
         if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
-            VERBOSE(1){printf("%s",resp_buf); fflush(stdout);}
+            VERBOSE(2){printf("%s",resp_buf); fflush(stdout);}
             //bzero( resp_buf, STRINGS_SZ );
         }
     close_MEP_comm();
@@ -493,14 +495,14 @@ void send_MEP_monitor_start(char *request_ep,char *mid,char **Response){
     }
     int sz = rb - req_buf;
     open_MEP_comm();
-        VERBOSE(1){printf("Start Request:\n %s\n",req_buf); fflush(stdout);}
+        VERBOSE(2){printf("Start Request:\n %s\n",req_buf); fflush(stdout);}
 
         write(ms_mep_comm_sock, req_buf, sz);
 
-        VERBOSE(1){printf("Start Response: \n"); fflush(stdout);}
+        VERBOSE(2){printf("Start Response: \n"); fflush(stdout);}
         bzero( resp_buf, RESPONSE_BUF_SZ );
         if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
-            VERBOSE(1){printf(" %s",resp_buf); fflush(stdout);}
+            VERBOSE(2){printf(" %s",resp_buf); fflush(stdout);}
             //bzero( resp_buf, STRINGS_SZ );
         }
     close_MEP_comm();
@@ -514,7 +516,7 @@ void send_MEP_monitor_stop(char *request_ep,char *mid,char *sid,char **Response)
     char req_buf[STRINGS_SZ]; char encode_buf[CHARS_SZ];
     static char resp_buf[RESPONSE_BUF_SZ];
     char *req_pieces[] =
-        {"GET ",request_ep,"?token=",RMV_TOKEN,"&monitor_id=",mid,"&session_id=",sid,"\r\n\r\n",0};
+        {"GET ",request_ep,"?token=",RMV_TOKEN,/*"&monitor_id=",mid,*/"&session_id=",sid,"\r\n\r\n",0};
 
     char *rb = req_buf; *rb = '\0';
     for( char** p=req_pieces; *p; p++ ){
@@ -522,20 +524,49 @@ void send_MEP_monitor_stop(char *request_ep,char *mid,char *sid,char **Response)
     }
     int sz = rb - req_buf;
     open_MEP_comm();
-        VERBOSE(1){printf("Stop Request:\n %s\n",req_buf); fflush(stdout);}
+        VERBOSE(2){printf("Stop Request:\n %s\n",req_buf); fflush(stdout);}
 
         write(ms_mep_comm_sock, req_buf, sz);
 
-        VERBOSE(1){printf("Stop Response: \n"); fflush(stdout);}
+        VERBOSE(2){printf("Stop Response: \n");  fflush(stdout);}
         bzero( resp_buf, RESPONSE_BUF_SZ );
         if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
-            VERBOSE(1){printf(" %s",resp_buf); fflush(stdout);}
+            VERBOSE(2){printf(" %s",resp_buf); fflush(stdout);}
             //bzero( resp_buf, STRINGS_SZ );
         }
     close_MEP_comm();
 
     if( Response != NULL ){
             *Response = resp_buf; // only valid until next send_MEP_monitor_stop
+    }
+}
+
+void send_MEP_monitor_test(char *request_ep,char *sid,char **Response){
+    char req_buf[STRINGS_SZ]; char encode_buf[CHARS_SZ];
+    static char resp_buf[RESPONSE_BUF_SZ];
+    char *req_pieces[] =
+        {"GET ",request_ep,"?token=",RMV_TOKEN,"&session_id=",sid,"\r\n\r\n",0};
+
+    char *rb = req_buf; *rb = '\0';
+    for( char** p=req_pieces; *p; p++ ){
+        for( char* ps=*p; (*rb = *ps); rb++, ps++) ;
+    }
+    int sz = rb - req_buf;
+    open_MEP_comm();
+        VERBOSE(2){printf("Test Request:\n %s\n",req_buf); fflush(stdout);}
+
+        write(ms_mep_comm_sock, req_buf, sz);
+
+        VERBOSE(2){printf("Test Response: \n"); fflush(stdout);}
+        bzero( resp_buf, RESPONSE_BUF_SZ );
+        if( read(ms_mep_comm_sock, resp_buf, RESPONSE_BUF_SZ-1) > 0 ){ 
+            VERBOSE(2){printf(" %s",resp_buf); fflush(stdout);}
+            //bzero( resp_buf, STRINGS_SZ );
+        }
+    close_MEP_comm();
+
+    if( Response != NULL ){
+            *Response = resp_buf; // only valid until next send_MEP_monitor_test
     }
 }
 
@@ -573,7 +604,7 @@ void parse_mep_response(char *Response,
                 *respStatus, *respMessage, *respBody);fflush(stdout);}
         }
     }else{
-        // there is no JSON in the response!
+        // there is no JSON in the response or not where it belongs!
         VERBOSE(2){printf("did not find JSON\n"); fflush(stdout);}
     }
 }
@@ -627,12 +658,33 @@ void mep_monitor_stop(char *Monid, char *Msessid, mstatus *Mstatus){
         parse_mep_response(Response,&respStatus,&respMessage,&respBody);
         if( strcmp(respStatus,"success") != 0 ){
             VERBOSE(2){printf("unexpected failure of monitor_stop\n");fflush(stdout);}
+        }else{
+            VERBOSE(2){printf("monitor_stop success\n");fflush(stdout);}
         }
     }
 
     *Mstatus = monitor_stopped;
 
     VERBOSE(1){printf("Monitor session id: %s stopped\n", Msessid); fflush(stdout); }
+};
+
+void mep_monitor_test(char *Monid, char *Msessid, mstatus *Mstatus){
+    char *Response, *respStatus, *respMessage, *respBody;
+
+    if( SIMULATED_MEP ){
+    }else{
+        send_MEP_monitor_test("/mep/monitor_test",Msessid,&Response);
+        parse_mep_response(Response,&respStatus,&respMessage,&respBody);
+        if( strcmp(respStatus,"success") != 0 ){
+            VERBOSE(2){printf("unexpected failure of monitor_test\n");fflush(stdout);}
+        }else{
+            VERBOSE(2){printf("monitor_test success\n");fflush(stdout);}
+        }
+    }
+
+    *Mstatus = test_success;
+
+    //VERBOSE(1){printf("Monitor session id: %s stopped\n", Msessid); fflush(stdout); }
 };
 
 // synchronously send heartbeat to rmv_mf_mep and wait for response
