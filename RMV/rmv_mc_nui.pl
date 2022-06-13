@@ -4,11 +4,12 @@
 % includes a simple NuRV simulation for testing
 
 :- module(rmv_mc_nui,[start_monitor/2, stop_monitor/2, heartbeat/4,
-		      nurv_monitor_init/4, nurv_monitor_stop/1,
-			  nurv_session/5, nurv_session_log/2,
-			  display_session_log/1, display_session_log/2, clear_session_log/1,
-		      open_nurv_session/3, quit_nurv_session/1, close_nurv_session/1,
-		      nurv_session_cmd/2, nurv_session_cmd_resp/3, nurv_session_get_resp/2,
+		    nurv_monitor_init/4, nurv_monitor_stop/1,
+			nurv_session/5, nurv_session_log/2,
+			display_session_log/1, display_session_log/2, display_session_log_nsid/2,
+			clear_session_log/1, clear_session_log_nsid/1,
+		    open_nurv_session/3, quit_nurv_session/1, close_nurv_session/1,
+		    nurv_session_cmd/2, nurv_session_cmd_resp/3, nurv_session_get_resp/2,
             dump_nu_lines_sid/1, dump_nu_lines_nsid/1
 		     ]).
 
@@ -225,8 +226,9 @@ nurv_monitor_stop(NSid) :- param:rmv_nurv_simulation(false), !,
 	->  quit_nurv_session(NSid),
 		%dump_nu_lines_nsid(NSid),
 		%display_session_log_nsid(NSid,clear),
-		retractall( read_nu_lines(NSid,_,_) ),	% clear the last session
-		clear_session_log_nsid(NSid)	
+		%retractall( read_nu_lines(NSid,_,_) ),	% clear the last session
+		%clear_session_log_nsid(NSid),
+		true
 	;   true
 	).
 nurv_monitor_stop(NSid) :- param:rmv_nurv_simulation(true), !,

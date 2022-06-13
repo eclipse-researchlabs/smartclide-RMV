@@ -147,12 +147,6 @@ void ms_step_addr(void *addr, sh_var_type type, void* oldval, void* newval){
     ms_responder();
 }
 
-void ms_run_behavior(){
-    VERBOSE_MSG(0,"ms_run_behavior()\n");
-    run_sequence();
-    VERBOSE_MSG(0,"behavior complete\n");
-}
-
 void ms_start_timer(float interval){
     monitor_interface.mi_cv.timer = interval;
     initiate_timer(interval);
@@ -175,6 +169,14 @@ void ms_service_timer(){
 
 void ms_recovery( void (*recoveryp)() ){
     sus_recovery_callback = recoveryp;
+}
+
+% ONLY FOR TESTING:
+
+void ms_run_behavior(){
+    VERBOSE_MSG(0,"ms_run_behavior()\n");
+    run_sequence();
+    VERBOSE_MSG(0,"behavior complete\n");
 }
 
 void ms_test(){

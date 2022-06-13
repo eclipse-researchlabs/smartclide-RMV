@@ -282,8 +282,9 @@ shutdown :-
             fail
         ),
         retractall(ms_initialized(_)), assert(ms_initialized(complete)),
-        rmv_mc_nui:display_session_log(Sid,clear),
-        rmv_mc_nui:dump_nu_lines(Sid).
+        %rmv_mc_nui:display_session_log(Sid,clear),
+        %rmv_mc_nui:dump_nu_lines_sid(Sid),
+        true.
 
 re_init :- un_init, init.
 

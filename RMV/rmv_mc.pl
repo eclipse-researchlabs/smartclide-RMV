@@ -119,7 +119,7 @@ create_monitor(SS, Model, Properties, Cmds, Monitor) :-
         create_cvjson_file(MScv1,MScvFullFile),
 
         (       MSlang == ms_c
-        ->      create_svh_file(MScv1,SVFullFile)
+        ->      create_svh_file(MScv1,SVFullFile,MScvFullFile)
         ;       SVFullFile = none
         ),
 
@@ -136,7 +136,7 @@ create_cvjson_file(MScv,MScvFullFile) :-
         write(S,JSA),
         close(S,[force(true)]).
 
-create_svh_file(MScv,SVFullFile) :-
+create_svh_file(MScv,SVFullFile,MScvFullFile) :-
         % pull MonitorId and Vdecl from the MScv
         cons_ms_cv(MonitorId,Vdecl,_Vo,_Vm,_Vp,_Vr,_Vt,_PropAtoms,_AEval,_Vinit,_Beh,_Timer,_Host,_Port,MScv),
 
@@ -147,13 +147,15 @@ create_svh_file(MScv,SVFullFile) :-
         %current_output(OS),
         open(SVFullFile,write,S,[create([default])]),
         forall( member(L, [
-        % file header
-        '// This file is created by RMV Monitor Creation for variables',
-        '// shared between the SUS and the Monitor Sensor monid_00002.',
-        '// These declarations (must) appear in the same order as in the',
-        '// shared variable list in the MS configuration vector generated',
-        '// by Monitor Creation.',
-        '// This file is included by ms_vars.h of the C monitor sensor.' ]), writeln(S,L)),
+                % file header
+                '// This file is created by RMV Monitor Creation for variables',
+                '// shared between the SUS and the Monitor Sensor.',
+                '// These declarations (must) appear in the same order as in the',
+                '// shared variable list in the MS configuration vector generated',
+                '// by Monitor Creation. This file is included as monitor_vars.h',
+                '// by sensor.h of the C monitor sensor.' ]),
+                writeln(S,L)),
+        format(S,'// This file is paired with ~s~n',MScvFullFile),
         % variable declarations
         nl(S),
         forall( ( member(Vname:Vtype,Vdecl), type_pl_n_e_c(Vtype,_,_,Ctype) ),
