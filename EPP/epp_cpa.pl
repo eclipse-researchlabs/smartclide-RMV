@@ -145,7 +145,7 @@ register_for_context_change_notification(Names,NOTIF_URL,Token) :- param:context
     uri_encoded(query_value,NA,ENA), uri_encoded(query_value,Token,EToken),
     atomic_list_concat([CTX_URL,'context_notification_registration','?context_variables=',ENA,
                         '&epp_url=',NOTIF_URL,'&epp_token=',EToken],Call),
-    open('cme_call',write,FD), writeln(FD,Call), close(FD),
+    %open('cme_call',write,FD), writeln(FD,Call), close(FD),
     format('Perform CME handshake: ~q ',[Call]),
     http_get(Call,CallResult,[]), % call the CME
     format('result: ~q~n',[CallResult]),

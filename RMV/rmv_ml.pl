@@ -7,7 +7,7 @@
                   is_service_spec_body/1, is_service_spec_body/2,
                   is_cmd/1,
                   cons_deployment/4, is_deployment/1, is_deployment/3, is_deployment/4,
-                  monitor/2, monitor/9, cons_monitor/10, is_monitor/1, monitor_atoms_eval/3,
+                  monitor/2, monitor/9, cons_monitor/10, is_monitor/1, is_monitor/2, monitor_atoms_eval/3,
                   model/2, model/4, cons_model/5, is_model/1,
                   ms_cv/2, ms_cv/14, cons_ms_cv/15,
                   property/2, is_property/1, is_property/3,
@@ -20,7 +20,8 @@
                   load_monitor/1, unload_monitor/1, truncate_trace/2,
                   target_lang_monitor_sensor/5, type_pl_n_e_c/4,
                   monid_sessid_suniq/3, monid_sessid_muniq_suniq/4,
-                  pjson_ms_cv/1, json_var_val/2
+                  pjson_ms_cv/1, json_var_val/2, pjson2monitor/2,
+                  display_monitor/1, display_cv/1
 	       ]).
 
 :- use_module('COM/param').
@@ -61,7 +62,7 @@ type_pl_n_e_c(symbol,9,svt_Symbol,'char[]').% unused
 %:- dynamic atom_eval_mode/1, monitor_sensor_lang/1.
 % atom_eval_mode(_) is one of unset_eval, no_eval, ms_eval or mep_eval
 % monitor_sensor_lang(_) one of ms_pl or ms_c
-	
+
 atom_eval_mode_type([unset_eval, no_eval, ms_eval, mep_eval]).
 monitor_sensor_lang_type([ms_pl, ms_c]).
 
@@ -137,7 +138,8 @@ monitor( MonId, Monitor ) :- % lookup stored monitor by id
 cons_monitor(MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile, Monitor) :- % construct/deconstruct
         Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ).
 
-is_monitor(Monitor) :- % is a well-formed monitor
+is_monitor(Monitor) :- is_monitor(Monitor,_). % is a well-formed monitor
+is_monitor(Monitor,MonId) :-
         Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ),
         atom(MonId), atom(SSpecId), atom(ModId), atom(MSfile), atom(MSCVfile), atom(SVfile),
         Properties = properties( PropVars, PropAtoms, PropFormulas ),
@@ -331,6 +333,7 @@ app(appid_00001,a,b,c,d,e,f).
 %
 % Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile ),
 % Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSid, MScv, MSfile, SVfile )
+/*
 monitor(monid_00002, ssid_00002, modid_00002, [], ms_c, msid_00027,
         ms_cv( monid_00002, [m:integer, n:integer, o:integer, p:boolean, q:boolean, r:float, s:float],
                 [m, n, o, p, q, r, s], [n, p, q, s], [m, n, o, p, q, r, s], [m, n, o, p, q, r, s], [q, s],
@@ -338,6 +341,7 @@ monitor(monid_00002, ssid_00002, modid_00002, [], ms_c, msid_00027,
                 a7:ne(n,s), a7a:ne(s,n), a8:lt(o,2.4), a8a:ge(2.4,o), q:q, notp:not(p)],
                 ms_eval, ms_pl, [], 0, '127.0.0.1', 8005),
         'sensor.h', 'monitor_vars.h' ).
+*/
 /*
 monitor(monid_00004, ssid_00004, modid_00004, [], ms_pl, msid_00047,
         ms_cv( monid_00004, [n:integer, o:integer, p:boolean, q:boolean, r:float, s:float],
@@ -347,6 +351,7 @@ monitor(monid_00004, ssid_00004, modid_00004, [], ms_pl, msid_00047,
                 ms_eval, ms_pl, [], 0, '127.0.0.1', 8005),
         'rmv_ms.pl', none ).
 */
+/*
 monitor(monid_00004, ssid_00004, modid_00004, [], ms_c, msid_00047,
         ms_cv( monid_00004, [m: integer, n:integer, o:integer, p:boolean, q:boolean, r:float, s:float],
                 [m, n, o, p, q, r, s], [n, p, q, s], [n, p, q], [n, o, p, q, s], [q, s],
@@ -354,6 +359,7 @@ monitor(monid_00004, ssid_00004, modid_00004, [], ms_c, msid_00047,
                 [m=0, n=1, o=2, p=true, q=false, r=undefined, s=1],
                 [n=5, p=false, o=7, r=3.14159, q=true], 0, '127.0.0.1', 8005),
                 'RMV/SENSORS/rmv_ms_c/sensor.h', 'RUNTIME/MONITORS/monid_00004_vars.h' ).
+*/
 
 property(propid_00001,true).
 
@@ -433,8 +439,122 @@ ex_cv(2, ms_cv( % new format
         )
 ).
 
-% JSON conversions for MS configuration vectors
+% JSON representation of monitor structure
 %
+%
+
+% example JSON monitor
+jMon('{
+      \"monitor_id\":\"monid_00004\",
+      \"service_spec_id\":\"ssid_00004\",
+      \"model_id\":\"modid_00004\",
+      \"properties\":{ \"property_vars\":[ ],
+                       \"property_atoms\":[ ],
+                       \"property_formulas\":[ ]
+       },
+      \"monitor_sensor_lang\":\"ms_pl\",
+      \"monitor_sensor_file\":\"rmv/SENSORS/rmv_ms_pl/rmv_ms.pl\",
+      \"configuration_vector\":{
+            \"monitor_id\":\"monid_00004\",
+            \"shared_var_decl\": [
+              {\"name\":\"m\", \"type\":\"integer\"},
+              {\"name\":\"n\", \"type\":\"integer\"},
+              {\"name\":\"o\", \"type\":\"integer\"},
+              {\"name\":\"p\", \"type\":\"boolean\"},
+              {\"name\":\"q\", \"type\":\"boolean\"},
+              {\"name\":\"r\", \"type\":\"float\"},
+              {\"name\":\"s\", \"type\":\"float\"}
+            ],
+            \"observable_vars\": [\"m\", \"n\", \"o\", \"p\", \"q\", \"r\", \"s\" ],
+            \"model_vars\": [\"n\", \"p\", \"q\", \"s\" ],
+            \"property_vars\": [\"n\", \"p\", \"q\" ],
+            \"reportable_vars\": [\"m\", \"n\", \"o\", \"p\", \"q\", \"r\", \"s\" ],
+            \"trigger_vars\": [\"q\", \"s\" ],
+            \"monitor_atoms\": [
+              {\"aid\":\"p\", \"aex\":\"p\"},
+              {\"aid\":\"a1\", \"aex\":\"eq(n,2)\"},
+              {\"aid\":\"a2\", \"aex\":\"lt(n,2)\"},
+              {\"aid\":\"a3\", \"aex\":\"eq(p,q)\"},
+              {\"aid\":\"q\", \"aex\":\"q\"}
+            ],
+            \"monitor_atom_eval\":\"ms_eval\",
+            \"shared_var_init\": [
+              {\"name\":\"m\", \"value\":0},
+              {\"name\":\"n\", \"value\":1},
+              {\"name\":\"o\", \"value\":2},
+              {\"name\":\"p\", \"value\":\"true\"},
+              {\"name\":\"q\", \"value\":\"false\"},
+              {\"name\":\"r\", \"value\":\"undefined\"},
+              {\"name\":\"s\", \"value\":1}
+            ],
+            \"behavior\": [
+              {\"name\":\"n\", \"value\":5},
+              {\"name\":\"p\", \"value\":\"false\"},
+              {\"name\":\"o\", \"value\":7},
+              {\"name\":\"r\", \"value\":3.14159},
+              {\"name\":\"q\", \"value\":\"true\"}
+            ],
+            \"timer\":0,
+            \"rmvhost\":\"127.0.0.1\",
+            \"rmvport\":8005
+       },
+      \"configuration_vector_file\":\"RUNTIME/MONITORS/monid_00004_conf.json\",
+      \"shared_var_decl_file\":\"\"
+}').
+
+json2monitor(JM,M) :-
+        open_string(JM,S),
+        json_read(S,PJM,[]),
+        close(S),
+        pjson2monitor(PJM,M).
+
+monitor2json(M,JM) :-
+        monitor2pjson(M,PJM),
+        atom_json_term(JM,PJM,[as(atom)]).
+
+
+pjson2monitor(PJM,M) :-
+        cons_monitor(MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile, M),
+	PJM = json([
+		monitor_id=MonId,
+		service_spec_id=SSpecId,
+		model_id=ModId,
+		properties=JProperties,
+		monitor_sensor_lang=MSlang,
+		monitor_sensor_file=MSfile,
+		configuration_vector=JMScv,
+		configuration_vector_file=MSCVfile,
+		shared_var_decl_file=SVfile
+	]),
+	JProperties = json([ property_vars=PropVars, property_atoms=PropAtoms,
+                        property_formulas=PropFormulas ]),
+	Properties = properties(PropVars,PropAtoms,PropFormulas),
+	ms_cv_pjson(MScv,JMScv).
+
+
+monitor2pjson(M,PJM) :-
+        cons_monitor(MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile, M),
+	PJM = json([
+		monitor_id=MonId,
+		service_spec_id=SSpecId,
+		model_id=ModId,
+		properties=JProperties,
+		monitor_sensor_lang=MSlang,
+		monitor_sensor_file=MSfile,
+		configuration_vector=JMScv,
+		configuration_vector_file=MSCVfile,
+		shared_var_decl_file=SVfile
+	]),
+	JProperties = json([ property_vars=PropVars, property_atoms=PropAtoms,
+                        property_formulas=PropFormulas ]),
+	Properties = properties(PropVars,PropAtoms,PropFormulas),
+	ms_cv_pjson(MScv,JMScv).
+
+
+ms_cv_pjson(MScv,JMScv) :- var(MScv), !, rmv_ml:pjson_to_ms_cv(JMScv,MScv).
+ms_cv_pjson(MScv,JMScv) :- var(JMScv), !, rmv_ml:ms_cv_to_pjson(MScv,JMScv).
+
+
 
 assigns_to_pjson(A,JA) :- findall( json([name=Svn,value=Svv]), member(Svn=Svv, A), JA).
 
@@ -548,6 +668,18 @@ pjson_ms_cv( % /4
     ])
 ).
 
+%monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ),
+monitor_elements([
+        monitor_id,
+        service_spec_id,
+        model_id,
+        properties,
+        monitor_sensor_lang,
+        monitor_sensor_file,
+        configuration_vector,
+        configuration_vector_file,
+        shared_var_decl_file]).
+
 pt(rmv_ml:lt(x,2)).
 pt1( rmv_ml:atm(a,lt(x,2)) ).
 pt2(rmv_ml:atm(a,b)).
@@ -618,26 +750,35 @@ reconstitute_atoms(A,R) :- %compound(A), !,
 % LIBRARY DISPLAY OPS
 %
 % ms_cv(MonId, Vdecl, Vo, Vm, Vp, Vr, Vt, Atoms, AEval, Vinit, Beh, Timer, Host, Port)
-display_cv(CV) :-
+display_cv(CV) :- display_cv(CV,'').
+
+display_cv(CV,T) :- 
         CV = ms_cv(Monid,SVD,Ov,Mv,Pv,Rv,Tv,Ma,Mae,SVi,Beh,Timer,Host,Port),
-        format('monitor_id: ~q~n', Monid),
-        write('shared_var_decl: '), writeq(SVD), nl,
-        write('observable_vars: '), writeq(Ov), nl,
-        write('model_vars: '), writeq(Mv), nl,
-        write('property_vars: '), writeq(Pv), nl,
-        write('reportable_vars: '), writeq(Rv), nl,
-        write('trigger_vars: '), writeq(Tv), nl,
-        write('monitor_atoms: '), writeq(Ma), nl,
-        format('monitor_atom_eval: ~q~n', Mae),
-        format('shared_var_init: ~q~n', [SVi]),
-        format('behavior: ~q~n',[Beh]),
-        format('timer: ~f~n',Timer),
-        format('host: ~a~n',Host),
-        format('port: ~d~n',Port),
-        true.
+        format('~amonitor_id: ~q~n', [T,Monid]),
+        format('~ashared_var_decl: ',T), writeq(SVD), nl,
+        format('~aobservable_vars: ',T), writeq(Ov), nl,
+        format('~amodel_vars: ',T), writeq(Mv), nl,
+        format('~aproperty_vars: ',T), writeq(Pv), nl,
+        format('~areportable_vars: ',T), writeq(Rv), nl,
+        format('~atrigger_vars: ',T), writeq(Tv), nl,
+        format('~amonitor_atoms: ',T), writeq(Ma), nl,
+        format('~amonitor_atom_eval: ~q~n', [T,Mae]),
+        format('~ashared_var_init: ~q~n', [T,SVi]),
+        format('~abehavior: ~q~n',[T,Beh]),
+        format('~atimer: ~f~n',[T,Timer]),
+        format('~ahost: ~a~n',[T,Host]),
+        format('~aport: ~d~n',[T,Port]).
 
 display_monitor(M) :-
-        M = monitor(MonId,ModId,_,_,_,_,_),
-        format('Monitor ~q:~n',MonId),
-        format('  Model ~q~n',ModId),
-        true.
+        cons_monitor(MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile, M),
+        format('Monitor Id: ~q~n',MonId),
+        format('Service Spec: ~q~n',SSpecId),
+        format('Model: ~q~n',ModId),
+        format('Properties" ~q~n',[Properties]),
+        format('Language: ~q~n',MSlang),
+        format('MS file: ~q~n',MSfile),
+        format('Configuration Vector:~n'),
+        display_cv(MScv,'  '),
+        format('MScv file: ~q~n',MSCVfile),
+        format('SV file: ~q~n',SVfile).
+

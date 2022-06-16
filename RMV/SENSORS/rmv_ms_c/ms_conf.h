@@ -32,7 +32,7 @@ initialize_ms_configuration(ms_configuration_vector *cv){
     if (r < 1 || t[0].type != JSMN_OBJECT) return 0;
 
     cv->monitor_id = get_str_attr("monitor_id", t, 0, JSON_STRING);
-    cv->shared_var_decls = get_arr_of_decl_attr("shared_var_decl", t, 0, JSON_STRING);
+    cv->shared_var_decl = get_arr_of_decl_attr("shared_var_decl", t, 0, JSON_STRING);
     cv->observable_vars = get_arr_of_str_attr("observable_vars", t, 0, JSON_STRING);
     cv->model_vars = get_arr_of_str_attr("model_vars", t, 0, JSON_STRING);
     cv->property_vars = get_arr_of_str_attr("property_vars", t, 0, JSON_STRING);
@@ -42,7 +42,7 @@ initialize_ms_configuration(ms_configuration_vector *cv){
     cv->n_monitor_atoms = get_arr_of_ma_attr("monitor_atoms", t, 0, JSON_STRING);
 
     cv->monitor_atom_eval = get_str_attr("monitor_atom_eval", t, 0, JSON_STRING);
-    cv->shared_var_inits = get_arr_of_assign_attr("shared_var_init", t, 0, JSON_STRING);
+    cv->shared_var_init = get_arr_of_assign_attr("shared_var_init", t, 0, JSON_STRING);
 
     cv->op_seq = get_behavior_attr("behavior", t, 0, JSON_STRING);
     cv->timer = get_float_attr("timer", t, 0, JSON_STRING);
@@ -55,7 +55,7 @@ initialize_ms_configuration(ms_configuration_vector *cv){
 
 void clear_ms_configuration(ms_configuration_vector *cv){
     cv->monitor_id = "";
-    cv->shared_var_decls = NULL;
+    cv->shared_var_decl = NULL;
     cv->observable_vars = NULL;
     cv->model_vars = NULL;
     cv->property_vars = NULL;
@@ -64,7 +64,7 @@ void clear_ms_configuration(ms_configuration_vector *cv){
     cv->monitor_atoms = NULL;
     cv->n_monitor_atoms = 0;
     cv->monitor_atom_eval = "unset_eval";
-    cv->shared_var_inits = NULL;
+    cv->shared_var_init = NULL;
     cv->op_seq = NULL;
     cv->timer = 0;
     cv->rmvhost = "";
@@ -638,7 +638,7 @@ init_ms(monitor_interface_t *mip){
     VERBOSE_MSG(3,"complete initialization of cv\n");
 
     mip->mi_JSON_cv = JSON_STRING;
-    // following could also be gotten directly from shared_var_decls
+    // following could also be gotten directly from shared_var_decl
     // mip->mi_num_shared_vars = len_narr((void*)mip->mi_cv.observable_vars);
     // should be consistent unless something in generated files has manually been changed
     mip->mi_num_shared_vars = N_SHARED_VARS;
@@ -646,10 +646,10 @@ init_ms(monitor_interface_t *mip){
     mip->mi_mstatus = monitor_initialized;
     VERBOSE(3)dump_shared_var_attributes(shared_var_attrs,N_SHARED_VARS);
 
-    if( mip->mi_cv.shared_var_decls != NULL )
-        declare_sus_vars( mip->mi_cv.shared_var_decls ); // noop because already done above
+    if( mip->mi_cv.shared_var_decl != NULL )
+        declare_sus_vars( mip->mi_cv.shared_var_decl ); // noop because already done above
 
-    if( mip->mi_cv.shared_var_inits != NULL )
+    if( mip->mi_cv.shared_var_init != NULL )
         assign_ms_sus_vars( sh_var_name_values, next_sh_var_name_value );
 
     VERBOSE(3)dump_sv_inits("sus var initializations (symbolic)");

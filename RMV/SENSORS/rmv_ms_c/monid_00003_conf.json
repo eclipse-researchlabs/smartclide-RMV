@@ -1,6 +1,6 @@
 {
   "monitor_id":"monid_00003",
-  "shared_var_decls": [
+  "shared_var_decl": [
     {"name":"n", "type":"integer"},
     {"name":"o", "type":"integer"},
     {"name":"p", "type":"boolean"},
@@ -29,7 +29,7 @@
     {"aid":"a6", "aex":"eq(p,true)"}
   ],
   "monitor_atom_eval":"ms_eval",
-  "shared_var_inits": [
+  "shared_var_init": [
     {"name":"n", "value":1},
     {"name":"o", "value":2},
     {"name":"p", "value":"true"},

@@ -177,19 +177,23 @@ typedef struct monitor_atom { // NEW
 %   the generated monitor. It is initialized by initialize_ms_configuration
 %
 %   monitor_id - established when the Monitor Sensor is defined
-%   shared_vars - all variables shared by SUS and MS - superset of all other vars
+%   shared_var_decl - declarations of all variables shared by SUS and MS, a superset of union of other vars
 %   observable_vars - SUS variables used in model, properties or reportable (may be same as shared)
-%   model_vars (subset of shared_vars) - potentially observable SUS variables in the model
-%   property_vars - observable vars used in property evaluation
-%   reportable_vars - subset of monitor_observables to be reported in heartbeat
+%   model_vars (subset of shared_vars) - potentially observable SUS variables referenced in the model
+%   property_vars - observable vars referenced in property expressions
+%   reportable_vars - subset of monitor_observables to be reported in every heartbeat message
 %   trigger_vars - variables for which setter should trigger responder
-%   monitor_atoms - list of atoms {aid: , aex: } to be evaluated
-%   monitor_atom_eval - where atoms are evaluated (unset_eval, ms_eval or mep_eval)
-%   shared_vars_init - optional initializations list of {name: , value: }
+%   monitor_atoms - list of atoms {aid: , aex: } to be evaluated for properties
+%   monitor_atom_eval - where atoms are evaluated (unset_eval, no_eval, ms_eval or mep_eval)
+%   shared_vars_init - optional initializations list of {name: , value: } without triggers
+%   op_seq - sequence of assignments executed on request with triggers
+%   timer - period of timer-triggered responder
+%   rmvhost - URL of RMV server
+%   rmvport - port on rmvhost on which RMV server is listening
 */
 typedef struct ms_configuration_vector { // TODO - compare w/ms_pl
     char *monitor_id;
-    sh_var_decl *shared_var_decls;
+    sh_var_decl *shared_var_decl;
     char **observable_vars;
     char **model_vars;
     char **property_vars;
@@ -198,7 +202,7 @@ typedef struct ms_configuration_vector { // TODO - compare w/ms_pl
     monitor_atom *monitor_atoms;
     int n_monitor_atoms;
     char *monitor_atom_eval;
-    sh_var_name_value *shared_var_inits;
+    sh_var_name_value *shared_var_init;
     sh_var_name_value *op_seq;
     float timer;
     char *rmvhost;
@@ -249,7 +253,7 @@ monitor_interface_t monitor_interface = {
     /* mi_JSON_cv */            "\0",
     /* mi_cv*/ {
         /* monitor id */        "",
-        /* shared_var_decls */  NULL,
+        /* shared_var_decl */  NULL,
         /* observable_vars */   NULL,
         /* model_vars */        NULL,
         /* property_vars */     NULL,
@@ -258,7 +262,7 @@ monitor_interface_t monitor_interface = {
         /* monitor_atoms */     NULL,
         /* n_monitor_atoms */   0,
         /* monitor_atom_eval */ "unset_eval",
-        /* shared_var_inits */  NULL,
+        /* shared_var_init */  NULL,
         /* op_seq */            NULL,
         /* timer */             0,
         /* rmvhost */           NULL,

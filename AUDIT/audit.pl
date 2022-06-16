@@ -195,7 +195,8 @@ sys_audit(_,_,_).
 gen_time_stamp(TS) :-
 	get_time(T),
 	stamp_date_time(T,date(YYYY,MM,DD,H,M,S,_,_,_),local),
-	format(atom(TS), '~d-~d-~d_~d:~d:~d', [YYYY,MM,DD,H,M,truncate(S)]).
+	format(atom(TS), '~|~`0t~d~4+-~|~`0t~d~2+-~|~`0t~d~2+_~|~`0t~d~2+:~|~`0t~d~2+:~|~`0t~d~2+',
+                    [YYYY,MM,DD,H,M,truncate(S)]).
 
 put_audit_record(Audit, VarList) :-
         % VarList =  [TS,Source,Event,EventData]

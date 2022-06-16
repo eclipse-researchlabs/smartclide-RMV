@@ -178,7 +178,7 @@ periodic_goals :-
 	true.
 
 create_epp_log :- param:epp_logging(file), !,
-	audit:gen_time_stamp(TS), % TODO - add leading zeros to single digit quantities
+	audit:gen_time_stamp(TS),
 	param:log_directory_name(LogD),
 	atomic_list_concat([LogD,'/epp_log','_',TS],LogFile),
 	format('EPP log file: ~w~n',LogFile),

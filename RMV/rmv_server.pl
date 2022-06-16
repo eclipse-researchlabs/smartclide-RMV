@@ -74,8 +74,8 @@ rmv_server_cmd(Port) :-
 		%param:setparam(epp_status,rmv_server),
 		Opts = [portnumber(Port),jsonresp(true),token(Rtoken),epp(true)],
 		( param:rmv_nurv_simulation(true) -> Opts1 = [nurvsim(true)|Opts] ; Opts1 = Opts ),
+		param:setparam(sleep_after_server_start,off),
 		rmv_server_with_opts(Opts1)
-%	->  run_http_rmv_server(Port)
 	;   true
 	).
 
