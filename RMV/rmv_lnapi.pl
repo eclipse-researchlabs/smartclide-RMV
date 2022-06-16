@@ -29,7 +29,7 @@ lnapi_subscribe(Request) :-
 			]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
-	( nonvar(Token) -> authenticate(rmv_ln,Token) ; true ), % TODO decide whether to have ln token
+	( nonvar(Token) -> authenticate(rmv_ln,Token) ; true ), % TODO decide whether to have distinct ln token
 	subscribe(_,_,_,_,_,_),
 	!.
 lnapi_subscribe(_) :- audit_gen(logging_notification, subscribe(failure)).
