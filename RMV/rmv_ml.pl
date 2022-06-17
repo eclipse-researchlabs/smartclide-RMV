@@ -443,8 +443,9 @@ ex_cv(2, ms_cv( % new format
 %
 %
 
-% example JSON monitor
-jMon('{
+% example JSON monitors
+% NOTE: if used for testing these must agree with the corresponding _conf.json file in RUNTIME/MONITORS/
+jMon(monid_00004, '{
       \"monitor_id\":\"monid_00004\",
       \"service_spec_id\":\"ssid_00004\",
       \"model_id\":\"modid_00004\",
@@ -452,8 +453,8 @@ jMon('{
                        \"property_atoms\":[ ],
                        \"property_formulas\":[ ]
        },
-      \"monitor_sensor_lang\":\"ms_pl\",
-      \"monitor_sensor_file\":\"rmv/SENSORS/rmv_ms_pl/rmv_ms.pl\",
+      \"monitor_sensor_lang\":\"ms_c\",
+      \"monitor_sensor_file\":\"RMV/SENSORS/rmv_ms_c/sensor.h\",
       \"configuration_vector\":{
             \"monitor_id\":\"monid_00004\",
             \"shared_var_decl\": [
@@ -499,7 +500,65 @@ jMon('{
             \"rmvport\":8005
        },
       \"configuration_vector_file\":\"RUNTIME/MONITORS/monid_00004_conf.json\",
-      \"shared_var_decl_file\":\"\"
+      \"shared_var_decl_file\":\"RUNTIME/MONITORS/monid_00004_vars.h\"
+}').
+
+jMon(monid_00005, '{
+      \"monitor_id\":\"monid_00005\",
+      \"service_spec_id\":\"ssid_00005\",
+      \"model_id\":\"modid_00005\",
+      \"properties\":{ \"property_vars\":[ ],
+                       \"property_atoms\":[ ],
+                       \"property_formulas\":[ ]
+       },
+      \"monitor_sensor_lang\":\"ms_c\",
+      \"monitor_sensor_file\":\"RMV/SENSORS/rmv_ms_c/sensor.h\",
+      \"configuration_vector\":{
+            \"monitor_id\":\"monid_00005\",
+            \"shared_var_decl\": [
+              {\"name\":\"m\", \"type\":\"integer\"},
+              {\"name\":\"n\", \"type\":\"integer\"},
+              {\"name\":\"o\", \"type\":\"integer\"},
+              {\"name\":\"p\", \"type\":\"boolean\"},
+              {\"name\":\"q\", \"type\":\"boolean\"},
+              {\"name\":\"r\", \"type\":\"float\"},
+              {\"name\":\"s\", \"type\":\"float\"}
+            ],
+            \"observable_vars\": [\"m\", \"n\", \"o\", \"p\", \"q\", \"r\", \"s\" ],
+            \"model_vars\": [\"n\", \"p\", \"q\", \"s\" ],
+            \"property_vars\": [\"n\", \"p\", \"q\" ],
+            \"reportable_vars\": [\"m\", \"n\", \"o\", \"p\", \"q\", \"r\", \"s\" ],
+            \"trigger_vars\": [\"q\", \"s\" ],
+            \"monitor_atoms\": [
+              {\"aid\":\"p\", \"aex\":\"p\"},
+              {\"aid\":\"a1\", \"aex\":\"eq(n,2)\"},
+              {\"aid\":\"a2\", \"aex\":\"lt(n,2)\"},
+              {\"aid\":\"a3\", \"aex\":\"eq(p,q)\"},
+              {\"aid\":\"q\", \"aex\":\"q\"}
+            ],
+            \"monitor_atom_eval\":\"no_eval\",
+            \"shared_var_init\": [
+              {\"name\":\"m\", \"value\":0},
+              {\"name\":\"n\", \"value\":1},
+              {\"name\":\"o\", \"value\":2},
+              {\"name\":\"p\", \"value\":\"true\"},
+              {\"name\":\"q\", \"value\":\"false\"},
+              {\"name\":\"r\", \"value\":\"undefined\"},
+              {\"name\":\"s\", \"value\":1}
+            ],
+            \"behavior\": [
+              {\"name\":\"n\", \"value\":5},
+              {\"name\":\"p\", \"value\":\"false\"},
+              {\"name\":\"o\", \"value\":7},
+              {\"name\":\"r\", \"value\":3.14159},
+              {\"name\":\"q\", \"value\":\"true\"}
+            ],
+            \"timer\":0,
+            \"rmvhost\":\"127.0.0.1\",
+            \"rmvport\":8005
+       },
+      \"configuration_vector_file\":\"RUNTIME/MONITORS/monid_00005_conf.json\",
+      \"shared_var_decl_file\":\"RUNTIME/MONITORS/monid_00005_vars.h\"
 }').
 
 json2monitor(JM,M) :-

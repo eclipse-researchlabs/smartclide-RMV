@@ -177,7 +177,7 @@ create_svh_file(MScv,SVFullFile,MScvFullFile) :-
 
         forall( ( member(Vname:Vtype,Vdecl), type_pl_n_e_c(Vtype,_,Enum,_) ),
                 ( atomic_list_concat(['    {"',Vname,'", ',Enum,', &',Vname,
-                        ', false, false, false, &get_',Vname,', &set_',Vname,', &set_',Vname,'},'], AtLine),
+                        ', false, false, false, &get_',Vname,', &set_',Vname,'},'], AtLine),
                   writeln(S,AtLine)
                 )
         ),

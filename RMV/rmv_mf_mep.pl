@@ -220,8 +220,8 @@ initiate_monitor(M,SessId) :-
 terminate_monitor(SessId) :-
     monid_sessid_muniq_suniq(_,SessId,_,NSid),
     nurv_monitor_stop(NSid),
-	display_session_log_nsid(NSid,clear),
-    dump_nu_lines_nsid(NSid),
+	%display_session_log_nsid(NSid,clear),
+    %dump_nu_lines_nsid(NSid),
     ( is_session(SessId, monitor_framework) -> end_session(SessId) ; true ).
 
 % nameserver version

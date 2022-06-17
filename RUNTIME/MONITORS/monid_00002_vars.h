@@ -1,9 +1,9 @@
 // This file is created by RMV Monitor Creation for variables
-// shared between the SUS and the Monitor Sensor.
-// These declarations (must) appear in the same order as in the
+// shared between the SUS and the Monitor Sensor monid_00002.
+// These declarations must appear in the same order as in the
 // shared variable list in the MS configuration vector generated
-// by Monitor Creation. This file is included as monitor_vars.h
-// by sensor.h of the C monitor sensor.
+// by Monitor Creation.
+// This file is included by ms_vars.h of the C monitor sensor.
 
 int m;
 int n;
@@ -30,13 +30,13 @@ void set_s(void*newp, void*oldp){*(float*)oldp = float_setter_by_addr(&s,*(float
 
 shared_var_attr_t shared_var_attrs[] = {
 //  va_name va_type va_addr va_trig va_rep va_prop va_getter va_setter
-    {"m", svt_Integer, &m, false, false, false, &get_m, &set_m},
-    {"n", svt_Integer, &n, false, false, false, &get_n, &set_n},
-    {"o", svt_Integer, &o, false, false, false, &get_o, &set_o},
-    {"p", svt_Boolean, &p, false, false, false, &get_p, &set_p},
-    {"q", svt_Boolean, &q, false, false, false, &get_q, &set_q},
-    {"r", svt_Float, &r, false, false, false, &get_r, &set_r},
-    {"s", svt_Float, &s, false, false, false, &get_s, &set_s},
+    {"m", svt_Integer, &m, false, false, false, &get_m, &set_m, &set_m},
+    {"n", svt_Integer, &n, false, false, false, &get_n, &set_n, &set_n},
+    {"o", svt_Integer, &o, false, false, false, &get_o, &set_o, &set_o},
+    {"p", svt_Boolean, &p, false, false, false, &get_p, &set_p, &set_p},
+    {"q", svt_Boolean, &q, false, false, false, &get_q, &set_q, &set_q},
+    {"r", svt_Float, &r, false, false, false, &get_r, &set_r, &set_r},
+    {"s", svt_Float, &s, false, false, false, &get_s, &set_s, &set_s},
     0
 };
 
@@ -47,6 +47,7 @@ void dump_defined_vars(){
     printf(" m=%d\n",m);
     printf(" n=%d\n",n);
     printf(" o=%d\n",o);
+;
     printf(" p=%s\n",p?"true":"false");
     printf(" q=%s\n",q?"true":"false");
     printf(" r=%f\n",r);
@@ -54,5 +55,5 @@ void dump_defined_vars(){
     fflush(stdout);
 }
 
-static const char global_monitor_id[] = "monid_00004";
+static const char global_monitor_id[] = "monid_00002";
 

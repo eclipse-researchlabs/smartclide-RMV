@@ -18,7 +18,7 @@
 
 % rmv-server command line options
 %
-%    --port    --portnumber --pqport -p    <integer>
+%    --port    --portnumber -p    <integer>
 %    --initialfile -i   <filename>   % not currently used, could be a global rmv config file
 %    --selftest -s
 %    --token   -t    <rmvtoken>
@@ -26,6 +26,7 @@
 %    --jsonresp -j
 %    --epp      -e
 %    --context  -c   <URL of Context System>
+%    --nurvsim  -n
 %
 rmv_server_opt_spec([
         [opt(portnumber), meta('RP'), type(integer), shortflags([p]), longflags(['port','portnumber']),
@@ -42,6 +43,9 @@ rmv_server_opt_spec([
          help( 'enable Event Processing Point' )],
         [opt(context), meta('URL'), type(atom), shortflags([c]), longflags(['context']),
 	 	 help( 'URL of Context system' )],
+	% the following are only for testing
+		% [opt(awake), type(boolean), default(false), shortflags([a]), longflags(['awake','nosleep']),
+		%  help( 'stay awake in top-level loop after starting server' )],
 		[opt(nurvsim), type(boolean), default(false), shortflags([n]), longflags(['nurvsim']),
 		  help( 'NuRV simulation' )],
 		[opt(guitracer), type(boolean), default(false), shortflags([g]), longflags(['guitracer']),
@@ -166,6 +170,11 @@ rmv_server_with_opts(Opts) :-
 	->  guitracer
 	;   true
 	),
+
+	% (   memberchk(awake(true),Opts)
+	% ->  param:setparam(sleep_after_server_start,off)
+	% ;   true
+	% ),
 
 	create_server_audit_log,
 	http_server(http_dispatch, [port(RPort)]),

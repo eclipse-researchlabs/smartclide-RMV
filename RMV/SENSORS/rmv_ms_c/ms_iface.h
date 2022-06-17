@@ -45,7 +45,8 @@ void ms_responder(){
 int ms_startup(){
     // the first part of this would change if config source is not a file
     if( ms_configuration_file[0] == '\0' ){
-        strcpy(ms_configuration_file, global_monitor_id);
+        strcpy(ms_configuration_file, RUNTIME_MONITORS_PATH);
+        strcat(ms_configuration_file, global_monitor_id);
         strcat(ms_configuration_file, CONFIG_FILENAME_SUFFIX);
     }
     VERBOSE(0){printf("ms_startup configuration: %s\n",ms_configuration_file);fflush(stdout);}
@@ -171,7 +172,7 @@ void ms_recovery( void (*recoveryp)() ){
     sus_recovery_callback = recoveryp;
 }
 
-% ONLY FOR TESTING:
+// ONLY FOR TESTING:
 
 void ms_run_behavior(){
     VERBOSE_MSG(0,"ms_run_behavior()\n");
