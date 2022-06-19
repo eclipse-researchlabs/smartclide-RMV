@@ -288,7 +288,8 @@ prettyprint_tab(2). % tab indent for pretty printed output
 host_os(os_x). % define only one
 % host_os(linux). % define only one
 % host_os(windows). % define only one
-nurv_read_delay(0.05). % 0.05 seems fairly reliable; 0.01 is too short to be reliable
+nurv_read_delay(0.1). % 0.1 seems fairly reliable; 0.01 is too short to be reliable
+nurv_read_max_delay(0.5).
 
 % External utilities
 %

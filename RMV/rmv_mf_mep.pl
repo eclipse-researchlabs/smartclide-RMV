@@ -64,10 +64,14 @@ report_event(Event, Reply) :- ms_event(Event), !,
 % mep_monitor_start(+Mid,-Status)
 mep_monitor_start(Mid,Status) :-
     %writeln(user_error,mep_monitor_start(Mid)), flush_output(user_error),
+    %epp_log_gen(monitor_event_processing, 'entering mep_monitor_start'),
     monitor(Mid,Monitor), !,
-    initiate_monitor(Monitor,SessId),
-	Status = [monitor_started,session(SessId)],
-    epp_log_gen(monitor_event_processing, monitor_start(success,Status)),
+    %epp_log_gen(monitor_event_processing, 'monitor struct returned from ML'),
+    (   initiate_monitor(Monitor,SessId)
+    ->  Status = [monitor_started,session(SessId)], Success=success
+    ;   Status = [monitor_not_started], Success=failure
+    ),
+    epp_log_gen(monitor_event_processing, monitor_start(Success,Status)),
     %monid_sessid_muniq_suniq(_,SessId,_,NSid), dump_nu_lines_nsid(NSid),
     true.
 mep_monitor_start(Mid,Status) :-
@@ -90,6 +94,43 @@ mep_monitor_stop(SessId,[unexpected_failure(SessId)]) :-
     epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_failure(SessId))),
     %monid_sessid_muniq_suniq(_,SessId,_,NSid), dump_nu_lines_nsid(NSid),
     true.
+
+%-------------------------------------------------------
+% INITIATE/TERMINATE A RUNTIME MONITOR SESSION
+%   note there are two levels of session: the global unique session with the full session id
+%   and the last part of the global session id which is the NuRV session id
+%
+initiate_monitor(M,SessId) :-
+    cons_monitor(MonitorId,_SSpecId,ModelId,_,_,_,MScv,_,_,M),
+    epp_log_gen(monitor_event_processing, initiate_monitor(MonitorId)),
+    MScv=ms_cv(MonitorId,_Vdecl,_Vo,_Vm,_Vp,_Vr,_Vt,_Atoms,AEval,_Vinit,_Beh,_Timer,_Host,_Port),
+    % the MonitorId alone is not a sufficient SessId because there can be multiple instances
+    % so a unique id is created (either the pid of a NuRV session or other unique id)
+    param:rmv_monitor_id_prefix(MonIdPref), param:rmv_session_id_prefix(SessIdPref),
+    atom_concat(MonIdPref,MonIdUniq,MonitorId), % extract unique part of Monitor ID
+
+    (   AEval == no_eval % this is a RMV-only session, no NuRV session
+    ->  uuid(SessUniq) % make unique part of Session ID
+    ;   % the RMV session includes an interactive NuRV session
+        param:monitor_directory_name(MD),
+        atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
+        atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
+
+        (   nurv_monitor_init(MonitorId,SMVmodelFile,SMVordFile,SessUniq)
+        ->  true
+        ;   !, fail
+        )
+    ),
+    atomic_list_concat([SessIdPref,MonIdUniq, '_', SessUniq], SessId),
+    init_session(SessId, monitor_framework),
+	true.
+
+terminate_monitor(SessId) :-
+    monid_sessid_muniq_suniq(_,SessId,_,NSid),
+    nurv_monitor_stop(NSid),
+	%display_session_log_nsid(NSid,clear),
+    %dump_nu_lines_nsid(NSid),
+    ( is_session(SessId, monitor_framework) -> end_session(SessId) ; true ).
 
 
 % mep_heartbeat/3
@@ -176,6 +217,15 @@ mep_heartbeat(Mid,Sid,Eval,AtomIds,Reportables,Status) :-
     ),
     true.
 */
+% nameserver version - TODO
+initiate_monitor2(M,SessId) :-
+    cons_monitor(MonitorId,SessId,_,_,_,_,_,_,_,M),
+    open_nurv_session(orbit,NuRVSessId,MonitorId),
+	param:local_nameserver_IOR(IOR),
+	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
+	nurv_session_cmd_resp(NuRVSessId,ServerCmd,_Resp),
+	true.
+
 % temporary stub for notifications:
 notifications(monitor_report,Sid,Status) :-
     %monid_sessid_muniq_suniq(Mid,Sid,Muniq,Suniq),
@@ -190,48 +240,6 @@ notifications(monitor_verdict,Sid,Reportables,Verdict) :-
     epp_log_gen(monitor_event_processing, notification(monitor_verdict,Sid,Verdict)),
     %format('notification: monitor report ~q:~a verdict: ~q~n',[Mid,Sid,Verdict]),
     true.
-
-%-------------------------------------------------------
-% INITIATE/TERMINATE A RUNTIME MONITOR SESSION
-%   note there are two levels of session: the global unique session with the full session id
-%   and the last part of the global session id which is the NuRV session id
-%
-initiate_monitor(M,SessId) :-
-    cons_monitor(MonitorId,_SSpecId,ModelId,_,_,_,MScv,_,_,M),
-    MScv=ms_cv(MonitorId,_Vdecl,_Vo,_Vm,_Vp,_Vr,_Vt,_Atoms,AEval,_Vinit,_Beh,_Timer,_Host,_Port),
-    % the MonitorId alone is not a sufficient SessId because there can be multiple instances
-    % so a unique id is created (either the pid of a NuRV session or other unique id)
-    param:rmv_monitor_id_prefix(MonIdPref), param:rmv_session_id_prefix(SessIdPref),
-    atom_concat(MonIdPref,MonIdUniq,MonitorId), % extract unique part of Monitor ID
-
-    (   AEval == no_eval % this is a RMV-only session, no NuRV session
-    ->  uuid(SessUniq) % make unique part of Session ID
-    ;   % the RMV session includes an interactive NuRV session
-        param:monitor_directory_name(MD),
-        atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
-        atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
-
-        nurv_monitor_init(MonitorId,SMVmodelFile,SMVordFile,SessUniq)
-    ),
-    atomic_list_concat([SessIdPref,MonIdUniq, '_', SessUniq], SessId),
-    init_session(SessId, monitor_framework),
-	true.
-
-terminate_monitor(SessId) :-
-    monid_sessid_muniq_suniq(_,SessId,_,NSid),
-    nurv_monitor_stop(NSid),
-	%display_session_log_nsid(NSid,clear),
-    %dump_nu_lines_nsid(NSid),
-    ( is_session(SessId, monitor_framework) -> end_session(SessId) ; true ).
-
-% nameserver version
-initiate_monitor2(M,SessId) :-
-    cons_monitor(MonitorId,SessId,_,_,_,_,_,_,_,M),
-    open_nurv_session(orbit,NuRVSessId,MonitorId),
-	param:local_nameserver_IOR(IOR),
-	atomic_list_concat(['monitor_server -N ',IOR],ServerCmd),
-	nurv_session_cmd_resp(NuRVSessId,ServerCmd,_Resp),
-	true.
 
 
 :- dynamic test_vars/1.

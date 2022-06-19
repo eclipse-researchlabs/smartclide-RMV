@@ -94,8 +94,9 @@ void ms_shutdown(){
     ms_global_trigger_enable = false;
 
     VERBOSE_MSG(0,"ms_shutdown()\n");
-    VERBOSE_MSG(2,"\ncalling mep_monitor_stop\n");
-    mep_monitor_stop(mip->mi_cv.monitor_id, mip->mi_sessid, &mip->mi_mstatus);
+    //VERBOSE_MSG(2,"\ncalling mep_monitor_stop\n");
+    VERBOSE(0){printf("\ncalling mep_monitor_stop for session %s\n",mip->mi_sessid);fflush(stdout);}
+    mep_monitor_stop(mip->mi_sessid, &mip->mi_mstatus);
     if( mip->mi_mstatus != monitor_stopped ){
         printf("error from mep_monitor_stop\n"); fflush(stdout);
     }else VERBOSE_MSG(2,"monitor stopped\n");

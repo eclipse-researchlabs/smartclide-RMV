@@ -5,7 +5,7 @@
 #define MONITOR_VARS_H_FILENAME "../../../RUNTIME/MONITORS/monid_00004_vars.h"
 
 //#define MS_TEST
-#define VERBOSITY 0  // set to -1 for silence
+#define VERBOSITY -1  // set to -1 for silence
 #define VERBOSE(L) if(VERBOSITY >= L)
 #define VERBOSE_MSG(L,M) if(VERBOSITY >= L){printf(M);fflush(stdout);}
 
@@ -36,6 +36,7 @@
 #define BEHAVIOR_SEQ_SZ 50 // max length of a behavior sequence
 #define ATOM_OP_MAX_LEN 20
 #define ATOM_ARG_MAX_LEN 50
+#define SESSION_ID_SZ 128
 #define SIMULATED_MEP false   // set false to use real MEP
 #define EPP_TOKEN "epp_token"
 #define MEP_TOKEN "mep_token"
@@ -300,7 +301,7 @@ static char JSON_STRING[JSON_STRING_SZ] = "";
 bool ms_mep_comm_is_open = false;
 int ms_mep_comm_sock = -1;
 //int ms_mep_session_num;
-char ms_mep_session_id[100]; // session identifier as a string
+char ms_mep_session_id[SESSION_ID_SZ]; // session identifier as a string
 
 // SUS can register a callback function to handle MEP recovery indicator
 void (*sus_recovery_callback)() = NULL;
@@ -525,7 +526,7 @@ void send_MEP_monitor_start(char *request_ep,char *mid,char **Response){
     }
 }
 
-void send_MEP_monitor_stop(char *request_ep,char *mid,char *sid,char **Response){
+void send_MEP_monitor_stop(char *request_ep,char *sid,char **Response){
     char req_buf[STRINGS_SZ]; char encode_buf[CHARS_SZ];
     static char resp_buf[RESPONSE_BUF_SZ];
     char *req_pieces[] =
@@ -662,12 +663,12 @@ void mep_monitor_start(char *Mid, char **Msessid, mstatus *Mstatus){
     //VERBOSE(1){printf("Monitor session id: %s starting\n", *Msessid); fflush(stdout); }
 };
 
-void mep_monitor_stop(char *Monid, char *Msessid, mstatus *Mstatus){
+void mep_monitor_stop(char *Msessid, mstatus *Mstatus){
     char *Response, *respStatus, *respMessage, *respBody;
 
     if( SIMULATED_MEP ){
     }else{
-        send_MEP_monitor_stop("/mep/monitor_stop",Monid,Msessid,&Response);
+        send_MEP_monitor_stop("/mep/monitor_stop",Msessid,&Response);
         parse_mep_response(Response,&respStatus,&respMessage,&respBody);
         if( strcmp(respStatus,"success") != 0 ){
             VERBOSE(2){printf("unexpected failure of monitor_stop\n");fflush(stdout);}

@@ -14,6 +14,7 @@
 		     ]).
 
 :- use_module(['COM/param','COM/ui','COM/sessions','RMV/rmv_na','RMV/rmv_ml','RMV/rmv_mc']).
+:- use_module('EPP/epp').
 
 :- dynamic simulated_heartbeat_responses/2. % lists used to initialize monitor_response_list
 simulated_heartbeat_responses(1,[]).
@@ -180,11 +181,11 @@ nurv_session_cmd(NSid,Cmd) :-
 %	writeln(Cmd), flush_output,
 	assertz( nurv_session_log(NSid,Cmd) ),
 	save_nu_line(NSid,Cmd),
-	true.
+	!.
 
 nurv_session_cmd_resp(NSid,Cmd,Resp) :-
     nurv_session_cmd(NSid,Cmd),
-	nurv_session_get_resp(NSid,Resp).
+	nurv_session_get_resp(NSid,Resp), !.
 
 nurv_session_get_resp(NSid,Resp) :-
 	read_nu_line(NSid,NuL,LenL),
@@ -202,20 +203,28 @@ nurv_session_get_resp(NSid,Resp) :-
 		)
 	;
 		Resp = NuL % nurv_session_get_resp(NSid,Resp)
-	).
+	),
+	!.
 
 % nurv_monitor_init(+MonitorId,+Infile,+Ordfile,-NSid)
 nurv_monitor_init(MonitorId,Infile,Ordfile,NSid) :- param:rmv_nurv_simulation(false), !,
+	% TODO - some timing sensitivity here
 	atomic_list_concat(['set input_file ',Infile],Cmd1),
 	atomic_list_concat(['set input_order_file ',Ordfile],Cmd2),
 	param:local_NuRV_prompt(NuRVp),
-	open_nurv_session(int,NSid,MonitorId),
-	nurv_session_get_resp(NSid,NuRVp),
-	nurv_session_cmd_resp(NSid,Cmd1,NuRVp),
-	nurv_session_cmd_resp(NSid,Cmd2,NuRVp),
-	nurv_session_cmd_resp(NSid,go,NuRVp),
-	nurv_session_cmd_resp(NSid,'build_monitor -n 0',NuRVp),
-	true.
+	open_nurv_session(int,NSid,MonitorId), !,
+	(	(
+			nurv_session_get_resp(NSid,NuRVp),
+			nurv_session_cmd_resp(NSid,Cmd1,NuRVp),
+			nurv_session_cmd_resp(NSid,Cmd2,NuRVp),
+			nurv_session_cmd_resp(NSid,go,NuRVp),
+			nurv_session_cmd_resp(NSid,'build_monitor -n 0',NuRVp)
+		)
+	-> true
+	;	epp_log_gen(monitor_event_processing, nurv_monitor_init('initialization failure',NSid)),
+		quit_nurv_session(NSid), !, fail
+	).
+
 nurv_monitor_init(_,_,_,'99999') :- param:rmv_nurv_simulation(true), !,
 	init_monitor_responses('99999',2),
 	true.
@@ -272,11 +281,15 @@ open_nurv_session(int,NuRVSessionId,MonitorId) :- % open interactive NuRV sessio
 	param:local_NuRV(_,NuRV),
 	process_create(path(NuRV),['-quiet', '-int'],
 		       [process(NuRVpid),stdin(pipe(ToStream)),stdout(pipe(FromStream))]),
+	epp_log_gen(monitor_event_processing, open_nurv_session('NuRV started',NuRVpid)),
 	atom_number(NuRVSessionId,NuRVpid),
 	( param:verbose(on) -> format('NuRV session ~a~n',NuRVSessionId) ; true ),
-	assert( nurv_session(NuRVSessionId,int,MonitorId,ToStream,FromStream) ).
+	assert( nurv_session(NuRVSessionId,int,MonitorId,ToStream,FromStream) ),
+	true.
 
 open_nurv_session(orbit,NuRVSessionId,MonitorId) :- % open orbit NuRV session
+	% TODO when returning to this version - must make consistent with int
+	%epp_log_gen(monitor_event_processing, open_nurv_session_orbit(1)),
 	param:monitor_directory_name(MD),
 	atomic_list_concat([MD,'/',ModelId,'.smv'],SMVmodelFile),
 	atomic_list_concat([MD,'/',ModelId,'.ord'],SMVordFile),
@@ -289,6 +302,7 @@ open_nurv_session(orbit,NuRVSessionId,MonitorId) :- % open orbit NuRV session
 	assert( nurv_session(NuRVSessionId,orbit,MonitorId,ToStream,FromStream) ),
 	nurv_session_cmd_resp(Sid,go,_Resp1),
 	nurv_session_cmd_resp(Sid,'build_monitor -n 0',_Resp2),
+	%epp_log_gen(monitor_event_processing, open_nurv_session_orbit(2)),
 	true.
 /*
 % NuRV -quiet -int -i disjoint.ord -source t.cmd disjoint.smv
@@ -307,6 +321,7 @@ quit_nurv_session :- % assumes only one active session TODO
 
 quit_nurv_session(NSessionId) :- % send quit command, then close
 	nurv_session_cmd_resp(NSessionId,quit,_),
+	% nurv_session_cmd(NSessionId,quit),
 	close_nurv_session(NSessionId).
 
 close_nurv_session(NSessionId) :- % only close the session
@@ -316,6 +331,7 @@ close_nurv_session(NSessionId) :- % only close the session
 	retractall( nurv_session(NSessionId,_,_,_,_) ),
 	atom_number(NSessionId,NuRVpid),
 	process_wait(NuRVpid,Exit), Exit = _,
+	epp_log_gen(monitor_event_processing, close_nurv_session('NuRV ended',NSessionId)),
 	%compound(Exit), writeln(user_error,Exit),
 	true.
 
@@ -421,7 +437,7 @@ run_trace_do(Mon,State,NewMon,Sid) :-
 	%writeln(Cmd),
 	NewMon = Mon.
 
-% tests
+% tests - probably obsolete now
 %
 % test - open interactive NuRV session, enter top-level loop relaying comms
 %        close the session after user quits the interactive loop

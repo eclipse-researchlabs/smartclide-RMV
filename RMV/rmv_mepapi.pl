@@ -44,13 +44,21 @@ mepapi_monitor_start(Request) :-
 mepapi_monitor_start(_) :- epp_log_gen(mepapi, monitor_start(failure)).
 
 monitor_start_aux(Mid) :- !,
-	(	(mep_monitor_start(Mid,Status), memberchk(monitor_started, Status), memberchk(session(Sid), Status))
-	->	std_resp_MS(success,'monitor_start',session(Sid))
-		% , epp_log_gen(monitor_event_processing, monitor_start(success,Status))
-	;	std_resp_MS(failure,'monitor_start',Mid)
-		% , epp_log_gen(monitor_event_processing, monitor_start(failure))
-	),
-	true.
+	(	mep_monitor_start(Mid,Status)
+	->	(	memberchk(monitor_started, Status)
+		->	(	memberchk(session(Sid), Status)
+			->	%epp_log_gen(mepapi, monitor_start(success,Status)),
+				std_resp_MS(success,'monitor_start',session(Sid))				
+			;	epp_log_gen(mepapi, monitor_start(no_session_id_returned)),
+				std_resp_MS(failure,'monitor_start','no session id returned')
+			)
+		;	%epp_log_gen(mepapi, monitor_start(monitor_not_started)),
+			std_resp_MS(failure,'monitor_start','monitor not started')			
+		)
+	;	std_resp_MS(failure,'monitor_start','general failure'),
+		epp_log_gen(mepapi, monitor_start(general_failure))
+	).
+
 
 % monitor_stop
 mepapi_monitor_stop(Request) :-
@@ -77,9 +85,10 @@ monitor_stop_aux(Sid) :-
 		;	std_resp_MS(failure,monitor_stop,unexpected_status)
 			% , epp_log_gen(monitor_event_processing, monitor_stop(failure,unexpected_status))
 		)
-	;	std_resp_MS(failure,'monitor_stop','malformed session ID'),
-		epp_log_gen(mepapi, monitor_stop(failure,'malformed session ID'))
+	;	epp_log_gen(mepapi, monitor_stop(failure,'malformed session ID')),
+		std_resp_MS(failure,'monitor_stop','malformed session ID')		
 	).
+
 
 % monitor_heartbeat
 mepapi_monitor_heartbeat(Request) :-

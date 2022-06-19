@@ -28,6 +28,7 @@
 :- use_module([rmv_ml_mt,rmv_ml_pst]).
 :- use_module(library('http/json')).
 :- use_module(library('http/json_convert')).
+:- use_module('EPP/epp').
 
 %:- use_module(library(test_wizard)).
 %:- set_prolog_flag(log_query_file, 'queries.pl').
@@ -131,9 +132,31 @@ is_model(Model) :-
 
 % MONITOR
 
-monitor( MonId, Monitor ) :- % lookup stored monitor by id
-        monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ),
+% monitor(MonId, Monitor) lookup stored monitor by id
+% If the monitor is not in the library try looking for the JSON
+% file for the named monitor and load it if found.
+% This could be extended for monitors stored as a monitor term in a .pl file.
+% Could also be persistent Prolog data or an external database.
+% May need to make a separate predicate monitor_file_load/2 to do the work of second
+% clause here because in some cases may not necessarily want auto-loading.
+% could then check in rmv_mf_mep:mep_monitor_start if the monitor exists (with monitor/2)
+% and if not then call monitor_file_load/2.
+monitor( MonId, Monitor ) :-
+        monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ), !,
         Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ).
+monitor( MonId, Monitor ) :-
+        epp_log_gen(monitor_library, 'monitor not in memory, looking for file'),
+        monitor_directory_name(MD),
+        atomic_list_concat([MD,'/',MonId,'.json'],MonitorFileName),
+        exists_file(MonitorFileName),
+        open(MonitorFileName,read,S),
+        json_read(S,JSONterm),
+        close(S),
+        pjson2monitor(JSONterm,Monitor),
+        is_monitor(Monitor,MonId),  % make sure the read monitor is good and that its Id matches
+        load_monitor(Monitor),  % store the monitor in the Library
+        epp_log_gen(monitor_library, 'monitor loaded from file'),
+        true.
 
 cons_monitor(MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile, Monitor) :- % construct/deconstruct
         Monitor = monitor( MonId, SSpecId, ModId, Properties, MSlang, MSfile, MScv, MSCVfile, SVfile ).

@@ -22,6 +22,7 @@ syntax(init_ms,                                                  rmv).
 
 syntax(nurv_session,                                             rmv).
 syntax(stop_nurv,                                                rmv).
+syntax(stop_nurv(session),                                       rmv).
 syntax(import_sspec(serv_spec_file,serv_spec_id),                rmv).
 syntax(nldump(nsid),                                             rmv).
 
@@ -35,7 +36,7 @@ syntax(graph_mon,                                                rmv).
 syntax(export_mon,                                               rmv).
 
 syntax(monitor_start(monitor_id),                                rmv).
-syntax(monitor_stop(monitor_id,session_id),                      rmv).
+syntax(monitor_stop(session_id),                      rmv).
 
 syntax(nu_add_prop,                                              rmv).
 syntax(nu_show_prop,                                             rmv).
@@ -55,11 +56,12 @@ syntax(stop_nameserver,                                          rmv).
 %
 semantics(import_sspec(F,V)) :- !, atom(F), var(V).
 semantics(monitor_start(M)) :- !, atom(M).
-semantics(monitor_stop(M,S)) :- !, atom(M), ( atom(S) ; number(S) ).
+semantics(monitor_stop(S)) :- !, ( atom(S) ; number(S) ).
 semantics(rmv_server(A)) :- !, atomic(A), (number(A) ; A==nurvsim).
 semantics(rmvt(T)) :- !, atom(T).
 semantics(rmvt(T,E)) :- !, atom(T), atom(E).
 semantics(rmvt(T,E,L)) :- !, atom(T), atom(E), atom(L).
+semantics(stop_nurv(S)) :- !, ( atom(S) ; number(S) ).
 semantics(nldump(NSid)) :- !, atomic(NSid).
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -75,6 +77,7 @@ help(rmvt,      'run an rmv built-in test. Default is \'e2e\'.').
 help(rmvt,      'Arg1 (opt) is a test identifier.').
 help(rmvt,      'Arg2 (opt) is evaluation mode (ms_eval, mep_eval, no_eval).').
 help(rmvt,      'Arg3 (opt) is monitor sensor language (ms_pl, ms_c).').
+help(stop_nurv, 'Arg1 (opt) NuRV session to stop.').
 
 help(init_ms,	'Initialize the Prolog Monitor Sensor configuration.').
 
@@ -83,9 +86,11 @@ help(init_ms,	'Initialize the Prolog Monitor Sensor configuration.').
 % known broken or unimplemented commands should just "fail." straightaway
 %
 do(stop_nurv) :- !, rmv_mc_nui:quit_nurv_session.
+do(stop_nurv(Sess)) :- number(Sess), !, atom_number(A,Sess), do(stop_nurv(A)).
+do(stop_nurv(Sess)) :- atom(Sess), !, rmv_mc_nui:quit_nurv_session(Sess).
 
 do(monitor_start(M)) :- !, rmv_mf_mep:mep_monitor_start(M,Status),writeln(Status).
-do(monitor_stop(M,S)) :- !, rmv_mf_mep:mep_monitor_stop(M,S,Status),writeln(Status).
+do(monitor_stop(Sess)) :- !, rmv_mf_mep:mep_monitor_stop(Sess,Status),writeln(Status).
 
 do(rmv) :- user_mode(rmv), !, writeln('Already in rmv mode').
 do(rmv) :- !, user_mode(M), retractall(user_mode(_)), assert(user_mode(rmv)),
