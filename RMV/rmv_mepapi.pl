@@ -23,7 +23,7 @@
 :- http_handler(root(mep/monitor_start), mepapi_monitor_start, [prefix]).
 :- http_handler(root(mep/monitor_stop), mepapi_monitor_stop, [prefix]).
 :- http_handler(root(mep/monitor_heartbeat), mepapi_monitor_heartbeat, [prefix]).
-:- http_handler(root(mep/monitor_test), mepapi_monitor_test, [prefix]).
+:- http_handler(root(mep/monitor_test), mepapi_monitor_test, [prefix]). % only for testing
 
 mepapi([monitor_start,monitor_stop,monitor_heartbeat]). % MONITOR EVENT PROCESSING APIs
 

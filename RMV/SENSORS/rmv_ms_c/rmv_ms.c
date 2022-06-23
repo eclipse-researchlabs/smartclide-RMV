@@ -22,7 +22,7 @@ int main(int argc, char *argv[]){
 
     if( ms_startup() == EXIT_FAILURE ) return(EXIT_FAILURE);
 
-    //service_logic();
+    service_logic();
 
     ms_shutdown();
 

@@ -21,14 +21,14 @@
 :- http_handler(root(.), use_valid_api, []).
 :- http_handler(root(mcapi), root_apis(mcapi), []).
 :- http_handler(root('mcapi/'), api_unimpl, [prefix]).
-:- http_handler(root(mcapi/load_sspec), mcapi_load_sspec, [prefix]).
+:- http_handler(root(mcapi/loadi_sspec), mcapi_loadi_sspec, [prefix]).
 :- http_handler(root(mcapi/unload_sspec), mcapi_unload_sspec, [prefix]).
 :- http_handler(root(mcapi/create_monitor), mcapi_create_monitor, [prefix]).
 :- http_handler(root(mcapi/graph_monitor), mcapi_graph_monitor, [prefix]).
-:- http_handler(root(mcapi/loadmoni), mcapi_loadmoni, [prefix]).
-:- http_handler(root(mcapi/readmon), mcapi_readmon, [prefix]).
+:- http_handler(root(mcapi/loadi_monitor), mcapi_loadi_monitor, [prefix]).
+:- http_handler(root(mcapi/read_monitor), mcapi_read_monitor, [prefix]).
 
-mcapi([load_spec,create_monitor,graph_monitor,loadmoni,readmon]). % MONITOR CREATION APIs
+mcapi([loadi_spec,unload_sspec,create_monitor,graph_monitor,loadi_monitor,read_monitor]). % MONITOR CREATION APIs
 
 % ADD exposed NuRV operations:
 %         add_property, show_property, build_monitor, generate_monitor
@@ -48,8 +48,8 @@ mcapi([load_spec,create_monitor,graph_monitor,loadmoni,readmon]). % MONITOR CREA
 % assignments to the JSON response structure for each API are given in
 % the documentation
 
-% load_spec
-mcapi_load_sspec(Request) :-
+% loadi_sspec
+mcapi_loadi_sspec(Request) :-
 	std_resp_prefix,
 	catch(
 	    http_parameters(Request,[
@@ -58,15 +58,15 @@ mcapi_load_sspec(Request) :-
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
 	(   authenticate(Token)
-	->  load_sspec_aux(Sspec), !
+	->  loadi_sspec_aux(Sspec), !
 	;   true
 	).
-mcapi_load_sspec(_) :- audit_gen(monitor_creation, load_spec(failure)).
+mcapi_loadi_sspec(_) :- audit_gen(monitor_creation, load_spec(failure)).
 
-load_sspec_aux(SS) :-
+loadi_sspec_aux(SS) :-
 	(   ( ground(SS), load_service_spec_immediate(SS,ServId) )
 	->  std_resp_BS(success,'service spec loaded immediate',ServId),
-	    audit_gen(monitor_creation, load_spec(ServId,success))
+	    audit_gen(monitor_creation, loadi_sspec(ServId,success))
 	;   std_resp_MS(failure,'malformed spec or load error',failure),
 	    audit_gen(monitor_creation, load_spec('malformed spec or load error',failure))
 	).
@@ -144,8 +144,8 @@ graph_monitor_aux(_Mid) :-
 
 
 %-------------------------------------
-% loadmoni
-mcapi_loadmoni(Request) :-
+% loadi_monitor
+mcapi_loadi_monitor(Request) :-
 	std_resp_prefix,
 	catch(
 	     http_parameters(Request,[
@@ -157,11 +157,11 @@ mcapi_loadmoni(Request) :-
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
 	(var(Format) -> Format=json ; true), %default json
-	( ( authenticate(Token), loadmoni_aux(Monitor,Format) )
+	( ( authenticate(Token), loadi_mon_aux(Monitor,Format) )
 	; std_resp_MS(failure,loadmoni,'') ).
-mmcapi_loadmoni(_) :- audit_gen(monitor_creation, loadmoni(failure)).
+mcapi_loadi_monitor(_) :- audit_gen(monitor_creation, loadmoni(failure)).
 
-loadmoni_aux(MonitorAtom,Format) :-
+loadi_mon_aux(MonitorAtom,Format) :-
 	open_string(MonitorAtom,Stream),
 	(   Format == json
 	->  json_read(Stream,JSONterm),
@@ -180,7 +180,7 @@ loadmoni_aux(MonitorAtom,Format) :-
 
 %-------------------------------------
 % readmon
-mcapi_readmon(Request) :-
+mcapi_read_monitor(Request) :-
 	std_resp_prefix,
 	catch(
 	     http_parameters(Request,[
@@ -191,11 +191,11 @@ mcapi_readmon(Request) :-
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )
 	), !,
 	(var(Format) -> Format=json ; true), %default jaon
-	(	( authenticate(Token), readmon_aux(Mid,Format) )
-	;	std_resp_MS(failure,readmon,'') ).
-mmcapi_readmon(_) :- audit_gen(monitor_creation, readmon(failure)).
+	(	( authenticate(Token), read_mon_aux(Mid,Format) )
+	;	std_resp_MS(failure,read_monitor,'') ).
+mmcapi_read_monitor(_) :- audit_gen(monitor_creation, read_monitor(failure)).
 
-readmon_aux(Mid,Format) :- (Format==json ; Format==prolog ; Format==text), !,
+read_mon_aux(Mid,Format) :- (Format==json ; Format==prolog ; Format==text), !,
 	(   monitor(Mid,Monitor)
 	->  (	Format==json
 	    ->	rmv_ml:monitor2json(Monitor,MAtom)
@@ -207,7 +207,7 @@ readmon_aux(Mid,Format) :- (Format==json ; Format==prolog ; Format==text), !,
 	    ),
 	    std_resp_BS(success,'read monitor',MAtom)
 	;   std_resp_MS(failure,'unknown monitor',Mid),
-	    audit_gen(monitor_creation, readmon(Mid,failure))
+	    audit_gen(monitor_creation, read_monitor(Mid,failure))
 	).
 
 
