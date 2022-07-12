@@ -1,0 +1,5 @@
+site_name: SmartCLIDE Runtime Monitoring and Verification (RMV) Component
+repo_url: https://github.com/eclipse-researchlabs/smartclide-RMV
+
+nav:
+  - SmartCLIDE-RMV: 'index.md'
