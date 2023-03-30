@@ -22,7 +22,7 @@
 mraapi([monitor_list, monitor_subscribe, monitor_unsubscribe]). % MONITOR REQUEST APIs
 
 
-% monitor_start
+% monitor_list
 mrapi_monitor_list(Request) :-
 	std_resp_prefix,
 	catch(
@@ -36,6 +36,7 @@ mrapi_monitor_list(Request) :-
 mrapi_monitor_list(_) :- audit_gen(monitor_request, monitor_list(failure)).
 
 monitor_list(Filter) :- Filter = _,
+	std_resp_MS(success,monitor_list, ''),
 	true.
 
 % monitor_subscribe
@@ -43,7 +44,7 @@ mrapi_monitor_subscribe(Request) :-
 	std_resp_prefix,
 	catch(
 	     http_parameters(Request,[
-				 monitor_descriptor(Mdesc,[atom])
+				 monitor_descriptor(Mdesc,[atom]),
 				 notify(Notify,[atom])
 				]),
 	    _, ( std_resp_MS(failure,'missing parameter',''), !, fail )

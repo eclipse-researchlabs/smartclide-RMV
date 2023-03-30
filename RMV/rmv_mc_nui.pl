@@ -214,11 +214,16 @@ nurv_monitor_init(MonitorId,Infile,Ordfile,NSid) :- param:rmv_nurv_simulation(fa
 	param:local_NuRV_prompt(NuRVp),
 	open_nurv_session(int,NSid,MonitorId), !,
 	(	(
-			nurv_session_get_resp(NSid,NuRVp),
-			nurv_session_cmd_resp(NSid,Cmd1,NuRVp),
-			nurv_session_cmd_resp(NSid,Cmd2,NuRVp),
-			nurv_session_cmd_resp(NSid,go,NuRVp),
-			nurv_session_cmd_resp(NSid,'build_monitor -n 0',NuRVp)
+			(nurv_session_get_resp(NSid,NuRVp)
+			; epp_log_gen(monitor_event_processing, nurv_monitor_init('initial response failed',NSid)), fail),
+			(nurv_session_cmd_resp(NSid,Cmd1,NuRVp)
+			; epp_log_gen(monitor_event_processing, nurv_monitor_init('set input_file failed',NSid)), fail),
+			(nurv_session_cmd_resp(NSid,Cmd2,NuRVp)
+			; epp_log_gen(monitor_event_processing, nurv_monitor_init('set input_order_file failed',NSid)), fail),
+			(nurv_session_cmd_resp(NSid,go,NuRVp)
+			; epp_log_gen(monitor_event_processing, nurv_monitor_init('go command failed',NSid)), fail),
+			(nurv_session_cmd_resp(NSid,'build_monitor -n 0',NuRVp)
+			; epp_log_gen(monitor_event_processing, nurv_monitor_init('build_monitor failed',NSid)), fail)
 		)
 	-> true
 	;	epp_log_gen(monitor_event_processing, nurv_monitor_init('initialization failure',NSid)),

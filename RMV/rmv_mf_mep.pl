@@ -127,6 +127,7 @@ initiate_monitor(M,SessId) :-
 
 terminate_monitor(SessId) :-
     monid_sessid_muniq_suniq(_,SessId,_,NSid),
+    epp_log_gen(monitor_event_processing, terminate_monitor(SessId)),
     nurv_monitor_stop(NSid),
 	%display_session_log_nsid(NSid,clear),
     %dump_nu_lines_nsid(NSid),

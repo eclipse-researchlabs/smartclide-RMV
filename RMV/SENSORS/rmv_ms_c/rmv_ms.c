@@ -14,7 +14,6 @@ void service_logic(){
 }
 
 int main(int argc, char *argv[]){
-    char *filename = NULL;
  
     VERBOSE_MSG(0,"MS test\n");
 
